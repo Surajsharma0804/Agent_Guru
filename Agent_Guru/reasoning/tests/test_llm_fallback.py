@@ -119,12 +119,33 @@ class TestLLMIntentResponse:
 
 
 class TestRealCloudClients:
-    """The real SDK clients, built without a network call: when they give up.
+    """The real SDK clients, built without a network call: where they send
+    requests and when they give up.
 
-    Both SDKs kept their 600 s read timeout and 2 hidden retries under a 2 s
+    A DeepSeek key used to go to api.openai.com, which refused every call, and
+    both SDKs kept their 600 s read timeout and 2 hidden retries under a 2 s
     classify() limit, leaving a worker thread on the network after each
     timed-out attempt.
     """
+
+    def test_deepseek_selection_reaches_deepseek(self):
+        pytest.importorskip("openai")
+        from Agent_Guru.reasoning.intent.engine import IntentDetectionEngine
+
+        config = IntentDetectionEngine._select_llm_provider("sk-dummy", None, None)
+        client = LLMFallbackClassifier(config).client
+
+        assert str(client.base_url).startswith("https://api.deepseek.com")  # nosec B101
+        assert config.model == "deepseek-chat"  # nosec B101
+
+    def test_openai_selection_reaches_openai(self):
+        pytest.importorskip("openai")
+        from Agent_Guru.reasoning.intent.engine import IntentDetectionEngine
+
+        config = IntentDetectionEngine._select_llm_provider(None, "sk-dummy", None)
+        client = LLMFallbackClassifier(config).client
+
+        assert str(client.base_url).startswith("https://api.openai.com")  # nosec B101
 
     @pytest.mark.parametrize("provider", ["openai", "anthropic"])
     def test_sdk_gives_up_with_classify(self, provider):
