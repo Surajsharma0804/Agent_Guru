@@ -1,11 +1,10 @@
 """Agent Guru - Package entry point.
 
 Enables `python -m Agent_Guru` and serves as the PyInstaller entry point.
-Delegates to main.py's async main() function.
+Delegates to main.py's main(), which restarts the assistant after a crash.
 """
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
 
@@ -22,8 +21,11 @@ def _run() -> None:
     try:
         # Import from the top-level main.py
         sys.path.insert(0, _project_root)
+        # main() runs the assistant with main.py's restart-on-crash loop.
+        # This used to be asyncio.run(main()) against a main.py that had no
+        # main(), so every launch through here failed at the import.
         from main import main  # type: ignore[import-untyped]
-        asyncio.run(main())
+        main()
     except KeyboardInterrupt:
         print("\nAgent Guru shut down.")
     except Exception as exc:

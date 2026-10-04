@@ -566,7 +566,14 @@ async def run() -> None:
 # Entry point - with auto-restart on crash
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run the assistant, restarting it after a crash with exponential backoff.
+
+    This loop used to sit under ``if __name__ == "__main__"``, so only
+    ``python main.py`` had it. ``python -m Agent_Guru`` and the
+    ``agent-guru`` console script import ``main`` from this file, which did
+    not exist, and both failed at once with "cannot import name 'main'".
+    """
     import time as _time
 
     _restart_count = 0
@@ -600,3 +607,7 @@ if __name__ == "__main__":
     else:
         logger.critical("Max restart attempts (%d) exhausted. Exiting.", _MAX_RESTART_ATTEMPTS)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
