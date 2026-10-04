@@ -57,7 +57,7 @@ gitpython>=3.1.60  # <3.1.60: config_writer() round trip injects config directiv
 
 # --- Security ---
 cryptography>=41.0.0
-pyjwt>=2.8.0
+pyjwt>=2.14.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9)
 defusedxml>=0.7.1
 
 # --- Packaging (needed to build the wheel) ---
