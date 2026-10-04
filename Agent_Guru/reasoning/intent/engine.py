@@ -296,8 +296,6 @@ class IntentDetectionEngine:
         gemini_key: str | None,
     ) -> "LLMFallbackConfig":
         """Select the best available LLM provider."""
-        import os
-
         if deepseek_key:
             if gemini_key:
                 _logger.info("LLM Fallback: DeepSeek PRIMARY + Gemini BACKUP (MULTI-API)")
@@ -307,6 +305,10 @@ class IntentDetectionEngine:
                 provider="openai",
                 model="deepseek-chat",
                 api_key=deepseek_key,
+                # DeepSeek speaks the OpenAI protocol at its own address.
+                # Without this the key went to api.openai.com and every
+                # fallback classification was refused.
+                base_url="https://api.deepseek.com",
                 timeout_ms=2000.0,
             )
 
