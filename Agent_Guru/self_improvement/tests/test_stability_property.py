@@ -395,6 +395,11 @@ class TestConvergenceToStability:
                 epsilon=0.05,  # Low exploration for convergence
                 stability_monitor=monitor,
                 enable_dampening=True,
+                # Seeded from the example, so a failure reproduces. The
+                # optimizer drew from secrets.SystemRandom, which cannot be
+                # seeded, and Hypothesis reported this test as flaky: an
+                # example scored 0.39 once and passed when replayed.
+                rng=random.Random(f"{num_events}-{true_best_rate}"),  # nosec B311
             )
 
             # Register strategies with clear performance difference
