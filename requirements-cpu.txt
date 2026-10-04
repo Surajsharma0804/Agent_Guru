@@ -55,7 +55,7 @@ av>=11,<19
 transformers>=4.30.0
 tokenizers>=0.13.0
 sentencepiece>=0.1.99
-sentence-transformers>=2.2.0
+sentence-transformers>=5.6.0  # earlier: custom code from local models (GHSA-jhr6-gm9c-rqjv)
 
 # Vector Database for Memory System
 # Was declared only in requirements.txt, so the documented CPU-only
@@ -118,7 +118,7 @@ psutil>=5.9.0
 
 # Security
 cryptography>=41.0.0
-pyjwt>=2.8.0
+pyjwt>=2.14.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9)
 
 # Database (for memory system)
 sqlalchemy>=2.0.0
