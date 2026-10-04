@@ -156,7 +156,10 @@ class ApplicationController:
         for why checking the caller's input string alone isn't enough.
         """
         try:
-            for process in self._platform_integration.get_process_list():
+            # Only pid and name are needed. The full read (status, CPU and
+            # memory per process) took 3 to 5 s on Windows, and closing an app
+            # runs this check after a lookup by name that paid the same again.
+            for process in self._platform_integration.get_process_list(include_usage=False):
                 if process.pid == pid:
                     return process.name
         except Exception:
@@ -774,7 +777,7 @@ class ApplicationController:
 
         """
         try:
-            processes = self._platform_integration.get_process_list()
+            processes = self._platform_integration.get_process_list(include_usage=False)
             app_name_lower = app_name.strip().lower()
 
             # Build the set of exe names to match against
@@ -1610,7 +1613,7 @@ class ApplicationController:
         logger.debug("Listing running applications")
 
         try:
-            processes = self._platform_integration.get_process_list()
+            processes = self._platform_integration.get_process_list(include_usage=False)
             windows = self.list_windows()
 
             # Group windows by PID
