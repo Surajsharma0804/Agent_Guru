@@ -68,7 +68,18 @@ class OpenAIProvider(BaseLLMProvider):
 
         super().__init__(config)
         self.model = model
-        self.client = AsyncOpenAI(api_key=config.api_key)
+        # config.timeout_seconds was never given to the SDK, which then used
+        # its own 600 s read timeout and 2 retries of its own. BaseLLMProvider
+        # does not wrap calls in asyncio.wait_for, on the assumption that
+        # _generate_impl enforces the deadline (the Ollama provider does, with
+        # aiohttp), so one stalled request could hold a turn for 10 minutes,
+        # 3 SDK attempts per base retry. The SDK now stops at the configured
+        # deadline and leaves retrying to generate()'s loop.
+        self.client = AsyncOpenAI(
+            api_key=config.api_key,
+            timeout=config.timeout_seconds,
+            max_retries=0,
+        )
 
     def get_provider_type(self) -> LLMProvider:
         """Get provider type."""
