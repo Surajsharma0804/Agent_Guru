@@ -29,6 +29,16 @@
 #   See docs/security/dependency-triage-2026-09.md. Each removed pin was
 #   checked: no remaining pin, no manifest and no import needs it.
 #
+# Removed 2026-10-04: grpcio-tools==1.83.0 and pipwin==0.5.2, both orphans.
+#   grpcio-tools requires protobuf>=7.35.1 against the pinned 5.29.6, so
+#   pip could not resolve this file at all. pipwin requires js2py, so
+#   installing the file brought back js2py (no fixed release for its
+#   advisories) and beautifulsoup4 unpinned. pip now resolves every pin
+#   here to exactly the pinned version and installs nothing else.
+# Upgraded 2026-10-04 for new critical/high advisories: PyJWT 2.14.0,
+#   sentence-transformers 5.6.0, urllib3 2.8.0, virtualenv 21.7.13 (which
+#   needs python-discovery 1.6.1).
+#
 # This snapshot predates several declared dependencies (pytest-timeout,
 # pytorch-lightning). Regenerate it from a clean install before relying on
 # it for a reproducible build.
@@ -138,7 +148,6 @@ googleapis-common-protos==1.75.0
 greenlet==3.5.4
 grpcio==1.83.0
 grpcio-status==1.71.2
-grpcio-tools==1.83.0
 h11==0.16.0
 hf-xet==1.5.0
 httpcore==1.0.9
@@ -238,7 +247,6 @@ pathspec==1.1.1
 pefile==2024.8.26
 phonemizer-fork==3.3.2
 pillow==12.3.0
-pipwin==0.5.2
 platformdirs==4.9.6
 playwright==1.59.0
 pluggy==1.6.0
@@ -270,7 +278,7 @@ PyGetWindow==0.0.9
 Pygments==2.20.0
 pyinstaller==6.21.0
 pyinstaller-hooks-contrib==2026.6
-PyJWT==2.13.0
+PyJWT==2.14.0
 PyMsgBox==2.0.1
 pynput==1.8.1
 pyparsing==3.3.2
@@ -286,7 +294,7 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 python-dateutil==2.9.0.post0
-python-discovery==1.4.4
+python-discovery==1.6.1
 python-dotenv==1.2.2
 python-engineio==4.13.3
 python-msilib==0.6.0
@@ -320,7 +328,7 @@ safety-schemas==0.0.16
 scikit-learn==1.9.0
 scipy==1.18.0
 segments==2.4.0
-sentence-transformers==5.5.1
+sentence-transformers==5.6.0
 sentencepiece==0.2.1
 sentry-sdk==2.61.1
 setuptools==80.10.2
@@ -375,11 +383,11 @@ tzdata==2026.2
 tzlocal==5.3.1
 uri-template==1.3.0
 uritemplate==4.2.0
-urllib3==2.7.0
+urllib3==2.8.0
 uuid_utils==0.16.0
 uvicorn==0.46.0
 vine==5.1.0
-virtualenv==21.6.1
+virtualenv==21.7.13
 wasabi==1.1.3
 watchdog==6.0.0
 watchfiles==1.1.1
