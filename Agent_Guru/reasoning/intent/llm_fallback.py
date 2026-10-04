@@ -90,6 +90,8 @@ class LLMFallbackConfig:
         model: Model name (e.g., "gemma4:latest", "gpt-4-turbo-preview",
             "claude-3-5-sonnet-20241022"). Defaults to generation.ollama_model().
         api_key: API key for LLM provider (not needed for Ollama)
+        base_url: Endpoint for an OpenAI-compatible service such as DeepSeek
+            (None means OpenAI itself)
         ollama_host: Ollama server host (default: "127.0.0.1")
         ollama_port: Ollama server port (default: 11434)
         timeout_ms: Per-call timeout in milliseconds. Defaults to the
@@ -106,6 +108,11 @@ class LLMFallbackConfig:
     # user switched.
     model: str = field(default_factory=ollama_model)
     api_key: str | None = None
+    # Endpoint for the "openai" provider when the service is not OpenAI but
+    # speaks its protocol (DeepSeek). Without it, a DeepSeek key and model were
+    # sent to api.openai.com, which refused every call, so setting
+    # DEEPSEEK_API_KEY as the startup log advised disabled the fallback.
+    base_url: str | None = None
     ollama_host: str = "127.0.0.1"
     ollama_port: int = 11434
     # DEFECT FIX: this was a hard-coded 1000.0 with the comment "1 second
@@ -303,10 +310,25 @@ Classify the following input:"""
         if self.config.provider == "ollama":
             # Ollama doesn't need a client object, we use requests directly
             self.client = None
+        # The SDKs' own defaults were a 600 s read timeout and 2 retries, while
+        # classify() gives up after timeout_ms. asyncio.wait_for cannot stop a
+        # call running in asyncio.to_thread, so each timed-out attempt left a
+        # worker thread waiting on the network for up to 10 minutes, and each
+        # of classify()'s own retries could leave another. The SDK now stops
+        # when classify() does, and classify() alone decides about retries.
         elif self.config.provider == "openai":
-            self.client = openai.OpenAI(api_key=self.config.api_key)
+            self.client = openai.OpenAI(
+                api_key=self.config.api_key,
+                base_url=self.config.base_url,
+                timeout=self.config.timeout_ms / 1000.0,
+                max_retries=0,
+            )
         elif self.config.provider == "anthropic":
-            self.client = anthropic.Anthropic(api_key=self.config.api_key)
+            self.client = anthropic.Anthropic(
+                api_key=self.config.api_key,
+                timeout=self.config.timeout_ms / 1000.0,
+                max_retries=0,
+            )
         else:
             # Unreachable through LLMFallbackConfig, which validates the
             # name on construction; kept as a guard for a hand-mutated config.

@@ -118,6 +118,26 @@ class TestLLMIntentResponse:
         assert response.reasoning == "test"  # nosec B101
 
 
+class TestRealCloudClients:
+    """The real SDK clients, built without a network call: when they give up.
+
+    Both SDKs kept their 600 s read timeout and 2 hidden retries under a 2 s
+    classify() limit, leaving a worker thread on the network after each
+    timed-out attempt.
+    """
+
+    @pytest.mark.parametrize("provider", ["openai", "anthropic"])
+    def test_sdk_gives_up_with_classify(self, provider):
+        pytest.importorskip(provider)
+        config = LLMFallbackConfig(provider=provider, model="m", api_key="k", timeout_ms=2000.0)
+        client = LLMFallbackClassifier(config).client
+
+        timeout = client.timeout
+        read = getattr(timeout, "read", timeout)
+        assert read == 2.0  # nosec B101
+        assert client.max_retries == 0  # nosec B101
+
+
 class TestLLMFallbackClassifierInit:
     """Test LLMFallbackClassifier initialization."""
 
@@ -126,26 +146,31 @@ class TestLLMFallbackClassifierInit:
     def test_init_with_openai(self, mock_openai):
         """Test initialization with OpenAI provider."""
         mock_openai.OpenAI = Mock()
-        config = LLMFallbackConfig(provider="openai", api_key="test-key")
+        config = LLMFallbackConfig(provider="openai", api_key="test-key", timeout_ms=2000.0)
 
         classifier = LLMFallbackClassifier(config)
 
         assert classifier.config.provider == "openai"  # nosec B101
         assert classifier.client is not None  # nosec B101
-        mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
+        # The SDK must stop when classify() does and leave retries to it.
+        mock_openai.OpenAI.assert_called_once_with(
+            api_key="test-key", base_url=None, timeout=2.0, max_retries=0,
+        )
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.ANTHROPIC_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.anthropic")
     def test_init_with_anthropic(self, mock_anthropic):
         """Test initialization with Anthropic provider."""
         mock_anthropic.Anthropic = Mock()
-        config = LLMFallbackConfig(provider="anthropic", api_key="test-key")
+        config = LLMFallbackConfig(provider="anthropic", api_key="test-key", timeout_ms=2000.0)
 
         classifier = LLMFallbackClassifier(config)
 
         assert classifier.config.provider == "anthropic"  # nosec B101
         assert classifier.client is not None  # nosec B101
-        mock_anthropic.Anthropic.assert_called_once_with(api_key="test-key")
+        mock_anthropic.Anthropic.assert_called_once_with(
+            api_key="test-key", timeout=2.0, max_retries=0,
+        )
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", False)
     def test_init_openai_not_available(self):
