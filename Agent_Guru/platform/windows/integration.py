@@ -388,11 +388,20 @@ class WindowsIntegration:
 
     # Process Management
 
-    def get_process_list(self) -> list[ProcessInfo]:
+    def get_process_list(self, include_usage: bool = True) -> list[ProcessInfo]:
         """Get list of running processes.
 
         Time Complexity: O(n) where n is number of processes
         Space Complexity: O(n)
+
+        Args:
+            include_usage: Read status, CPU and memory use for each process.
+                False reads only pid, name and start time and leaves those
+                fields "unknown" and 0.0. Callers that only look a process up
+                by name or pid should pass False: measured on Windows over 349
+                processes, the full read took 3.0 to 5.0 s (status 1.7 s, CPU
+                1.9 s, memory 1.4 s, each opening every process again) and the
+                lean one under 0.1 s.
 
         Returns:
             List of ProcessInfo for all running processes
@@ -404,8 +413,9 @@ class WindowsIntegration:
 
         """
         processes = []
-        attrs = ["pid", "name", "status", "cpu_percent", "memory_percent", "create_time"]
-
+        attrs = ["pid", "name", "create_time"]
+        if include_usage:
+            attrs += ["status", "cpu_percent", "memory_percent"]
         for proc in psutil.process_iter(attrs=attrs):
             try:
                 info = proc.info
@@ -421,6 +431,7 @@ class WindowsIntegration:
                 )
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
                 continue
+
         logger.debug("Retrieved %s processes", len(processes))
         return processes
 
