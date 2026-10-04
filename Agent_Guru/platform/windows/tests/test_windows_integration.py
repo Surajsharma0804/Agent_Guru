@@ -327,7 +327,20 @@ class TestWindowsIntegration:
         
         with pytest.raises(RuntimeError):
             integration.execute_command("nonexistent_command_12345", [])
-    
+
+    def test_execute_command_not_a_program(self, tmp_path):
+        """A file that exists but is not a program is a launch failure too.
+
+        Windows refuses it with OSError (WinError 193), which escaped raw while
+        the translation to RuntimeError was missing.
+        """
+        integration = WindowsIntegration()
+        not_a_program = tmp_path / "notes.txt"
+        not_a_program.write_text("plain text", encoding="utf-8")
+
+        with pytest.raises(RuntimeError):
+            integration.execute_command(str(not_a_program), [])
+
     # System Info Tests
     
     def test_get_system_info(self):
