@@ -330,6 +330,46 @@ pins `protobuf==5.29.6`, so `pip install -r requirements-lock.txt` cannot
 succeed as written. grpcio-tools is another orphan, but it has no advisory, so
 it is not touched here. It is further evidence the lock needs regenerating.
 
+## Update 2026-10-05: upgrades, ChromaDB removed, one acceptance left
+
+Of the 14 critical and high advisories accepted above, 13 are gone and
+one remains accepted.
+
+- **Fixed by upgrading (9 high).** cryptography 48.0.1 -> 50.0.2,
+  httplib2 0.31.2 -> 0.32.0, langsmith 0.8.9 -> 0.8.18, msgpack 1.1.2 ->
+  1.2.3, pyasn1 0.6.3 -> 0.6.4, starlette 1.2.1 -> 1.3.1: the first release
+  line with each fix, at its latest patch. Their reachability arguments
+  (sections 7 and 10) were sound, but an upgrade does not depend on
+  them staying sound. The whole lock was installed from scratch on Python
+  3.13 with CPU torch: exactly the pinned versions, nothing extra, and
+  `pip check` clean. The moderate advisories for cryptography and starlette
+  went with them.
+- **Removed (2 critical, 2 high).** Section 9 was right that the project
+  never ran Chroma's server, but it missed that nothing used ChromaDB at
+  all: `VectorDatabase` and `MemoryStoragePipeline` were constructed only
+  by their tests, while `reasoning/memory/__init__.py` imported them
+  eagerly, so every process that loaded the embedder imported chromadb
+  (import of the embedder: 5.7-7.3 s with it, 3.9-4.5 s without). The two
+  modules, their tests, the declarations and the lock pin were removed,
+  with the 13 pins only chromadb required (bcrypt, build, durationpy,
+  importlib_resources, kubernetes, mmh3, oauthlib, overrides, pybase64,
+  PyPika, pyproject_hooks, requests-oauthlib, websocket-client). The code
+  is in history at d6c2b4cc.
+- **Still accepted (1 high): nltk GHSA-8mgp-746c-j5xp.** No fixed release.
+  The earlier reason said the training script calls none of the affected
+  APIs; that was not quite right. Through nlpaug's WordNet augmenter it
+  does reach the perceptron tagger, whose model loading is among the
+  affected functions. What keeps it unreachable is narrower: the advisory
+  is a path traversal past nltk's opt-in pathsec sandbox when an attacker
+  controls the model path, the tagger only loads from nltk's own data
+  directory, and the project never enables pathsec. nltk is in the test and
+  training extras only and is never imported by the assistant. Review by
+  2026-12-31.
+
+Audit result after these changes: no new critical or high findings, no
+stale acceptances, 5 moderate/low (pydantic-settings, pyjwt, setuptools,
+torch x2).
+
 ## Every critical and high alert
 
 `File` is the manifest holding the pin: `lock` is `requirements-lock.txt` and
