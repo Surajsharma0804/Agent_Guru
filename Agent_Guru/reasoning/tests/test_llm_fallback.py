@@ -147,6 +147,17 @@ class TestRealCloudClients:
 
         assert str(client.base_url).startswith("https://api.openai.com")  # nosec B101
 
+    def test_openai_selection_uses_a_served_model(self, monkeypatch):
+        # gpt-4-turbo-preview, selected here before, was shut down by OpenAI on
+        # 2026-03-26; the model is now configurable.
+        from Agent_Guru.reasoning.intent.engine import IntentDetectionEngine
+
+        monkeypatch.delenv("AGENT_GURU_OPENAI_MODEL", raising=False)
+        config = IntentDetectionEngine._select_llm_provider(None, "sk-dummy", None)
+        assert config.model == "gpt-4o"  # nosec B101
+        monkeypatch.setenv("AGENT_GURU_OPENAI_MODEL", "gpt-6-sol")
+        assert IntentDetectionEngine._select_llm_provider(None, "k", None).model == "gpt-6-sol"  # nosec B101
+
     @pytest.mark.parametrize("provider", ["openai", "anthropic"])
     def test_sdk_gives_up_with_classify(self, provider):
         pytest.importorskip(provider)
