@@ -7,7 +7,9 @@ Author: Agent Guru Team
 Date: 2026
 """
 
-import secrets
+import argparse
+import random
+import re
 from pathlib import Path
 from typing import Any
 
@@ -162,99 +164,81 @@ EXPANSION_TEMPLATES = {
 }
 
 
-def expand_dataset() -> None:
-    """Expand dataset to 3x size with high-quality examples - OVERWRITES original file."""
-    # Load existing data
-    data_dir = Path("Agent_Guru/reasoning/data")
-    train_file = data_dir / "train_annotated.yaml"
+DEFAULT_TRAIN_FILE = Path(__file__).resolve().parent / "train_annotated.yaml"
 
-    with open(train_file) as f:
-        train_data = yaml.safe_load(f)
 
-    # Track all utterances to prevent duplication
-    seen_utterances = set()
-    for item in train_data:
-        seen_utterances.add(item["utterance"].lower().strip())
+def expand_examples(train_data: list[dict[str, Any]], rng: random.Random) -> list[dict[str, Any]]:
+    """Return train_data plus up to 2x as many new examples per intent.
 
-    # Group by intent
+    rng decides every choice, so the same data and seed give the same output.
+    The draws used to come from the secrets module, which cannot be seeded:
+    two runs over the same data wrote different training sets.
+
+    A new example is kept only if every entity it carries can be located in
+    its new text, with start and end recomputed for that text, and no
+    template placeholder is left in it. The old version copied the base
+    example's offsets onto a different sentence and filled placeholders from
+    a "value" key that this data does not have (it uses "text"): one run over
+    the 2,448 training examples added 20 sentences with a literal
+    placeholder such as "create alarm {time}" and 848 entity spans that
+    pointed at the wrong characters.
+    """
+    seen_utterances = {item["utterance"].lower().strip() for item in train_data}
+
     intent_groups: dict[str, list[dict[str, Any]]] = {}
     for item in train_data:
-        intent = item["intent"]
-        if intent not in intent_groups:
-            intent_groups[intent] = []
-        intent_groups[intent].append(item)
+        intent_groups.setdefault(item["intent"], []).append(item)
 
-    # Expand each intent
-    expanded_data = list(train_data)  # Start with original
-
-    for intent, examples in intent_groups.items():
-        current_count = len(examples)
-        target_count = current_count * 3  # 3x expansion
-
-        # Get templates for this intent
+    expanded_data = list(train_data)
+    # Sorted, so the order of draws does not depend on the file's order of intents.
+    for intent in sorted(intent_groups):
+        examples = intent_groups[intent]
+        wanted = len(examples) * 2  # to 3x the original count
         templates = EXPANSION_TEMPLATES.get(intent, [])
-
-        attempts = 0
-        max_attempts = (target_count - current_count) * 10  # Try 10x to avoid infinite loop
         added = 0
-
-        while added < (target_count - current_count) and attempts < max_attempts:
-            attempts += 1
-
-            if not templates:
-                # Use paraphrasing for intents without templates
-                base_example = secrets.choice(examples)
-                utterance = base_example["utterance"]
-
-                # Simple paraphrasing
-                paraphrased = paraphrase_utterance(utterance)
-
-                # Check for duplication
-                if paraphrased.lower().strip() not in seen_utterances:
-                    seen_utterances.add(paraphrased.lower().strip())
-                    expanded_data.append(
-                        {
-                            "utterance": paraphrased,
-                            "intent": intent,
-                            "entities": base_example["entities"],
-                        },
-                    )
-                    added += 1
+        for _ in range(wanted * 10):  # bounded: duplicates and misses are rejected
+            if added >= wanted:
+                break
+            base_example = rng.choice(examples)
+            if templates:
+                utterance = fill_template(rng.choice(templates), base_example)
             else:
-                # Use templates
-                template = secrets.choice(templates)
-
-                # Fill template with entities from random example
-                base_example = secrets.choice(examples)
-                utterance = fill_template(template, base_example)
-
-                # Check for duplication
-                if utterance.lower().strip() not in seen_utterances:
-                    seen_utterances.add(utterance.lower().strip())
-                    expanded_data.append(
-                        {
-                            "utterance": utterance,
-                            "intent": intent,
-                            "entities": base_example["entities"],
-                        },
-                    )
-                    added += 1
-
-    # OVERWRITE original file - NO DUPLICATES
-    with open(train_file, "w", encoding="utf-8") as f:
-        yaml.dump(expanded_data, f, default_flow_style=False, allow_unicode=True)
-
-    # Update stats
-    intent_counts: dict[str, int] = {}
-    for item in expanded_data:
-        intent = item["intent"]
-        intent_counts[intent] = intent_counts.get(intent, 0) + 1
-
-    for _intent, _count in sorted(intent_counts.items()):
-        pass
+                utterance = paraphrase_utterance(base_example["utterance"], rng)
+            if "{" in utterance or utterance.lower().strip() in seen_utterances:
+                continue
+            entities = relocate_entities(utterance, base_example.get("entities", []))
+            if entities is None:
+                continue
+            seen_utterances.add(utterance.lower().strip())
+            expanded_data.append({"utterance": utterance, "intent": intent, "entities": entities})
+            added += 1
+    return expanded_data
 
 
-def paraphrase_utterance(utterance: str) -> str:
+def relocate_entities(utterance: str, entities: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
+    """Copy entities onto a new utterance with offsets found in it, or None if any is absent."""
+    located = []
+    for entity in entities:
+        text = entity.get("text") or entity.get("value") or ""
+        match = re.search(re.escape(text), utterance, flags=re.IGNORECASE) if text else None
+        if match is None:
+            return None
+        located.append({**entity, "start": match.start(), "end": match.end(),
+                        "text": utterance[match.start():match.end()]})
+    return located
+
+
+def expand_dataset(input_file: Path, output_file: Path, seed: int | None = None) -> int:
+    """Expand input_file into output_file; return the number of examples written."""
+    with open(input_file, encoding="utf-8") as f:
+        train_data = yaml.safe_load(f)
+    expanded = expand_examples(train_data, random.Random(seed))  # nosec B311 - not security
+    with open(output_file, "w", encoding="utf-8") as f:
+        yaml.dump(expanded, f, default_flow_style=False, allow_unicode=True)
+    return len(expanded)
+
+
+def paraphrase_utterance(utterance: str, rng: random.Random) -> str:
     """Simple paraphrasing using substitutions."""
     substitutions = {
         "can you": ["could you", "would you", "please"],
@@ -266,36 +250,39 @@ def paraphrase_utterance(utterance: str) -> str:
         "close": ["quit", "exit", "stop"],
     }
 
-    result = utterance
     for original, replacements in substitutions.items():
-        if original in utterance.lower():
-            replacement = secrets.choice(replacements)
-            result = result.replace(original, replacement)
-            break
-
-    return result
-
-
-def fill_template(template: str, example: dict) -> str:
-    """Fill template with entities from example."""
-    utterance = template
-
-    # Extract entities
-    for entity in example.get("entities", []):
-        # Handle both 'entity' and 'type' keys
-        entity_type = entity.get("entity") or entity.get("type", "")
-        entity_value = entity.get("value", "")
-
-        if not entity_type or not entity_value:
-            continue
-
-        # Replace placeholder
-        placeholder = f"{{{entity_type}}}"
-        if placeholder in utterance:
-            utterance = utterance.replace(placeholder, entity_value)
-
+        # Matched without regard to case; replacing only the exact-case text
+        # used to leave "Can you ..." unchanged, which was then rejected as a
+        # duplicate and wasted the attempt.
+        pattern = re.compile(re.escape(original), re.IGNORECASE)
+        if pattern.search(utterance):
+            return pattern.sub(rng.choice(replacements), utterance, count=1)
     return utterance
 
 
+def fill_template(template: str, example: dict) -> str:
+    """Fill template placeholders with the example's entity texts."""
+    utterance = template
+    for entity in example.get("entities", []):
+        entity_type = entity.get("entity") or entity.get("type", "")
+        entity_value = entity.get("text") or entity.get("value", "")
+        if entity_type and entity_value:
+            utterance = utterance.replace(f"{{{entity_type}}}", entity_value)
+    return utterance
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Expand the intent training set to about 3x.")
+    parser.add_argument("--input", type=Path, default=DEFAULT_TRAIN_FILE)
+    parser.add_argument(
+        "--output", type=Path, default=None,
+        help="where to write (default: overwrite --input, as this script always did)",
+    )
+    parser.add_argument("--seed", type=int, default=None, help="make the output reproducible")
+    args = parser.parse_args(argv)
+    count = expand_dataset(args.input, args.output or args.input, args.seed)
+    print(f"wrote {count} examples to {args.output or args.input}")
+
+
 if __name__ == "__main__":
-    expand_dataset()
+    main()
