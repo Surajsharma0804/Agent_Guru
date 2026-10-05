@@ -516,6 +516,9 @@ _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(reply|respond|answer)\b.+", re.IGNORECASE), "reply"),
     (re.compile(r"\b(email|mail)\b.+", re.IGNORECASE), "email"),
     (re.compile(r"\b(message|text)\b.+", re.IGNORECASE), "send_message"),
+    # send "hello" to John: no message noun, so the patterns above missed it
+    # and it was answered as a greeting.
+    (re.compile(r"\bsend\s+[\"“'][^\"”']+[\"”']\s+to\s+\w", re.IGNORECASE), "send_message"),
 ]
 
 _FILE_OPS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -658,6 +661,77 @@ def _extract_app_name(text: str) -> str:
     wake_fragments = {"hey", "hi", "guru", "maya", "himaya"}
     words = [w for w in words if w.lower() not in wake_fragments]
     return " ".join(words[:3]) if words else ""
+
+
+# Where a message command's recipient ends and its text begins. The recipient
+# used to be "up to 30 letters and spaces after 'to'", so "send a message to
+# John saying hello" went to a contact named "John saying hello", and the text
+# was never extracted at all.
+_MESSAGE_BOUNDARY = r"(?:\s*:\s*|\s+(?:saying|that\s+says|which\s+says|says|telling\s+(?:him|her|them)(?:\s+that)?)\s+)"
+_MESSAGE_NOUN = r"(?:message|text|sms|whatsapp|telegram|email|mail|dm)"
+_NAME = r"[A-Za-z][A-Za-z'.\-]*(?:\s+[A-Za-z][A-Za-z'.\-]*){0,3}"
+_MESSAGE_FORMS = [
+    # send "hello" to John
+    re.compile(r"\bsend\s+[\"“'](?P<message>[^\"”']+)[\"”']\s+to\s+(?P<contact>.+?)\s*[.!?]?$", re.IGNORECASE),
+    # send John a message saying hello
+    re.compile(
+        rf"\b(?:send|write|compose)\s+(?P<contact>{_NAME}?)\s+an?\s+{_MESSAGE_NOUN}\b(?:{_MESSAGE_BOUNDARY}(?P<message>.+))?$",
+        re.IGNORECASE,
+    ),
+    # send a message to John saying hello / send a message to John: hello
+    re.compile(
+        rf"\b{_MESSAGE_NOUN}\s+to\s+(?P<contact>.+?)(?:{_MESSAGE_BOUNDARY}(?P<message>.+))?$",
+        re.IGNORECASE,
+    ),
+    # message John saying hello / text John: hello
+    re.compile(
+        rf"^\s*(?:please\s+)?(?:message|text|dm)\s+(?P<contact>.+?)(?:{_MESSAGE_BOUNDARY}(?P<message>.+))?$",
+        re.IGNORECASE,
+    ),
+    # reply to John saying sounds good
+    re.compile(
+        rf"\b(?:reply|respond)\s+to\s+(?P<contact>.+?)(?:{_MESSAGE_BOUNDARY}(?P<message>.+))?$",
+        re.IGNORECASE,
+    ),
+    # send a message saying hello (no recipient)
+    re.compile(rf"\b{_MESSAGE_NOUN}(?:{_MESSAGE_BOUNDARY}(?P<message>.+))$", re.IGNORECASE),
+]
+_SEVERAL_RECIPIENTS = re.compile(r",|\b(?:and|or|plus)\b", re.IGNORECASE)
+
+
+def _parse_message_command(text: str) -> dict[str, str]:
+    """Split a message command into recipient and message text.
+
+    Returns {"contact", "message"} and, when the recipient cannot be told
+    apart reliably, {"clarification": question}. The contact is then empty
+    rather than a guess: several recipients ("John and Mary"), or a recipient
+    with no boundary before the text ("message John hello there") could each
+    be sent to the wrong person.
+    """
+    stripped = text.strip()
+    for form in _MESSAGE_FORMS:
+        m = form.search(stripped)
+        if not m:
+            continue
+        groups = m.groupdict()
+        contact = (groups.get("contact") or "").strip(" .,!?")
+        message = (groups.get("message") or "").strip().strip("\"“”'").strip()
+        result = {"contact": contact, "message": message}
+        if contact and _SEVERAL_RECIPIENTS.search(contact):
+            return {"contact": "", "message": message,
+                    "clarification": f"Who should I send it to? I heard \"{contact}\"."}
+        if contact and not re.fullmatch(_NAME, contact):
+            # More than four words, or not a name, and no boundary found:
+            # the message may be inside it.
+            return {"contact": "", "message": message,
+                    "clarification": "Who is the message for, and what should it say?"}
+        if not message and contact and len(contact.split()) > 1 and form is _MESSAGE_FORMS[3]:
+            # "message John hello there": no boundary, so John's name and
+            # the text cannot be told apart.
+            return {"contact": "", "message": "",
+                    "clarification": "Who is the message for, and what should it say?"}
+        return result
+    return {"contact": "", "message": ""}
 
 
 def _extract_contact_name(text: str) -> str:
@@ -874,7 +948,10 @@ class _RuleEngine:
     def _try_communication(self, text: str, plat: str) -> IntentResult | None:
         for pattern, action in _COMMUNICATION_PATTERNS:
             if pattern.search(text):
-                params = {"action": action, "contact": _extract_contact_name(text)}
+                if action in ("send_message", "reply"):
+                    params = {"action": action, **_parse_message_command(text)}
+                else:
+                    params = {"action": action, "contact": _extract_contact_name(text)}
                 return IntentResult(
                     intent_type="communication",
                     parameters=params,
