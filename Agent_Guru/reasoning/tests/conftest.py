@@ -311,17 +311,23 @@ def mock_intent_engine():
     """
     from unittest.mock import AsyncMock, MagicMock
 
-    from Agent_Guru.reasoning.models.intent import Intent, IntentType
+    from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
 
     mock = MagicMock()
     mock._initialized = True
 
-    # Default: high-confidence timer intent (fast-path eligible)
+    # Default: high-confidence timer intent (fast-path eligible), with the
+    # duration entity the real IntentDetectionEngine extracts from this
+    # sentence. It had no entities, a detection that cannot happen, and the
+    # tests using it passed only because the tool selector then picked
+    # messaging.send_slack with no arguments and the engine called that a
+    # success.
     _default_intent = Intent(
         intent_type=IntentType.SET_TIMER,
         confidence=0.95,
         requires_reasoning=False,
         original_input="set a timer for 5 minutes",
+        entities={"duration": Entity(entity_type="duration", value=300, raw_text="5 minutes")},
     )
 
     class _DetectionResult:
