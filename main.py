@@ -173,7 +173,13 @@ def _load_security():
 def _load_policy():
     try:
         from Agent_Guru.policy import PolicyEngine
-        return PolicyEngine()
+        from Agent_Guru.policy.defaults import install_default_policies
+
+        # An engine with no policies denies everything, and this one had
+        # none: every voice command was denied and answered "Done.".
+        engine = PolicyEngine()
+        install_default_policies(engine)
+        return engine
     except Exception as e:
         logger.warning("PolicyEngine unavailable (%s) - policy disabled", e)
         return _stub("policy")
