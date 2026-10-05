@@ -304,7 +304,10 @@ class IntentDetectionEngine:
                 _logger.info("LLM Fallback: DeepSeek API (FAST)")
             return LLMFallbackConfig(
                 provider="openai",
-                model="deepseek-chat",
+                # DeepSeek's current documentation names deepseek-flash and does
+                # not mention deepseek-chat, the name used here before.
+                # AGENT_GURU_DEEPSEEK_MODEL overrides it.
+                model=os.environ.get("AGENT_GURU_DEEPSEEK_MODEL", "").strip() or "deepseek-flash",
                 api_key=deepseek_key,
                 # DeepSeek speaks the OpenAI protocol at its own address.
                 # Without this the key went to api.openai.com and every

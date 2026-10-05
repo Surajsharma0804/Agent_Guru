@@ -136,7 +136,7 @@ class TestRealCloudClients:
         client = LLMFallbackClassifier(config).client
 
         assert str(client.base_url).startswith("https://api.deepseek.com")  # nosec B101
-        assert config.model == "deepseek-chat"  # nosec B101
+        assert config.model == "deepseek-flash"  # nosec B101
 
     def test_openai_selection_reaches_openai(self):
         pytest.importorskip("openai")

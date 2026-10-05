@@ -118,7 +118,7 @@ async def test_intent_fallback_round_trip(stand_in):
     assert result.intent_type == "open_app" and result.retries == 0  # nosec B101
     sent = server.requests[0]
     assert sent["path"] == "/v1/chat/completions"  # nosec B101
-    assert sent["body"]["model"] == "deepseek-chat"  # nosec B101
+    assert sent["body"]["model"] == "deepseek-flash"  # nosec B101
     assert sent["headers"]["authorization"] == "Bearer sk-deepseek-test"  # nosec B101
     assert sent["body"]["response_format"] == {"type": "json_object"}  # nosec B101
 
