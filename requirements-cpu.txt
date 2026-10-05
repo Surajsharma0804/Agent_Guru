@@ -57,12 +57,6 @@ tokenizers>=0.13.0
 sentencepiece>=0.1.99
 sentence-transformers>=5.6.0  # earlier: custom code from local models (GHSA-jhr6-gm9c-rqjv)
 
-# Vector Database for Memory System
-# Was declared only in requirements.txt, so the documented CPU-only
-# install produced a build whose memory system could not import its
-# vector store.
-chromadb>=0.4.0
-
 # Imported at module scope by shipped code but previously declared nowhere, so
 # a clean install of this file produced an ImportError on first use:
 #   networkx           -> Agent_Guru/agents/delegation_manager.py
