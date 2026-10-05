@@ -176,17 +176,11 @@ class VisionAvatarBridge:
             return frame
 
         try:
-            # Attempt to use vision engine's face detection
-            faces = self._vision_engine.detect_faces(frame)
+            faces = self._vision_engine.detect(frame)
             if faces:
-                # Select primary face (largest)
-                primary = max(faces, key=lambda f: f.get("area", 0))
-                x, y, w, h = (
-                    primary.get("x", 0),
-                    primary.get("y", 0),
-                    primary.get("w", frame.shape[1]),
-                    primary.get("h", frame.shape[0]),
-                )
+                # The largest face is the person in front of the camera.
+                primary = max(faces, key=lambda d: d.bbox[2] * d.bbox[3])
+                x, y, w, h = primary.bbox
                 # Clamp to frame bounds
                 x1 = max(0, x)
                 y1 = max(0, y)
@@ -209,11 +203,21 @@ class VisionAvatarBridge:
         return frame
 
     def _init_vision_engine(self) -> None:
-        """Try to initialize Agent_Guru.vision engine."""
-        try:
-            from Agent_Guru.vision.engine import VisionEngine  # type: ignore[import]
+        """Use Agent_Guru.vision's face detector to find the face to read.
 
-            self._vision_engine = VisionEngine()
+        This imported Agent_Guru.vision.engine.VisionEngine, which has never
+        existed (the class there is GuruVisionEngine, and it has no
+        detect_faces either), so the import always failed, the bridge always
+        ran without vision and the emotion recognizer was given the whole
+        camera frame, background included, instead of the face. Only
+        detection is needed here, so this uses the detector GuruVisionEngine
+        itself uses rather than loading the recognition engine and its
+        identity database.
+        """
+        try:
+            from Agent_Guru.vision.detection.detector import FaceDetector
+
+            self._vision_engine = FaceDetector()
             self._vision_available = True
             logger.info("Agent_Guru.vision engine connected")
         except Exception as exc:
