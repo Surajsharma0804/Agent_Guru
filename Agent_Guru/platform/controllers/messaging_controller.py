@@ -322,6 +322,10 @@ class MessagingController:
     # ------------------------------------------------------------------
 
     async def send_message(self, app: str, contact: str, message: str) -> bool:
+        """Send a message; True if it was sent or left ready to send. See deliver()."""
+        return await self.deliver(app, contact, message) is not None
+
+    async def deliver(self, app: str, contact: str, message: str) -> str | None:
         """Send a message to a contact via the specified messaging app.
 
         Sanitizes the message (strips null bytes, truncates to 2000 chars)
@@ -335,21 +339,24 @@ class MessagingController:
             message: Message text to send.
 
         Returns:
-            ``True`` if the send command succeeded, ``False`` otherwise.
+            ``"sent"`` if the message was sent, ``"prefilled"`` if the chat was
+            opened with the text in it for the user to send, ``None`` if it
+            could not be done. send_message() only said True or False, so a
+            caller could not tell the user whether the message had gone.
 
         """
         app_norm = _normalize(app)
         if not app_norm:
             logger.warning("send_message called with empty app")
-            return False
+            return None
 
         if not contact or not contact.strip():
             logger.warning("send_message called with empty contact")
-            return False
+            return None
 
         if not message or not message.strip():
             logger.warning("send_message called with empty message")
-            return False
+            return None
 
         if app_norm not in _SUPPORTED_APPS:
             logger.warning(
@@ -357,12 +364,12 @@ class MessagingController:
                 app,
                 ", ".join(sorted(_SUPPORTED_APPS)),
             )
-            return False
+            return None
 
         message = _sanitize_message(message)
         if not message:
             logger.warning("send_message: message is empty after sanitization")
-            return False
+            return None
 
         resolved_contact = await self.resolve_contact(app_norm, contact)
         if resolved_contact is None:
@@ -374,7 +381,7 @@ class MessagingController:
                 "say the phone number/email directly.",
                 contact, app_norm, contact, app_norm,
             )
-            return False
+            return None
         contact = resolved_contact
 
         logger.info(
@@ -388,13 +395,17 @@ class MessagingController:
         try:
             if _is_mobile(self._platform):
                 if self._platform == "android":
-                    return await self._send_android(app_norm, contact, message)
-                # ios
-                return await self._send_ios(app_norm, contact, message)
-            return await self._send_desktop(app_norm, contact, message)
+                    sent = await self._send_android(app_norm, contact, message)
+                else:
+                    sent = await self._send_ios(app_norm, contact, message)
+                # The mobile paths open the chat with the text in it.
+                return "prefilled" if sent else None
+            if app_norm == "whatsapp":
+                return await self._send_desktop_whatsapp(contact, message)
+            return "prefilled" if await self._send_desktop(app_norm, contact, message) else None
         except Exception:
             logger.exception("send_message(%r, %r) failed", app_norm, contact)
-            return False
+            return None
 
     async def search_contact(self, app: str, query: str) -> list[str]:
         """Search for contacts matching *query* in the specified app.
@@ -596,7 +607,7 @@ class MessagingController:
     async def _send_desktop(self, app: str, contact: str, message: str) -> bool:
         """Dispatch to the correct desktop send implementation."""
         if app == "whatsapp":
-            return await self._send_desktop_whatsapp(contact, message)
+            return await self._send_desktop_whatsapp(contact, message) is not None
         if app == "telegram":
             return await self._send_desktop_telegram(contact, message)
         if app == "slack":
@@ -613,31 +624,91 @@ class MessagingController:
         logger.warning("send_desktop: unknown app %r", app)
         return False
 
-    async def _send_desktop_whatsapp(self, contact: str, message: str) -> bool:
-        """Open WhatsApp Web in the default browser with pre-filled message.
+    async def _send_desktop_whatsapp(self, contact: str, message: str) -> str | None:
+        """Send through WhatsApp Desktop if possible, else leave it ready in WhatsApp Web.
 
-        Uses the wa.me URL scheme when contact looks like a phone number,
-        otherwise opens web.whatsapp.com.
+        This only opened WhatsApp Web with the text filled in, so the user
+        had to find the window and press send; the assistant could not send
+        a message. With WhatsApp Desktop installed and a phone number to send
+        to, it opens the chat with whatsapp://send, which puts the text in
+        the message box, and presses Enter once WhatsApp is the window in
+        front. If WhatsApp does not come to the front, nothing is pressed (an
+        Enter would land in whatever window is) and the message stays ready
+        for the user to send.
+
+        Returns:
+            "sent", "prefilled" or None, as for deliver().
+
         """
         try:
-            import asyncio
-
             encoded = urllib.parse.quote(message)
-
-            # Detect phone number (digits, +, -, spaces)
             digits_only = contact.replace("+", "").replace("-", "").replace(" ", "")
+            loop = asyncio.get_running_loop()
+            if digits_only.isdigit() and self._platform == "windows" and self._whatsapp_desktop_installed():
+                url = f"whatsapp://send?phone={digits_only}&text={encoded}"
+                await loop.run_in_executor(None, self._blocking_open_url, url)
+                if await self._press_send_in_whatsapp():
+                    logger.info("WhatsApp Desktop: message sent to %s", digits_only)
+                    return "sent"
+                logger.warning("WhatsApp Desktop did not come to the front; message left ready to send")
+                return "prefilled"
             if digits_only.isdigit():
                 url = f"https://wa.me/{digits_only}?text={encoded}"
             else:
                 url = f"https://web.whatsapp.com/send?text={encoded}"
-
-            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_open_url, url)
             logger.info("WhatsApp Web opened: %s", url)
-            return True
+            return "prefilled"
         except Exception:
             logger.exception("_send_desktop_whatsapp failed")
+            return None
+
+    #: How long WhatsApp Desktop gets to open the chat and come to the front,
+    #: and how long it must stay in front before Enter is pressed, so the
+    #: chat named in the link (not one already open) has the text.
+    _WHATSAPP_FRONT_TIMEOUT_S = 10.0
+    _WHATSAPP_SETTLE_S = 1.5
+
+    async def _press_send_in_whatsapp(self) -> bool:
+        """Press Enter once WhatsApp has been the foreground window for the settle time."""
+        deadline = asyncio.get_running_loop().time() + self._WHATSAPP_FRONT_TIMEOUT_S
+        while asyncio.get_running_loop().time() < deadline:
+            if self._foreground_is_whatsapp():
+                await asyncio.sleep(self._WHATSAPP_SETTLE_S)
+                if self._foreground_is_whatsapp():
+                    self._press_enter()
+                    return True
+            await asyncio.sleep(0.25)
+        return False
+
+    @staticmethod
+    def _whatsapp_desktop_installed() -> bool:
+        """True if the whatsapp: link handler (WhatsApp Desktop) is registered."""
+        try:
+            import winreg
+
+            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "whatsapp"):
+                return True
+        except OSError:
             return False
+
+    @staticmethod
+    def _foreground_is_whatsapp() -> bool:
+        """True if the window in front is WhatsApp's."""
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        hwnd = user32.GetForegroundWindow()
+        length = user32.GetWindowTextLengthW(hwnd)
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        return buf.value.strip() == "WhatsApp"
+
+    @staticmethod
+    def _press_enter() -> None:
+        import pyautogui
+
+        pyautogui.press("enter")
 
     async def _send_desktop_telegram(self, contact: str, message: str) -> bool:
         """Open Telegram with a pre-filled message via URL scheme."""
