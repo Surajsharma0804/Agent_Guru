@@ -317,6 +317,10 @@ class VQAResult:
         confidence: Answer confidence in [0.0, 1.0].
         grounded_in_ocr: True when the answer references OCR output.
         not_visible: True when the answer cannot be determined from the image.
+        error: Why no model answered (unreachable, timed out, failed), or
+            None. Kept apart from not_visible: a failure used to be reported
+            as "I cannot determine that from the image", which tells the user
+            the image was unclear when nothing had looked at it.
 
     """
 
@@ -325,6 +329,7 @@ class VQAResult:
     confidence: float
     grounded_in_ocr: bool
     not_visible: bool = False
+    error: str | None = None
 
 
 # ---------------------------------------------------------------------------
