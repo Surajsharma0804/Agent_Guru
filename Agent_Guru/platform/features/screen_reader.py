@@ -56,11 +56,34 @@ def read_screen_text(max_chars: int = 2000) -> str | None:
     return _read_via_ocr(max_chars)
 
 
+def _run_powershell(script: str, timeout: float) -> str:
+    """Run a PowerShell script and return its output as text, in any language.
+
+    Both ends are UTF-8. PowerShell used to write in the console's OEM code
+    page (437 here) and Python read it as the ANSI one (cp1252): a Hindi
+    window title came back as "??????", and a single "ü" (byte 0x81, which
+    cp1252 does not define) killed the decoding thread, so stdout was None
+    and all of the screen's text was lost.
+    """
+    import subprocess  # nosec B404
+
+    result = subprocess.run(  # nosec B603 B607  # noqa: S603
+        [
+            "powershell", "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n" + script,
+        ],
+        check=False,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+    )
+    return result.stdout or ""
+
+
 def _read_via_uia(max_chars: int) -> str | None:
     """Read text from the focused window using Windows UI Automation."""
     try:
-        import subprocess  # nosec B404
-
         # Use PowerShell to get the focused window title and text via UIA
         # This is the same approach Windows Narrator uses
         ps_script = """
@@ -80,14 +103,7 @@ foreach ($el in $elements) {
 }
 $texts | Select-Object -First 100 | Out-String
 """
-        result = subprocess.run(  # nosec B603 B607  # noqa: S603
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        text = result.stdout.strip()
+        text = _run_powershell(ps_script, timeout=5).strip()
         if text and len(text) > 20:
             logger.debug("UIA screen read: %d chars", len(text))
             return text[:max_chars]
