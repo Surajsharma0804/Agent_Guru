@@ -140,6 +140,7 @@ class WindowsIntegration:
             )
 
         self._validate_windows_platform()
+        self._cpu_sampler: Any = None
 
     def _validate_windows_platform(self) -> None:
         """Validate that we're running on Windows.
@@ -395,13 +396,8 @@ class WindowsIntegration:
         Space Complexity: O(n)
 
         Args:
-            include_usage: Read status, CPU and memory use for each process.
-                False reads only pid, name and start time and leaves those
-                fields "unknown" and 0.0. Callers that only look a process up
-                by name or pid should pass False: measured on Windows over 349
-                processes, the full read took 3.0 to 5.0 s (status 1.7 s, CPU
-                1.9 s, memory 1.4 s, each opening every process again) and the
-                lean one under 0.1 s.
+            include_usage: Fill status, CPU and memory use. False leaves them
+                "unknown" and 0.0 for callers that only need pid and name.
 
         Returns:
             List of ProcessInfo for all running processes
@@ -412,6 +408,43 @@ class WindowsIntegration:
             ...     print(f"{proc.name} (PID: {proc.pid})")
 
         """
+        # One NtQuerySystemInformation call for every process (see
+        # process_snapshot). Asking psutil per process took 3.9 to 5.8 s for
+        # 272 processes on the development laptop, because for each process
+        # the user may not open psutil re-reads the whole process table, once
+        # per attribute; the snapshot takes about 10 ms. psutil remains the
+        # fallback if Windows refuses the call.
+        try:
+            from Agent_Guru.platform.windows import process_snapshot
+
+            records = process_snapshot.snapshot()
+        except OSError:
+            logger.warning("Process snapshot failed; listing processes through psutil", exc_info=True)
+            return self._get_process_list_psutil(include_usage)
+
+        cpu: dict[int, float] = {}
+        total_memory = 0
+        if include_usage:
+            if self._cpu_sampler is None:
+                self._cpu_sampler = process_snapshot.CpuSampler()
+            cpu = self._cpu_sampler.percent(records)
+            total_memory = psutil.virtual_memory().total
+        processes = [
+            ProcessInfo(
+                pid=r.pid,
+                name=r.name,
+                status=("stopped" if r.suspended else "running") if include_usage else "unknown",
+                cpu_percent=cpu.get(r.pid, 0.0),
+                memory_percent=r.working_set / total_memory * 100 if total_memory else 0.0,
+                create_time=r.create_time,
+            )
+            for r in records
+        ]
+        logger.debug("Retrieved %s processes", len(processes))
+        return processes
+
+    def _get_process_list_psutil(self, include_usage: bool) -> list[ProcessInfo]:
+        """Per-process psutil listing, for when the snapshot call is refused."""
         processes = []
         attrs = ["pid", "name", "create_time"]
         if include_usage:
