@@ -1854,13 +1854,18 @@ Generate a natural language answer that directly addresses the query."""
             lambda: self.llm_client.messages.create(
                 model=self.llm_model,
                 max_tokens=512,
-                temperature=0.3,  # Low temperature for factual synthesis
+                # No temperature: the installed anthropic SDK (1.x) has no such
+                # parameter and current Claude models reject sampling
+                # parameters; it raised TypeError before any request was sent.
                 messages=[{"role": "user", "content": prompt}],
             ),
         )
-        # `""[0].text` (the previous else branch) raises IndexError -- see the
-        # note in _call_openai_synthesis().
-        return str(response.content[0].text) if response and response.content else ""
+        if response and response.content:
+            # Current models put a thinking block first; keep only the text.
+            return "".join(b.text for b in response.content if b.type == "text")
+        # An empty response yields "", not `""[0].text` (IndexError), as in
+        # _call_openai_synthesis().
+        return ""
 
     def _parse_llm_synthesis_response(self, response_text: str) -> LLMSynthesisResponse:
         """Parse and validate LLM synthesis response.
