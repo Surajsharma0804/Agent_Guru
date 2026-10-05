@@ -1296,6 +1296,26 @@ class OSController:
                 error=str(e),
             )
 
+    # ==================== Messaging ====================
+
+    async def send_message(self, app: str, contact: str, message: str) -> str | None:
+        """Send *message* to *contact* in *app* through the MessagingController.
+
+        The controller was constructed in __init__ but nothing called it, so
+        the assistant could only open a messaging app, never address a chat
+        or carry the text. It resolves names through saved contacts and
+        refuses names it cannot resolve rather than opening a chat with nobody.
+
+        Returns:
+            "sent" if the message was sent, "prefilled" if the chat is open
+            with the text for the user to send, None if it could not be done.
+
+        """
+        if self._messaging_controller is None:
+            logger.warning("send_message: messaging controller unavailable")
+            return None
+        return await self._messaging_controller.deliver(app, contact, message)
+
     # ==================== Web / Browser ====================
 
     def open_url(self, url: str, browser: str | None = None) -> OperationResult:
