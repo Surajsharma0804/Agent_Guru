@@ -1770,6 +1770,27 @@ class IntegrationOrchestrator:
                 )
                 await self._intent_recognizer.initialize()
 
+            # A message is encoded from the transcript as spoken. Cleaning
+            # drops filler words and the multi-step splitter cuts at "and",
+            # so "send a message to John saying I'm late and sorry" reached
+            # the action as "I'm late and". The text after the recipient is
+            # what the user wants sent, so it must arrive unchanged; it rides
+            # in the last field, which the action stage splits off whole.
+            spoken = self._intent_recognizer._rule_engine.recognize(
+                llm_response.strip(), self._intent_recognizer._platform,
+            )
+            p = spoken.parameters
+            if (
+                spoken.intent_type == "communication"
+                and p.get("action") in ("send_message", "reply")
+                and (p.get("message") or p.get("clarification"))
+            ):
+                logger.info("Intent: %s to %r via %s", p["action"], p.get("contact", ""), p.get("level") or "whatsapp")
+                return (
+                    f"communication:{p['action']}:{p.get('contact', '')}:"
+                    f"{p.get('level') or 'whatsapp'}:{p.get('message', '')}"
+                )
+
             # ── Multi-step command detection ──────────────────────────────
             steps = self._split_multi_step(cleaned)
             if len(steps) > 1:
@@ -2900,10 +2921,35 @@ class IntegrationOrchestrator:
         self, ctrl: Any, action: str, param: str, level_str: str,
     ) -> str | None:
         if action in ("send_message", "reply"):
-            contact = param.strip()
-            app = level_str.strip().lower() if level_str.strip() else "whatsapp"
+            import html
+
+            # level_str is "<app>:<text>" for a dictated message. The text
+            # used to be dropped before this point, so the assistant could
+            # only open the app. The intent was HTML-escaped by
+            # _sanitize_output, so the text is unescaped: "it's" must not be
+            # sent as "it&#x27;s".
+            contact = html.unescape(param).strip()
+            app, _, message = level_str.partition(":")
+            app = app.strip().lower() or "whatsapp"
+            message = html.unescape(message).strip()
             if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
                 app = "whatsapp"
+            if not contact and (message or ":" in level_str):
+                return "Who should I send it to?"
+            send = getattr(ctrl, "send_message", None)
+            if message and send is not None:
+                label = {"whatsapp": "WhatsApp", "telegram": "Telegram", "slack": "Slack",
+                         "sms": "SMS", "email": "email"}[app]
+                who = self._sanitize_output(contact)
+                outcome = await send(app, contact, message)
+                if outcome == "sent":
+                    return f"Sent your message to {who} on {label}."
+                if outcome:
+                    return f"Your message to {who} is ready in {label}. Press send to deliver it."
+                return (
+                    f"I couldn't send that to {who} on {label}. If {who} isn't a saved "
+                    "contact, say their number or address instead."
+                )
             fn = getattr(ctrl, "open_url", None)
             if fn and contact:
                 if app == "whatsapp":
