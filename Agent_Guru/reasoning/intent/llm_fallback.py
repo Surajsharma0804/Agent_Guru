@@ -601,13 +601,17 @@ Classify the following input:"""
             self.client.messages.create,  # type: ignore[union-attr]
             model=self.config.model,
             max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
+            # No temperature: the installed anthropic SDK (1.x) has no such
+            # parameter and current Claude models reject sampling parameters.
+            # Passing it raised TypeError before any request was sent, so the
+            # Anthropic fallback never classified anything.
             system=self.SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
         response = await asyncio.to_thread(_create)
-        text = response.content[0].text if response and response.content else ""
-        return str(text) if text else ""
+        # Join the text blocks: current models put a thinking block first, so
+        # content[0] is not the answer.
+        return "".join(b.text for b in (response.content if response else []) if b.type == "text")
 
     def _parse_response(self, response_text: str) -> LLMIntentResponse:
         """Parse and validate LLM response.

@@ -768,7 +768,7 @@ class TestLLMAPICalls:
         # Mock Anthropic client
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.content = [Mock()]
+        mock_response.content = [Mock(type="text")]  # real SDK blocks carry a type
         mock_response.content[0].text = json.dumps(
             {
                 "intent_type": "set_timer",
@@ -1116,7 +1116,7 @@ class TestEndToEndIntegration:
         # Mock Anthropic client
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.content = [Mock()]
+        mock_response.content = [Mock(type="text")]  # real SDK blocks carry a type
         mock_response.content[0].text = json.dumps(
             {
                 "intent_type": "query_weather",
