@@ -396,7 +396,14 @@ class TemplateGenerator:
             # Extract the value from Entity object
             from Agent_Guru.reasoning.models.intent import Entity
 
-            if isinstance(entity, Entity):
+            if isinstance(entity, Entity) and entity.entity_type == "duration" and isinstance(entity.value, int):
+                # Duration entities hold whole seconds (utils.duration); said
+                # as they were, "Timer set for {duration}" became "Timer set
+                # for 300".
+                from Agent_Guru.utils.duration import describe_duration
+
+                variables[key] = describe_duration(entity.value)
+            elif isinstance(entity, Entity):
                 variables[key] = entity.value
             else:
                 variables[key] = entity
