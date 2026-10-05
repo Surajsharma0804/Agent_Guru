@@ -14,9 +14,9 @@ Design Decisions:
     - Returns True/False or list - never raises for normal failures
     - Per-personality conversation storage (GURU and MAYA)
     - Semantic search with real sentence-transformer embeddings when available
-      (reuses Agent_Guru.reasoning.memory.embedding.EmbeddingGenerator - the
-      same all-MiniLM-L6-v2 model already used by reasoning/memory/'s
-      ChromaDB store - instead of a second, separate embedding scheme).
+      (reuses Agent_Guru.reasoning.memory.embedding.EmbeddingGenerator, the
+      all-MiniLM-L6-v2 model, instead of a second, separate embedding
+      scheme).
       Falls back to a cheap 26-dim letter-frequency vector ONLY when
       sentence-transformers/torch aren't installed, so this module never
       hard-fails without them. See _embed_text() / _REAL_EMBEDDER_AVAILABLE.
