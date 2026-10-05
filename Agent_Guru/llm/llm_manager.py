@@ -5,9 +5,17 @@ This is the high-level wrapper over the LLM runtime. It handles:
 - Conversation context per session
 - Provider selection with graceful fallback to Ollama
 
-Cloud providers (OpenAI, Anthropic, Google) are supported if their adapter
-files exist and an API key is configured. If not, we fall back to Ollama
-without crashing. The assistant should always work out of the box.
+It drives the local Ollama model only. Cloud models are reached through
+Agent_Guru.reasoning.llm.providers, which the reasoning stage uses. This
+module used to import openai_adapter, anthropic_adapter and google_adapter
+from llm/providers, files that have never existed, so every cloud setting
+here did nothing except break: with provider=ANTHROPIC and a key set, it
+sent Ollama the model name "claude-3-haiku-20240307", Ollama rejected it and
+the user got the canned rule-based reply, while get_supported_providers()
+listed all three cloud providers and test_api_key() called a valid key
+invalid. Wiring cloud adapters in here instead would also have sent the
+text of every recognised command to a cloud API whenever Ollama was down,
+because the local-mode failover chain listed them after Ollama.
 
 The Ollama model is generation.ollama_model(), shared with every other client.
 """
@@ -35,38 +43,6 @@ from Agent_Guru.llm.models import (
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
 from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
 
-# Cloud adapters are optional - only available if the adapter files exist.
-# We import them lazily so a missing file doesn't crash the whole module.
-try:
-    from Agent_Guru.llm.providers.openai_adapter import (
-        OpenAIAdapter as _OpenAIAdapter,  # type: ignore[import]
-    )
-
-    _HAS_OPENAI = True
-except ImportError:
-    _OpenAIAdapter = None  # type: ignore[assignment,misc]
-    _HAS_OPENAI = False
-
-try:
-    from Agent_Guru.llm.providers.anthropic_adapter import (
-        AnthropicAdapter as _AnthropicAdapter,  # type: ignore[import]
-    )
-
-    _HAS_ANTHROPIC = True
-except ImportError:
-    _AnthropicAdapter = None  # type: ignore[assignment,misc]
-    _HAS_ANTHROPIC = False
-
-try:
-    from Agent_Guru.llm.providers.google_adapter import (
-        GoogleAdapter as _GoogleAdapter,  # type: ignore[import]
-    )
-
-    _HAS_GOOGLE = True
-except ImportError:
-    _GoogleAdapter = None  # type: ignore[assignment,misc]
-    _HAS_GOOGLE = False
-
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -92,14 +68,6 @@ MAYA_SYSTEM_PROMPT = (
 PERSONALITY_PROMPTS: dict[str, str] = {
     "guru": GURU_SYSTEM_PROMPT,
     "maya": MAYA_SYSTEM_PROMPT,
-}
-
-# Default model names per provider (used for API key testing)
-_DEFAULT_MODELS: dict[str, str] = {
-    "openai": "gpt-4o-mini",
-    "anthropic": "claude-3-haiku-20240307",
-    "google": "gemini-1.5-flash",
-    "ollama": DEFAULT_OLLAMA_MODEL,
 }
 
 
@@ -195,10 +163,9 @@ class LLMResponse:
 class LLMManager:
     """High-level LLM manager with personality context and provider fallback.
 
-    Desktop: Ollama (local) is the primary provider. Cloud APIs are used
-    if an API key is set and the adapter is installed.
-
-    Mobile: Cloud APIs only (no local LLM support).
+    Local Ollama only; see the module docstring for where cloud models are.
+    On mobile, where there is no Ollama, every request gets the rule-based
+    fallback reply.
 
     Example::
 
@@ -254,32 +221,25 @@ class LLMManager:
             logger.warning("LLMManager already initialized")
             return
 
-        # Load API key from keyring if not provided
-        if not self._config.api_key:
-            self._config.api_key = self._load_api_key_from_keyring(self._config.provider)
-
-        # Auto-detect: if no cloud key is set anywhere, use local Ollama.
-        if self._is_desktop and self._config.mode == "cloud":
-            has_any_cloud_key = any(
-                [
-                    os.environ.get("OPENAI_API_KEY", "").strip(),
-                    os.environ.get("ANTHROPIC_API_KEY", "").strip(),
-                    os.environ.get("GOOGLE_API_KEY", "").strip(),
-                    os.environ.get("GEMINI_API_KEY", "").strip(),
-                    os.environ.get("DEEPSEEK_API_KEY", "").strip(),
-                    (self._config.api_key and self._config.provider != LLMProvider.OLLAMA),
-                ],
+        # A cloud setting is said out loud and replaced, not half-honoured:
+        # it used to put the cloud model's name on requests that could only
+        # ever go to Ollama.
+        if (
+            self._config.mode != "local"
+            or self._config.provider != LLMProvider.OLLAMA
+            or self._config.cloud_model
+        ):
+            logger.warning(
+                "LLMManager runs local Ollama only; ignoring mode=%s provider=%s cloud_model=%s "
+                "(cloud models are used through Agent_Guru.reasoning.llm.providers)",
+                self._config.mode,
+                self._config.provider.value,
+                self._config.cloud_model,
             )
-            if not has_any_cloud_key:
-                logger.info(
-                    "No cloud API key found - switching to local Ollama mode (model: %s at %s)",
-                    self._config.ollama_model,
-                    self._config.ollama_host,
-                )
-                self._config.mode = "local"
-                self._config.provider = LLMProvider.OLLAMA
+            self._config.mode = "local"
+            self._config.provider = LLMProvider.OLLAMA
+            self._config.cloud_model = None
 
-        # Build runtime config (Ollama only - cloud configs added if adapters exist)
         runtime_config = self._build_runtime_config()
 
         # Build provider adapters
@@ -501,13 +461,24 @@ class LLMManager:
             return None
 
     async def test_api_key(self, provider: LLMProvider, api_key: str) -> bool:
-        """Test an API key by making a minimal request to the provider."""
-        if not self.validate_api_key(provider, api_key):
-            return False
+        """Test a provider by making a minimal request to it.
+
+        Raises:
+            ValueError: For a cloud provider. This returned False for those,
+                so a valid key was reported as a wrong one; there is no
+                cloud adapter here to test it with.
+
+        """
+        if provider != LLMProvider.OLLAMA:
+            msg = (
+                f"LLMManager cannot test {provider.value} keys: it runs local Ollama only "
+                "(cloud models are used through Agent_Guru.reasoning.llm.providers)"
+            )
+            raise ValueError(msg)
         try:
-            adapter = self._create_adapter_for_provider(provider, api_key)
+            adapter = OllamaAdapter(OllamaConfig(host=self._config.ollama_host))
             test_request = CompletionRequest(
-                model=_DEFAULT_MODELS.get(provider.value, "gpt-4o-mini"),
+                model=self._config.ollama_model,
                 messages=[Message(role="user", content="Hi")],
                 max_tokens=1,
                 temperature=0.0,
@@ -579,11 +550,8 @@ class LLMManager:
         return PERSONALITY_PROMPTS[key]
 
     def get_supported_providers(self) -> list[str]:
-        """Return list of supported provider names for the current platform."""
-        providers = [p.value for p in LLMProvider if p != LLMProvider.OLLAMA]
-        if self._is_desktop:
-            providers = [LLMProvider.OLLAMA.value, *providers]
-        return providers
+        """Return the providers this manager can actually send a request to."""
+        return [LLMProvider.OLLAMA.value] if self._is_desktop else []
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -597,82 +565,19 @@ class LLMManager:
         )
 
     def _build_adapters(self) -> dict[ModelProvider, Any]:
-        """Build provider adapters based on what's actually installed."""
-        adapters: dict[ModelProvider, Any] = {}
-
-        # Ollama is always available on desktop
-        if self._is_desktop:
-            adapters[ModelProvider.OLLAMA] = OllamaAdapter(
-                OllamaConfig(host=self._config.ollama_host),
-            )
-
-        # Cloud adapters - only add if the adapter file exists
-        if _HAS_OPENAI and _OpenAIAdapter is not None:
-            try:
-                adapters[ModelProvider.OPENAI] = _OpenAIAdapter(
-                    type("OpenAIConfig", (), {"api_key": os.environ.get("OPENAI_API_KEY", "")})(),
-                )
-            except Exception as exc:
-                logger.debug("OpenAI adapter skipped: %s", exc)
-
-        if _HAS_ANTHROPIC and _AnthropicAdapter is not None:
-            try:
-                adapters[ModelProvider.ANTHROPIC] = _AnthropicAdapter(
-                    type(
-                        "AnthropicConfig",
-                        (),
-                        {"api_key": os.environ.get("ANTHROPIC_API_KEY", "")},
-                    )(),
-                )
-            except Exception as exc:
-                logger.debug("Anthropic adapter skipped: %s", exc)
-
-        if _HAS_GOOGLE and _GoogleAdapter is not None:
-            try:
-                adapters[ModelProvider.GOOGLE] = _GoogleAdapter(
-                    type(
-                        "GoogleConfig",
-                        (),
-                        {
-                            "api_key": os.environ.get(
-                                "GOOGLE_API_KEY",
-                                os.environ.get("GEMINI_API_KEY", ""),
-                            ),
-                        },
-                    )(),
-                )
-            except Exception as exc:
-                logger.debug("Google adapter skipped: %s", exc)
-
-        return adapters
+        """The Ollama adapter on desktop; nothing on mobile, which has no Ollama."""
+        if not self._is_desktop:
+            return {}
+        return {ModelProvider.OLLAMA: OllamaAdapter(OllamaConfig(host=self._config.ollama_host))}
 
     def _build_failover_config(self) -> FailoverConfig:
-        """Build failover chain based on platform and config."""
-        if self._is_mobile:
-            provider_chain = [ModelProvider.OPENAI, ModelProvider.GOOGLE, ModelProvider.ANTHROPIC]
-        elif self._config.mode == "local":
-            provider_chain = [
-                ModelProvider.OLLAMA,
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.ANTHROPIC,
-            ]
-        elif self._config.enable_fallback:
-            provider_chain = [
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.ANTHROPIC,
-                ModelProvider.OLLAMA,
-            ]
-        else:
-            provider_chain = [
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.ANTHROPIC,
-            ]
+        """Ollama, then the rule-based reply.
 
+        The chain used to list OpenAI, Google and Anthropic, which never had
+        adapters; the router skipped them, so it only looked like failover.
+        """
         return FailoverConfig(
-            provider_chain=provider_chain,
+            provider_chain=[ModelProvider.OLLAMA],
             enable_rule_based_fallback=True,
             voice_system_prompt="",
         )
@@ -699,18 +604,8 @@ class LLMManager:
         return messages
 
     def _get_active_model(self) -> str:
-        """Return the active model name based on config and platform."""
-        if self._config.cloud_model:
-            return self._config.cloud_model
-        if self._config.mode == "local" and self._is_desktop:
-            return self._config.ollama_model
-        provider_map = {
-            LLMProvider.OPENAI: "gpt-4o-mini",
-            LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
-            LLMProvider.GOOGLE: "gemini-1.5-flash",
-            LLMProvider.OLLAMA: self._config.ollama_model,
-        }
-        return provider_map.get(self._config.provider, self._config.ollama_model)
+        """The Ollama model every request is sent to."""
+        return self._config.ollama_model
 
     def _load_api_key_from_keyring(self, provider: LLMProvider) -> str:
         """Load API key from OS keychain."""
@@ -721,28 +616,6 @@ class LLMManager:
         except Exception as exc:
             logger.debug("Keyring unavailable: %s", exc)
             return ""
-
-    def _create_adapter_for_provider(self, provider: LLMProvider, api_key: str) -> Any:
-        """Create a provider adapter for API key testing."""
-        if provider == LLMProvider.OPENAI:
-            if not _HAS_OPENAI or _OpenAIAdapter is None:
-                msg = "OpenAI adapter not installed"
-                raise ValueError(msg)
-            return _OpenAIAdapter(type("OpenAIConfig", (), {"api_key": api_key})())
-        if provider == LLMProvider.ANTHROPIC:
-            if not _HAS_ANTHROPIC or _AnthropicAdapter is None:
-                msg = "Anthropic adapter not installed"
-                raise ValueError(msg)
-            return _AnthropicAdapter(type("AnthropicConfig", (), {"api_key": api_key})())
-        if provider == LLMProvider.GOOGLE:
-            if not _HAS_GOOGLE or _GoogleAdapter is None:
-                msg = "Google adapter not installed"
-                raise ValueError(msg)
-            return _GoogleAdapter(type("GoogleConfig", (), {"api_key": api_key})())
-        if provider == LLMProvider.OLLAMA:
-            return OllamaAdapter(OllamaConfig(host=self._config.ollama_host))
-        msg = f"Unknown provider: {provider}"
-        raise ValueError(msg)
 
     @staticmethod
     def _provider_to_model_provider(provider: LLMProvider) -> ModelProvider:
