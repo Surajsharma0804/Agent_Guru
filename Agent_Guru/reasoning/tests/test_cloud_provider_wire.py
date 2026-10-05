@@ -269,3 +269,43 @@ async def test_synthesis_inside_a_loop_returns_by_its_deadline(stand_in, monkeyp
 
     assert answer.summary  # nosec B101
     assert time.perf_counter() - started < 4.0  # nosec B101
+
+
+# --------------------------------------------------------------------------
+# Anthropic through the intent fallback and knowledge synthesis
+# --------------------------------------------------------------------------
+# Both passed temperature, which the installed SDK rejects with TypeError
+# before sending anything, and read content[0], which on current models is a
+# thinking block: neither had ever reached the API.
+
+
+async def test_intent_fallback_through_anthropic(stand_in, monkeypatch):
+    from Agent_Guru.reasoning.intent.llm_fallback import LLMFallbackClassifier, LLMFallbackConfig
+
+    server = stand_in(content=INTENT_JSON)
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", server.url)
+    config = LLMFallbackConfig(provider="anthropic", model="claude-opus-5-5", api_key="k",
+                               max_retries=1, timeout_ms=5000.0)
+
+    result = await LLMFallbackClassifier(config).classify_async("open chrome")
+
+    assert result.intent_type == "open_app"  # nosec B101
+    assert server.requests[0]["path"] == "/v1/messages"  # nosec B101
+    assert "temperature" not in server.requests[0]["body"]  # nosec B101
+
+
+def test_synthesis_through_anthropic(stand_in, monkeypatch):
+    from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
+    from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
+
+    server = stand_in(content=json.dumps({"summary": "You went running.", "confidence": 0.95}))
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", server.url)
+    synthesizer = KnowledgeSynthesizer(
+        memory_retriever=Mock(spec=MemoryRetriever), llm_provider="anthropic", llm_api_key="k",
+        use_llm_synthesis=True, llm_timeout_ms=5000.0, llm_max_retries=1,
+    )
+
+    answer = synthesizer.generate_answer(_query(), [], [], {})
+
+    assert "you went running" in answer.summary.lower()  # nosec B101
+    assert len(server.requests) == 1  # nosec B101
