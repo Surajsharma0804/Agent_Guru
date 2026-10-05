@@ -22,6 +22,8 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from Agent_Guru.utils.duration import DURATION_PATTERN, describe_duration, normalize_duration_words, parse_duration
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -99,8 +101,12 @@ class ReminderManager:
         task = asyncio.create_task(self._fire_after(reminder, delay))
         self._tasks[rid] = task
 
-        # Human-readable confirmation
-        if delay < 60:
+        # Human-readable confirmation. A duration is said exactly ("1 minute
+        # 30 seconds"); it used to be cut to whole minutes, so a 90-second
+        # timer was confirmed as "1 minute".
+        if at_time is None:
+            time_str = describe_duration(delay)
+        elif delay < 60:
             time_str = f"{int(delay)} seconds"
         elif delay < 3600:
             mins = int(delay / 60)
@@ -215,66 +221,47 @@ def parse_reminder_from_transcript(transcript: str) -> dict | None:
     """
     t = transcript.strip()
 
-    # Normalize natural time expressions FIRST before pattern matching
-    t = re.sub(r"\bhalf\s+an?\s+hour\b", "30 minutes", t, flags=re.IGNORECASE)
-    t = re.sub(r"\ban?\s+hour\b", "60 minutes", t, flags=re.IGNORECASE)
-    t = re.sub(r"\ba\s+minute\b", "1 minute", t, flags=re.IGNORECASE)
-    t = re.sub(r"\ba\s+second\b", "1 second", t, flags=re.IGNORECASE)
-    t = re.sub(r"\ba\s+few\s+minutes\b", "3 minutes", t, flags=re.IGNORECASE)
-    t = re.sub(r"\ba\s+couple\s+(?:of\s+)?minutes\b", "2 minutes", t, flags=re.IGNORECASE)
+    # Spoken durations ("half an hour", "a minute") become number + unit,
+    # through the project's one duration parser.
+    t = normalize_duration_words(t)
 
     # Pattern 1: "remind me in X minutes to Y" or just "remind me in X minutes"
     m = re.search(
-        r"remind\s+me\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?(?:\s+(?:to\s+)?(.+))?",
+        rf"remind\s+me\s+in\s+({DURATION_PATTERN})(?:\s+(?:to\s+)?(.+))?",
         t,
         re.IGNORECASE,
     )
     if m:
-        amount = float(m.group(1))
-        unit = m.group(2).lower()
-        message = (m.group(3) or "reminder").strip().rstrip(".,!?")
-        key = "seconds" if "sec" in unit else "minutes"
-        return {"message": message, key: amount}
+        message = (m.group(2) or "reminder").strip().rstrip(".,!?")
+        return {"message": message, "seconds": parse_duration(m.group(1))}
 
     # Pattern 2: "remind me to Y in X minutes" (reversed order)
     m = re.search(
-        r"remind\s+me\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        rf"remind\s+me\s+(?:to\s+)?(.+?)\s+in\s+({DURATION_PATTERN})",
         t,
         re.IGNORECASE,
     )
     if m:
-        message, amount, unit = (
-            m.group(1).strip().rstrip(".,!?"),
-            float(m.group(2)),
-            m.group(3).lower(),
-        )
-        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+        return {"message": m.group(1).strip().rstrip(".,!?"), "seconds": parse_duration(m.group(2))}
 
     # Pattern 3: "in X minutes remind me to Y" (time first)
     m = re.search(
-        r"in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?\s+remind\s+me\s+(?:to\s+)?(.+)",
+        rf"in\s+({DURATION_PATTERN})\s+remind\s+me\s+(?:to\s+)?(.+)",
         t,
         re.IGNORECASE,
     )
     if m:
-        amount, unit, message = (
-            float(m.group(1)),
-            m.group(2).lower(),
-            m.group(3).strip().rstrip(".,!?"),
-        )
-        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+        return {"message": m.group(2).strip().rstrip(".,!?"), "seconds": parse_duration(m.group(1))}
 
     # Pattern 4: "set a timer for X minutes"
     m = re.search(
-        r"(?:set\s+a?\s*)?timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        rf"(?:set\s+a?\s*)?timer\s+(?:for\s+)?({DURATION_PATTERN})",
         t,
         re.IGNORECASE,
     )
     if m:
-        amount, unit = float(m.group(1)), m.group(2).lower()
-        if "sec" in unit:
-            return {"message": f"Your {int(amount)}-second timer is done.", "seconds": amount}
-        return {"message": f"Your {int(amount)}-minute timer is done.", "minutes": amount}
+        seconds = parse_duration(m.group(1))
+        return {"message": f"Your {_timer_label(seconds)} timer is done.", "seconds": seconds}
 
     # Pattern 5: "remind me at 3pm to Y"
     m = re.search(
@@ -288,16 +275,19 @@ def parse_reminder_from_transcript(transcript: str) -> dict | None:
 
     # Pattern 6: "don't let me forget to Y in X minutes"
     m = re.search(
-        r"(?:don.t\s+let\s+me\s+forget|don.t\s+forget)\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        rf"(?:don.t\s+let\s+me\s+forget|don.t\s+forget)\s+(?:to\s+)?(.+?)\s+in\s+({DURATION_PATTERN})",
         t,
         re.IGNORECASE,
     )
     if m:
-        message, amount, unit = (
-            m.group(1).strip().rstrip(".,!?"),
-            float(m.group(2)),
-            m.group(3).lower(),
-        )
-        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+        return {"message": m.group(1).strip().rstrip(".,!?"), "seconds": parse_duration(m.group(2))}
 
     return None
+
+
+def _timer_label(seconds: int) -> str:
+    """"5-minute", "1-hour", "90-second": the largest unit that divides exactly."""
+    for name, size in (("hour", 3600), ("minute", 60)):
+        if seconds >= size and seconds % size == 0:
+            return f"{seconds // size}-{name}"
+    return f"{seconds}-second"
