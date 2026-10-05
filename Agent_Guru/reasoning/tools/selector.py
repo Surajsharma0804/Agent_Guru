@@ -243,9 +243,20 @@ class ToolSelector:
         if not all_tool_metadata:
             return None
 
-        # Score each tool for basic capability matching
+        # Score each tool for basic capability matching. Only executable
+        # tools are candidates. Tier 2 used to rank every tool on vocabulary
+        # alone and never check required parameters, so a set_timer intent
+        # whose Tier 1 tool was missing its duration fell through to here,
+        # and messaging.send won because an entity happened to be named
+        # "recipient": it was selected without the message it requires.
+        # Filtering before ranking also stops an ineligible tool from
+        # shadowing a valid one.
         candidates: list[tuple[ToolMetadata, float]] = []
         for metadata in all_tool_metadata:
+            if self._belongs_to_other_intent(metadata.tool_id, intent):
+                continue
+            if not self._has_required_parameters(metadata, self._parameters_for(metadata, intent)):
+                continue
             score = self._calculate_match_score(metadata, intent)
             if score > 0.5:  # Minimum threshold
                 candidates.append((metadata, score))
@@ -398,8 +409,42 @@ class ToolSelector:
             Dictionary of parameter name → value (extracted from Entity.value)
 
         """
+        return self._parameters_for(tool.metadata, intent)
+
+    @staticmethod
+    def _intent_type_name(intent: Intent) -> str:
+        return intent.intent_type.value if hasattr(intent.intent_type, "value") else str(intent.intent_type)
+
+    def _belongs_to_other_intent(self, tool_id: str, intent: Intent) -> bool:
+        """Whether tool_id is the direct mapping of a different, classified intent type.
+
+        When the intent was classified as a type that has its own tool, a
+        tool owned by another type does what a different request asks for:
+        choosing it would replace what the user asked with something else,
+        however well its vocabulary matches. If the intent's own tool cannot
+        run (a timer with no duration), the answer is no executable tool, so
+        the caller asks for what is missing. An intent with no mapped tool
+        ("unknown") was not classified, so any tool may match it.
+        """
+        intent_type = self._intent_type_name(intent)
+        if intent_type not in DIRECT_MAPPINGS:
+            return False
+        owner = next((name for name, mapped in DIRECT_MAPPINGS.items() if mapped == tool_id), None)
+        return owner is not None and owner != intent_type
+
+    @staticmethod
+    def _has_required_parameters(metadata: ToolMetadata, parameters: dict[str, Any]) -> bool:
+        # A value of None or blank text is no argument: an extracted
+        # "message" entity that came back empty would otherwise send an
+        # empty message. 0 and False are real values and count.
+        given = {
+            name for name, value in parameters.items()
+            if value is not None and not (isinstance(value, str) and not value.strip())
+        }
+        return {p.name for p in metadata.parameters if p.required}.issubset(given)
+
+    def _parameters_for(self, metadata: ToolMetadata, intent: Intent) -> dict[str, Any]:
         parameters: dict[str, Any] = {}
-        metadata = tool.metadata
 
         # Map entity names to parameter names
         for param in metadata.parameters:
@@ -431,11 +476,7 @@ class ToolSelector:
             True if all required parameters present, False otherwise
 
         """
-        metadata = tool.metadata
-        required_params = {p.name for p in metadata.parameters if p.required}
-        available_params = set(parameters.keys())
-
-        return required_params.issubset(available_params)
+        return self._has_required_parameters(tool.metadata, parameters)
 
     async def record_tool_execution(
         self,
