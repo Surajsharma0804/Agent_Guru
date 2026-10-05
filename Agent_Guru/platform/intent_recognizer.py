@@ -38,6 +38,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from Agent_Guru.platform.features.screen_reader import SCREEN_QUESTION_PATTERN
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -260,14 +262,12 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         ),
         "clipboard",
     ),
-    # Screen reading
-    (
-        re.compile(
-            r"\b(what.s on my screen|read my screen|what do you see|summarize my screen|what am i looking at|describe my screen)\b",
-            re.IGNORECASE,
-        ),
-        "screen_read",
-    ),
+    # Screen reading. The pattern is screen_reader's, shared so that the
+    # recognizer and the feature that answers agree on what counts: this
+    # list had its own shorter pattern, so "read the text on my screen"
+    # became a send-message intent and "what is on my screen" a general
+    # question the LLM answered without seeing the screen.
+    (SCREEN_QUESTION_PATTERN, "screen_read"),
     # System status
     (
         re.compile(
@@ -808,6 +808,11 @@ class _RuleEngine:
                         params["direction"] = (
                             re.search(r"\b(mute|unmute)\b", text, re.IGNORECASE).group(1).lower()
                         )
+                elif action == "screen_read":
+                    # The question itself, so the action stage knows what
+                    # was asked; without it the stage saw only the literal
+                    # "system_control:screen_read".
+                    params["query"] = text
                 elif action == "brightness":
                     num = re.search(r"\d+", text)
                     if num:
