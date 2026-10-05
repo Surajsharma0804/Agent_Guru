@@ -133,7 +133,6 @@ class NEREntityExtractor:
         self.total_entities_extracted = 0
 
         # Entity normalization patterns
-        self._duration_patterns = self._compile_duration_patterns()
         self._time_patterns = self._compile_time_patterns()
 
     def load_model(self) -> None:
@@ -366,15 +365,12 @@ class NEREntityExtractor:
             Duration in seconds or None
 
         """
-        text = text.lower()
+        # The project's one duration parser. This used its own single-unit
+        # patterns, so "2 hours 30 minutes" normalised to 1800, and it
+        # disagreed with the other producers.
+        from Agent_Guru.utils.duration import parse_duration
 
-        for pattern, multiplier in self._duration_patterns:
-            match = pattern.search(text)
-            if match:
-                value = float(match.group(1))
-                return int(value * multiplier)
-
-        return None
+        return parse_duration(text)
 
     def _normalize_time(self, text: str) -> str | None:
         """Normalize time to HH:MM format.
@@ -506,20 +502,6 @@ class NEREntityExtractor:
                 last_end = end
 
         return result
-
-    def _compile_duration_patterns(self) -> list[tuple[re.Pattern, int]]:
-        """Compile duration normalization patterns.
-
-        Returns:
-            List of (pattern, multiplier) tuples
-
-        """
-        return [
-            (re.compile(r"(\d+(?:\.\d+)?)\s*(?:second|sec|s)s?"), 1),
-            (re.compile(r"(\d+(?:\.\d+)?)\s*(?:minute|min|m)s?"), 60),
-            (re.compile(r"(\d+(?:\.\d+)?)\s*(?:hour|hr|h)s?"), 3600),
-            (re.compile(r"(\d+(?:\.\d+)?)\s*(?:day|d)s?"), 86400),
-        ]
 
     def _compile_time_patterns(self) -> list[tuple[re.Pattern, Any]]:
         """Compile time normalization patterns.
