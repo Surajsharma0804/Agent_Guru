@@ -1,19 +1,15 @@
-"""Memory Retrieval Layer for retrieval-augmented reasoning.
-
-This module provides vector database storage and semantic search capabilities
-for different types of memories (episodic, semantic, preference, task).
+"""Embeddings for semantic memory search.
 
 Components:
-    - VectorDatabase: ChromaDB-based vector storage with semantic search
-    - MemoryRetriever: High-level interface for memory storage and retrieval
-    - EmbeddingGenerator: Sentence-transformers based embedding generation
-    - MemoryStoragePipeline: Automatic memory storage with deduplication
+    - EmbeddingGenerator: Sentence-transformers based embedding generation,
+      used by Agent_Guru.memory.memory_manager to rank past conversations.
 
-Performance Targets:
-    - Retrieval latency: <100ms (P95)
-    - Embedding generation: <50ms per text (GPU accelerated)
-    - Storage: <10ms per memory
-    - Search: <100ms for top-k retrieval
+This package also held VectorDatabase (a ChromaDB store) and
+MemoryStoragePipeline. Nothing in the application ever constructed either:
+the assistant's memory is memory_manager's SQLite store. Because this file
+imported them eagerly, every process that loaded the embedder imported
+chromadb anyway (2.0 s measured) and shipped a package with two unfixed
+critical advisories. They were removed with the chromadb dependency.
 
 Author: Agent Guru Team
 Date: 2024
@@ -21,11 +17,7 @@ Version: 1.0.0
 """
 
 from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
-from Agent_Guru.reasoning.memory.storage_pipeline import MemoryStoragePipeline
-from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 
 __all__ = [
     "EmbeddingGenerator",
-    "MemoryStoragePipeline",
-    "VectorDatabase",
 ]
