@@ -90,7 +90,6 @@ pytorch-lightning>=2.0.0
 
 # Configuration & Utilities
 pydantic>=2.0.0
-pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 pyyaml>=6.0.0
 toml>=0.10.2
