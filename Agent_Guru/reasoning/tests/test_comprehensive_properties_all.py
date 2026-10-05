@@ -748,19 +748,26 @@ class TestEdgeCases:
         
         stage = PipelineStage.INPUT_NORMALIZATION
         timer = controller.start_stage(stage)
-        
-        # Simulate work - capped at 10ms so 50 examples finish in <1s total
+
+        # Simulate work - capped at 10ms so 50 examples finish in <1s total.
+        # The elapsed time is measured here, independently of the controller.
+        # This compared the controller with the REQUESTED sleep, but
+        # time.sleep oversleeps whenever the thread is not rescheduled at once
+        # (it failed during a concurrent pip install with the controller
+        # measuring correctly: a 25 ms oversleep reads as a 25 ms error).
+        # Compared with what really elapsed, the tolerance can be 5 ms instead
+        # of 20, and a tracker that is wrong still fails.
+        started = time.perf_counter()
         time.sleep(latency)
-        
+        actual = time.perf_counter() - started
+
         metrics = controller.end_stage(timer)
-        
+
         # Get measured latency
         measured = metrics.duration_ms / 1000.0  # Convert to seconds
-        
-        # Assert accuracy within 15% or 20ms (whichever is larger) - more lenient for Windows timing
-        tolerance = max(latency * 0.15, 0.02)
-        assert abs(measured - latency) < tolerance, \
-            f"Measured latency {measured:.3f}s should be close to actual {latency:.3f}s"  # nosec B101
+
+        assert abs(measured - actual) < 0.005, \
+            f"Controller measured {measured * 1000:.2f} ms for {actual * 1000:.2f} ms of elapsed time"  # nosec B101
 
     @given(
         error_count=st.integers(min_value=1, max_value=10)
