@@ -62,6 +62,10 @@
 #   stay: they record the development machine's CUDA build, CI installs CPU
 #   wheels from requirements-torch.txt, and the audit maps them to the
 #   public release.
+# Removed 2026-10-05: pydantic-settings==2.14.1. Declared, but nothing in the
+#   project imports it or configures through BaseSettings; it was installed
+#   for chromadb, now removed, and fastapi needs it only for its unused
+#   [standard] extra. It carried a moderate advisory.
 #
 # This is a snapshot, not generated from the declarations. The two declared
 # dependencies this note used to name as missing, pytest-timeout and
@@ -290,7 +294,6 @@ pycountry==26.2.16
 pycparser==3.0
 pydantic==2.13.4
 pydantic-extra-types==2.11.1
-pydantic-settings==2.14.1
 pydantic_core==2.46.4
 pyee==13.0.1
 PyGetWindow==0.0.9
