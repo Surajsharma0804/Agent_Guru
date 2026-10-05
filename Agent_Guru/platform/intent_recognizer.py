@@ -828,10 +828,14 @@ class _RuleEngine:
                         params["direction"] = (
                             re.search(r"\b(mute|unmute)\b", text, re.IGNORECASE).group(1).lower()
                         )
-                elif action == "screen_read":
-                    # The question itself, so the action stage knows what
-                    # was asked; without it the stage saw only the literal
-                    # "system_control:screen_read".
+                elif action in ("screen_read", "reminder"):
+                    # The request itself, so the action stage knows what was
+                    # asked; without it the stage saw only the literal
+                    # "system_control:screen_read". For reminders that was
+                    # worse than unanswered: the reminder parser found no
+                    # duration in "system_control:reminder::", nothing was
+                    # scheduled, and "set a timer for 1 minute" was answered
+                    # "Done." with no timer set.
                     params["query"] = text
                 elif action == "brightness":
                     num = re.search(r"\d+", text)
