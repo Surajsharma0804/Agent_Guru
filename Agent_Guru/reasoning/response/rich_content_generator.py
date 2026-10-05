@@ -337,6 +337,12 @@ class RichContentGenerator:
             )
             if hasattr(duration, "value"):
                 duration = duration.value
+            if isinstance(duration, int) and not isinstance(duration, bool):
+                # Duration entities hold whole seconds (utils.duration); shown
+                # as they were, the card read "Timer for 300 is now active".
+                from Agent_Guru.utils.duration import describe_duration
+
+                duration = describe_duration(duration)
             return {
                 "type": "card",
                 "title": "Timer Set",
