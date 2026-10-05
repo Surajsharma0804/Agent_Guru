@@ -51,6 +51,7 @@ Version: 1.0.0
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -314,9 +315,13 @@ class IntentDetectionEngine:
 
         if openai_key:
             _logger.info("LLM Fallback: OpenAI API (FAST)")
+            # gpt-4-turbo-preview, the model named here before, was shut down
+            # by OpenAI on 2026-03-26, so every OpenAI fallback call failed.
+            # gpt-4o has no announced shutdown; AGENT_GURU_OPENAI_MODEL
+            # overrides it when that changes.
             return LLMFallbackConfig(
                 provider="openai",
-                model="gpt-4-turbo-preview",
+                model=os.environ.get("AGENT_GURU_OPENAI_MODEL", "").strip() or "gpt-4o",
                 api_key=openai_key,
                 timeout_ms=2000.0,
             )
