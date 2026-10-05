@@ -165,6 +165,27 @@ class Entity(BaseModel):
         return v
 
     @model_validator(mode="after")
+    def canonical_duration(self) -> "Entity":
+        """A duration entity's value is always whole seconds (Agent_Guru.utils.duration).
+
+        Producers disagreed: the fast router gave {'value': 5, 'unit':
+        'minutes'}, which reached SetTimerTool's duration_seconds as a dict,
+        and kept only the last part of "1 hour 30 minutes". The phrase text is
+        read first, so compound durations are summed; a structured value is
+        used only when the text has no units (an MM:SS match). A duration
+        nobody can read becomes None, so no tool runs on a guess.
+        """
+        if self.entity_type == EntityType.DURATION.value:
+            from Agent_Guru.utils.duration import parse_duration, to_seconds
+
+            seconds = parse_duration(self.raw_text)
+            if seconds is None:
+                seconds = to_seconds(self.value)
+            self.value = seconds
+            self.normalized_value = seconds
+        return self
+
+    @model_validator(mode="after")
     def validate_positions(self) -> "Entity":
         """Validate start and end positions."""
         if self.start_pos is not None and self.end_pos is not None:
