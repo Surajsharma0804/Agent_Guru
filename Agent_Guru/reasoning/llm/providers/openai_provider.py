@@ -34,7 +34,8 @@ from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderCon
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI GPT LLM provider.
 
-    Default model: gpt-4-turbo-preview (best quality/speed balance)
+    Default model: gpt-4o. The previous default, gpt-4-turbo-preview, was
+    shut down by OpenAI on 2026-03-26.
 
     Example:
         >>> config = ProviderConfig(api_key="sk-...")
@@ -47,7 +48,7 @@ class OpenAIProvider(BaseLLMProvider):
     def __init__(
         self,
         config: ProviderConfig | None = None,
-        model: str = "gpt-4-turbo-preview",
+        model: str = "gpt-4o",
     ) -> None:
         """Initialize OpenAI provider.
 

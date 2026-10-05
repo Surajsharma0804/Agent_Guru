@@ -76,7 +76,7 @@ class TestInitialization:
         provider = OpenAIProvider(config)
 
         assert provider.config == config  # nosec B101
-        assert provider.model == "gpt-4-turbo-preview"  # nosec B101
+        assert provider.model == "gpt-4o"  # nosec B101
         assert provider.client is not None  # nosec B101
         assert provider.get_provider_type() == LLMProvider.OPENAI  # nosec B101
 
@@ -164,7 +164,7 @@ class TestGeneration:
         assert response.latency_ms > 0  # nosec B101
         assert response.tokens_generated == 20  # nosec B101
         assert response.finish_reason == "stop"  # nosec B101
-        assert response.metadata["model"] == "gpt-4-turbo-preview"  # nosec B101
+        assert response.metadata["model"] == "gpt-4o"  # nosec B101
         assert response.metadata["prompt_tokens"] == 10  # nosec B101
         assert response.metadata["total_tokens"] == 30  # nosec B101
 
