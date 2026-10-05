@@ -532,7 +532,11 @@ class ProviderFailoverRouter:
         defaults = {
             ModelProvider.OLLAMA: "llama3.2",
             ModelProvider.OPENAI: "gpt-4o-mini",
-            ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",
+            # Was claude-3-haiku-20240307, a March 2024 model that nothing
+            # else in the project uses. Kept equal to AnthropicProvider's
+            # default, the model the Anthropic path is tested against, by
+            # test_failover_router.py.
+            ModelProvider.ANTHROPIC: "claude-opus-5-5",
             ModelProvider.GOOGLE: "gemini-2.0-flash",
         }
         return defaults.get(provider, "gpt-4o-mini")
