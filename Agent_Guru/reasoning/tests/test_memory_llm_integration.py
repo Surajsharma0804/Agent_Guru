@@ -218,10 +218,19 @@ class TestMemoryLLMIntegration:
             intent_type=IntentType.QUERY_WEATHER, original_input="what's the weather"
         )
 
-        context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
+        # Median of five calls against the unchanged 100 ms budget. This judged
+        # one call, so one scheduling stall failed it: a full run measured
+        # 129 ms while other work loaded the machine, against about 40 ms
+        # otherwise. Nearly all of the time is the query embedding (a 31 ms
+        # transformer pass plus sentence-transformers' per-call setup), and it
+        # does not grow with the number of memories (34 ms at 100, 39 ms at
+        # 1,600). A real slowdown moves the median and still fails.
+        times = sorted(
+            integration.retrieve_for_reasoning(intent=intent, user_id="user_123").retrieval_time_ms
+            for _ in range(5)
+        )
 
-        # Should meet <100ms latency budget
-        assert context.retrieval_time_ms < 100  # nosec B101
+        assert times[2] < 100, f"median {times[2]:.0f} ms of {times}"  # nosec B101
 
     def test_format_memories_for_prompt_empty(self):
         """Test format_memories_for_prompt with empty list."""
