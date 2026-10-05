@@ -431,7 +431,6 @@ policy/engine.py (PolicyEngine)
 | `pydantic` | >=2.0.0 | Data validation |
 | `sqlalchemy` | >=2.0.0 | ORM |
 | `aiosqlite` | >=0.19.0 | Async SQLite |
-| `chromadb` | >=0.4.0 | Vector database |
 | `cryptography` | >=41.0.0 | AES-256-GCM, Ed25519 |
 
 ### Observability
