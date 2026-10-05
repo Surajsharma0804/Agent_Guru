@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
+# Whether the missing OCR backend has been logged; see _run_extraction.
+_missing_backend_reported = False
+
 SUPPORTED_LANGUAGES: frozenset[str] = frozenset(
     ["en", "es", "fr", "de", "zh", "ja", "ko", "pt", "it", "ar"],
 )
@@ -156,9 +159,9 @@ class OCREngine:
                     )
             return words
         except ImportError:
-            # easyocr is an optional backend; the pytesseract cascade below is
-            # the documented fallback. Absence is a configuration state, not a
-            # failure, and this is reported once by the backend selection.
+            # PaddleOCR is an optional backend; pytesseract below is the
+            # fallback. Absence is a configuration state, not a failure, and
+            # is reported once below if neither is installed.
             pass
 
         try:
@@ -186,7 +189,16 @@ class OCREngine:
                     )
             return words
         except ImportError:
-            logger.exception("OCREngine: neither PaddleOCR nor Tesseract available")
+            # Said once, as the configuration state it is. This was
+            # logger.exception on every call: each text question without an
+            # OCR backend (none is a required dependency) logged an ERROR
+            # with a traceback that printed the whole image array, and on a
+            # cp1252 Windows console rendering that traceback itself raised
+            # UnicodeEncodeError.
+            global _missing_backend_reported
+            if not _missing_backend_reported:
+                _missing_backend_reported = True
+                logger.warning("OCREngine: no OCR backend installed (paddleocr or pytesseract); returning no text")
             return []
 
     # ------------------------------------------------------------------
