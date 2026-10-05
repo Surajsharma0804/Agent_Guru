@@ -140,10 +140,18 @@ async def _speak(transcript, screen=None):
     async def no_filler(*args, **kwargs):
         return None
 
+    async def no_browser():
+        raise RuntimeError("tests never start a browser")
+
     # Nothing may play through the speakers: the filler clip and the reply
-    # are both replaced.
+    # are both replaced. A misrouted question must not open a browser
+    # either: the old recogniser sent "which application is open on my
+    # screen" to open_url, which starts the real BrowserManager when
+    # Playwright is installed. FakeScreen has no open_url, so the fallback
+    # cannot reach the OS browser.
     orch._stage_tts = capture_tts
     orch._play_filler = no_filler
+    orch._get_browser_mgr = no_browser
     await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=np.zeros(16000, np.float32).tobytes()))
     return (spoken[0] if spoken else None), llm, screen
 
@@ -170,6 +178,8 @@ async def test_text_question_does_not_invoke_vision(vision):
 @pytest.mark.parametrize("transcript", [
     "describe my screen", "what am I looking at", "read the text on my screen",
     "what color is the window on my screen",
+    # These contain "open", and the web rule used to take them as open_url.
+    "which application is open on my screen", "how many tabs are open on my screen",
 ])
 async def test_every_screen_phrase_is_answered_by_vision(vision, transcript):
     server = vision()
