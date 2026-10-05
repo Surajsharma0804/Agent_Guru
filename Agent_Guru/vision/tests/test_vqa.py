@@ -69,9 +69,10 @@ def ollama():
     server.close()
 
 
-async def test_desktop_sends_the_image_to_the_shared_model(ollama, image, monkeypatch):
-    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
-    from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL, OLLAMA_THINK
+async def test_desktop_sends_the_image_to_the_verified_vision_model(ollama, image, monkeypatch):
+    monkeypatch.delenv("AGENT_GURU_VQA_MODEL", raising=False)
+    from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK
+    from Agent_Guru.vision.vqa import DEFAULT_VQA_MODEL
 
     result = await VQAEngine(ollama_url=ollama.url, timeout_s=10).answer(image, "What colour is the square?")
 
@@ -80,7 +81,8 @@ async def test_desktop_sends_the_image_to_the_shared_model(ollama, image, monkey
     sent = ollama.requests[0]
     assert sent["path"] == "/api/generate"  # nosec B101
     body = sent["body"]
-    assert body["model"] == DEFAULT_OLLAMA_MODEL  # nosec B101
+    # gemma3:4b, the model verified on real questions, not the conversation model.
+    assert body["model"] == DEFAULT_VQA_MODEL == "gemma3:4b"  # nosec B101
     assert body["think"] is OLLAMA_THINK  # nosec B101
     assert body["stream"] is False  # nosec B101
     assert "What colour is the square?" in body["prompt"]  # nosec B101

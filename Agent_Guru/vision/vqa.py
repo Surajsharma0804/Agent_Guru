@@ -77,6 +77,45 @@ _SYSTEM_PROMPT = (
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 #: OpenAI model for the mobile cloud path; override with AGENT_GURU_VQA_OPENAI_MODEL.
 DEFAULT_OPENAI_MODEL = "gpt-4o"
+#: Local Ollama model for visual questions; override with AGENT_GURU_VQA_MODEL.
+#: Measured with Ollama 0.34.4 on the development laptop on a sign and on
+#: coloured shapes: gemma3:4b answered 4 of 4 questions correctly, while
+#: gemma4:latest answered all 4 wrongly although the image reached it. That
+#: is one Ollama build and one small question set, not a verdict on gemma4,
+#: but it makes gemma3:4b the only verified choice. On a 4 GB GPU only one
+#: of the two fits, so a visual question makes Ollama swap models.
+DEFAULT_VQA_MODEL = "gemma3:4b"
+
+
+def vqa_model() -> str:
+    """The Ollama model used for visual questions."""
+    return os.environ.get("AGENT_GURU_VQA_MODEL", "").strip() or DEFAULT_VQA_MODEL
+
+
+def _normalise_image(image: Any) -> np.ndarray:
+    """Return image as a uint8 RGB array, or raise ValueError saying why it is unusable.
+
+    Grayscale and RGBA arrays (screenshots are often RGBA) become RGB; float
+    arrays in 0..1 are scaled. Anything else is rejected before a model is
+    asked about it.
+    """
+    import numpy as np
+
+    if not isinstance(image, np.ndarray):
+        msg = f"image must be a numpy array, got {type(image).__name__}"
+        raise ValueError(msg)
+    if image.ndim == 2:
+        image = np.stack([image] * 3, axis=-1)
+    if image.ndim != 3 or image.shape[2] not in (3, 4) or min(image.shape[:2]) < 8:
+        msg = f"image must be HxWx3 or HxWx4 and at least 8x8, got shape {image.shape}"
+        raise ValueError(msg)
+    if image.shape[2] == 4:
+        image = image[:, :, :3]
+    if image.dtype != np.uint8:
+        if np.issubdtype(image.dtype, np.floating) and image.size and float(image.max()) <= 1.0:
+            image = image * 255.0
+        image = np.clip(image, 0, 255).astype(np.uint8)
+    return np.ascontiguousarray(image)
 
 
 def _is_text_question(question: str) -> bool:
@@ -217,25 +256,13 @@ class VQAEngine:
         """
         import requests
 
-        from Agent_Guru.reasoning.llm.generation import (
-            OLLAMA_THINK,
-            ollama_model,
-            ollama_options,
-        )
+        from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK, ollama_options
         from Agent_Guru.reasoning.llm.timeouts import connect_timeout
 
-        # The conversation model by default, so a visual question does not
-        # make Ollama swap models (only one fits a 4 GB GPU). Measured with
-        # Ollama 0.34.4 on the development laptop, gemma4's vision answered
-        # 4 of 4 concrete questions wrongly (black text read as "White", a red
-        # circle and blue square as "abstract shapes in black, white, and
-        # gray") although the image reached it, while gemma3:4b answered all
-        # 4 correctly through this same code, at the cost of a model swap
-        # (11.7 s for the first question). AGENT_GURU_VQA_MODEL picks the
-        # vision model.
-        vqa_model = os.environ.get("AGENT_GURU_VQA_MODEL", "").strip() or ollama_model()
+        # The verified vision model, not the conversation model: see
+        # DEFAULT_VQA_MODEL for the measurement behind that.
         payload = {
-            "model": vqa_model,
+            "model": vqa_model(),
             "system": _SYSTEM_PROMPT,
             "prompt": prompt,
             "images": [_encode_image_base64(image)],
@@ -314,7 +341,9 @@ class VQAEngine:
     # Public API
     # ------------------------------------------------------------------
 
-    async def answer(self, image: np.ndarray, question: str) -> VQAResult:
+    async def answer(
+        self, image: np.ndarray, question: str, *, context_text: str | None = None,
+    ) -> VQAResult:
         """Answer a natural language question about an image.
 
         The model call runs in a worker thread so the event loop keeps running
@@ -322,8 +351,13 @@ class VQAEngine:
         timeout_s.
 
         Args:
-            image: uint8 RGB array of shape (H, W, 3).
+            image: RGB array of shape (H, W, 3); grayscale and RGBA are
+                converted.
             question: Natural language question string.
+            context_text: Text already known to be in the image (for a
+                screen, what UI Automation read). Used instead of OCR, so
+                text questions do not depend on an OCR backend being
+                installed.
 
         Returns:
             VQAResult with answer, confidence, and metadata flags; error is set
@@ -331,12 +365,21 @@ class VQAEngine:
 
         """
         grounded_in_ocr = False
-        ocr_text: str | None = None
+        ocr_text: str | None = (context_text or "").strip() or None
 
-        if _is_text_question(question):
+        try:
+            image = _normalise_image(image)
+        except ValueError as exc:
+            return VQAResult(
+                question=question, answer="I could not analyse the image.", confidence=0.0,
+                grounded_in_ocr=False, not_visible=False, error=f"invalid image: {exc}",
+            )
+
+        if ocr_text is None and _is_text_question(question):
+            # Optional: with no OCR backend installed this finds nothing and
+            # the model reads the text from the image itself.
             ocr_text = await self._get_ocr_text(image)
-            if ocr_text:
-                grounded_in_ocr = True
+        grounded_in_ocr = ocr_text is not None
 
         prompt = self._build_prompt(question, ocr_text)
 
