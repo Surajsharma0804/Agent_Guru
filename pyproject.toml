@@ -154,8 +154,12 @@ dependencies = [
     # module and must never be installed together. Pillow is used by
     # vision/ocr.py and vision/vqa.py. Both are imported inside functions or
     # try blocks, so without them startup logged no error and the camera
-    # features and the avatar window simply never worked.
-    "opencv-python>=4.8.0",
+    # features and the avatar window simply never worked. Below 5: OpenCV 5
+    # removed CascadeClassifier, the face detector every Haar fallback here
+    # uses (vision/detection/detector.py, vision/face_features.py,
+    # avatar/emotion/recognizer.py). With 5.0 installed each of them caught
+    # the AttributeError and reported no face in every frame.
+    "opencv-python>=4.8.0,<5",
     "pillow>=10.0.0",
     # insightface is deliberately not declared. vision/face_features.py and
     # vision/detection/detector.py fall back to stub embeddings and OpenCV's
