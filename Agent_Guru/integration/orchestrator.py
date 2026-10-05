@@ -2332,13 +2332,16 @@ class IntegrationOrchestrator:
                 return f"Your clipboard contains: {clip_text[:300]}"
             return None
 
-        # Screen reading
-        from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+        # Screen questions are answered here, by the vision model, and the
+        # answer is what gets spoken. This used to return None ("the LLM
+        # answers using screen context"), but screen_read intents skip the
+        # LLM, so "describe my screen" was answered "Done." and nothing
+        # visual could be answered from extracted text at all.
+        from Agent_Guru.platform.features.screen_reader import (
+            answer_screen_question, is_screen_read_command,
+        )
         if is_screen_read_command(raw_text):
-            screen_text = read_screen_text()
-            if screen_text:
-                return None  # LLM answers using screen context
-            return "I couldn't read the screen content right now."
+            return await answer_screen_question(raw_text, self.platform_controller)
 
         # User memory extraction
         result = await self._handle_user_memory(raw_text, pipeline_mode, intent_type)
