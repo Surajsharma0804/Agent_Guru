@@ -183,6 +183,7 @@ class EvaluationContext:
         - "principal.department"
         - "resource.classification"
         - "environment.time_of_day"
+        - "action", the action being decided
 
         Args:
             path: Dot-separated attribute path.
@@ -191,6 +192,12 @@ class EvaluationContext:
             Attribute value or None if not found.
 
         """
+        if path == "action":
+            # Policies match actions exactly or by "*", but the assistant's
+            # actions carry their arguments ("communication:send_message:
+            # John:whatsapp:hi"), so no policy could allow a kind of action.
+            # A condition on the action lets one say "starts with".
+            return self.action
         parts = path.split(".", 1)
         if len(parts) < 2:
             return None
