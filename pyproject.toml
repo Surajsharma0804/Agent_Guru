@@ -118,12 +118,12 @@ dependencies = [
     "pyttsx3>=2.90",
     # Memory and reasoning. aiosqlite is imported unguarded by the memory
     # manager and the reasoning state store; without it conversation history
-    # lived only in RAM and was lost on restart. chromadb is imported at
-    # module scope by reasoning/memory/vector_db.py, and without it the whole
-    # ReasoningEngine was disabled. aiohttp is imported at module scope by
-    # ten modules, including the reasoning Ollama provider.
+    # lived only in RAM and was lost on restart. aiohttp is imported at
+    # module scope by ten modules, including the reasoning Ollama provider.
+    # chromadb was declared here for reasoning/memory/vector_db.py, a store
+    # nothing in the application constructed; it was removed with that
+    # module, taking two unfixed critical advisories with it.
     "aiosqlite>=0.19.0",
-    "chromadb>=0.4.0",
     "aiohttp>=3.8.0",
     # Memory search ranks past conversations by meaning with
     # reasoning/memory/embedding.py, which loads sentence-transformers inside
@@ -293,7 +293,6 @@ test = [
     "sentence-transformers>=5.6.0",
     "pytorch-lightning>=2.0.0",
     "nltk>=3.8.1",
-    "chromadb>=0.4.0",
     "librosa>=0.10.0",
     "soundfile>=0.12.0",
     "sounddevice>=0.5.0",
