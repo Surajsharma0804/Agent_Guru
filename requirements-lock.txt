@@ -49,10 +49,24 @@
 #   required: bcrypt, build, durationpy, importlib_resources, kubernetes,
 #   mmh3, oauthlib, overrides, pybase64, PyPika, pyproject_hooks,
 #   requests-oauthlib, websocket-client.
+# Added 2026-10-05: pytest-timeout==2.4.0 (pytest.ini passes --timeout, so
+#   pytest could not start in an environment built from this file) and
+#   onnxscript==0.7.2 with onnx==1.22.0, onnx-ir==1.0.0 and ml_dtypes==0.6.0
+#   (the test extra; torch's ONNX exporter needs them for vision training
+#   export). CI installs these through the extras but audits only this file,
+#   so they were installed and never audited. onnx is 1.22.0, not the newer
+#   1.23.1: that requires protobuf>=6.31.1, and installing it moved protobuf
+#   past the <6/<7 bounds of grpcio-status, opentelemetry-proto and the
+#   Google client libraries pinned here. Checked in a clean install of this
+#   file: pip check clean, ONNX export tests pass. The +cu128 torch pins
+#   stay: they record the development machine's CUDA build, CI installs CPU
+#   wheels from requirements-torch.txt, and the audit maps them to the
+#   public release.
 #
-# This snapshot predates several declared dependencies (pytest-timeout,
-# pytorch-lightning). Regenerate it from a clean install before relying on
-# it for a reproducible build.
+# This is a snapshot, not generated from the declarations. The two declared
+# dependencies this note used to name as missing, pytest-timeout and
+# pytorch-lightning, are now pinned. Regenerate it from a clean install
+# before relying on it for a reproducible build.
 
 aiohappyeyeballs==2.6.1
 aiohttp==3.14.3
@@ -211,6 +225,7 @@ marshmallow==4.3.0
 matplotlib==3.11.1
 matplotlib-inline==0.2.2
 mdurl==0.1.2
+ml_dtypes==0.6.0
 more-itertools==11.1.0
 MouseInfo==0.1.3
 mpmath==1.3.0
@@ -227,7 +242,10 @@ noisereduce==3.0.3
 numba==0.65.1
 numpy==2.4.6
 ollama==0.6.2
+onnx==1.22.0
+onnx-ir==1.0.0
 onnxruntime==1.28.0
+onnxscript==0.7.2
 openai==2.36.0
 openai-whisper==20250625
 opencv-python==4.13.0.92
@@ -292,6 +310,7 @@ pySmartDL==1.3.4
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
+pytest-timeout==2.4.0
 python-dateutil==2.9.0.post0
 python-discovery==1.6.1
 python-dotenv==1.2.2
