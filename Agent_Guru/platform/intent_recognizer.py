@@ -728,7 +728,8 @@ class _RuleEngine:
 
         # Try each category in priority order
         result = (
-            self._try_web(stripped, platform_name)
+            self._try_screen_question(stripped, platform_name)
+            or self._try_web(stripped, platform_name)
             or self._try_system_control(stripped, platform_name)
             or self._try_communication(stripped, platform_name)
             or self._try_file_ops(stripped, platform_name)
@@ -752,6 +753,25 @@ class _RuleEngine:
     # ------------------------------------------------------------------
     # Category matchers
     # ------------------------------------------------------------------
+
+    def _try_screen_question(self, text: str, plat: str) -> IntentResult | None:
+        """A question about the screen, checked before anything that acts.
+
+        It came after the web rules, whose "open X" pattern took any screen
+        question containing "open": "which application is open on my
+        screen" became open_url "on my screen", and the assistant said
+        "Opening on my screen" instead of looking.
+        """
+        if not SCREEN_QUESTION_PATTERN.search(text):
+            return None
+        return IntentResult(
+            intent_type="system_control",
+            parameters={"action": "screen_read", "query": text},
+            confidence=0.75,
+            raw_text=text,
+            platform=plat,
+            method="rule_based",
+        )
 
     def _try_web(self, text: str, plat: str) -> IntentResult | None:
         """Try to match a web/URL intent.
