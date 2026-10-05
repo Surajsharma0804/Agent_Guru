@@ -670,6 +670,16 @@ def _extract_app_name(text: str) -> str:
 _MESSAGE_BOUNDARY = r"(?:\s*:\s*|\s+(?:saying|that\s+says|which\s+says|says|telling\s+(?:him|her|them)(?:\s+that)?)\s+)"
 _MESSAGE_NOUN = r"(?:message|text|sms|whatsapp|telegram|email|mail|dm)"
 _NAME = r"[A-Za-z][A-Za-z'.\-]*(?:\s+[A-Za-z][A-Za-z'.\-]*){0,3}"
+# A recipient can also be what the messaging controller sends to directly: a
+# phone number or an email address. Only names were accepted, so "send a
+# message to +919876543210 saying hello" was treated as an unclear recipient.
+_RECIPIENT = rf"(?:{_NAME}|\+?\d[\d\s\-()]{{5,}}\d|[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+)"
+# The app named in the command, if any. "text" is left to the default: on
+# desktop the messaging controller cannot send SMS.
+_MESSAGE_APPS = [
+    (re.compile(r"\b(whatsapp|telegram|slack|sms)\b", re.IGNORECASE), None),
+    (re.compile(r"\be-?mail\b|\bmail\b", re.IGNORECASE), "email"),
+]
 _MESSAGE_FORMS = [
     # send "hello" to John
     re.compile(r"\bsend\s+[\"“'](?P<message>[^\"”']+)[\"”']\s+to\s+(?P<contact>.+?)\s*[.!?]?$", re.IGNORECASE),
@@ -717,10 +727,17 @@ def _parse_message_command(text: str) -> dict[str, str]:
         contact = (groups.get("contact") or "").strip(" .,!?")
         message = (groups.get("message") or "").strip().strip("\"“”'").strip()
         result = {"contact": contact, "message": message}
+        for pattern, app in _MESSAGE_APPS:
+            named = pattern.search(stripped)
+            if named:
+                # "level" is the field the live intent encoder passes to the
+                # action as the app.
+                result["level"] = app or named.group(1).lower()
+                break
         if contact and _SEVERAL_RECIPIENTS.search(contact):
             return {"contact": "", "message": message,
                     "clarification": f"Who should I send it to? I heard \"{contact}\"."}
-        if contact and not re.fullmatch(_NAME, contact):
+        if contact and not re.fullmatch(_RECIPIENT, contact):
             # More than four words, or not a name, and no boundary found:
             # the message may be inside it.
             return {"contact": "", "message": message,
