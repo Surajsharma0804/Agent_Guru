@@ -34,7 +34,8 @@ from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderCon
 class AnthropicProvider(BaseLLMProvider):
     """Anthropic Claude LLM provider.
 
-    Default model: claude-3-5-sonnet-20241022 (best quality/speed balance)
+    Default model: claude-opus-5-5. The previous default,
+    claude-3-5-sonnet-20241022, has been retired.
 
     Example:
         >>> config = ProviderConfig(api_key="sk-ant-...")
@@ -47,7 +48,7 @@ class AnthropicProvider(BaseLLMProvider):
     def __init__(
         self,
         config: ProviderConfig | None = None,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = "claude-opus-5-5",
     ) -> None:
         """Initialize Anthropic provider.
 
@@ -106,9 +107,12 @@ class AnthropicProvider(BaseLLMProvider):
                 "model": self.model,
                 "max_tokens": request.max_tokens,
                 "messages": [{"role": "user", "content": request.prompt}],
-                "temperature": request.temperature,
-                "top_p": request.top_p,
             }
+            # temperature and top_p are not sent. The installed SDK (anthropic
+            # 1.x) no longer accepts them and current Claude models reject
+            # sampling parameters, so passing them made every request raise
+            # TypeError before reaching the network: the provider could not
+            # complete a single call, and the retries hid why.
 
             if request.stop_sequences:
                 kwargs["stop_sequences"] = request.stop_sequences
@@ -131,6 +135,10 @@ class AnthropicProvider(BaseLLMProvider):
                 finish_reason = "length"
             elif message.stop_reason == "stop_sequence":
                 finish_reason = "stop"
+            elif message.stop_reason == "refusal":
+                # A declined request has no text; without this it read as an
+                # ordinary empty answer.
+                finish_reason = "refusal"
 
             # Extract token counts
             prompt_tokens = message.usage.input_tokens
