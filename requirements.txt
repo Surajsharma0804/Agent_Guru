@@ -29,8 +29,8 @@ onnx>=1.14.0
 onnxscript>=0.6.0
 
 # Computer Vision
-opencv-python>=4.8.0
-opencv-contrib-python>=4.8.0
+opencv-python>=4.8.0,<5  # 5.x removed CascadeClassifier, used by every face fallback
+opencv-contrib-python>=4.8.0,<5
 insightface>=0.7.3
 pillow>=10.0.0
 
