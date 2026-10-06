@@ -496,7 +496,7 @@ def build_companion_prompt(
         + context_block
         + _build_nickname_block(nickname)
         + _build_code_mixing_block(code_mixing)
-        + _build_emotion_block(emotion_hint, user_country)
+        + build_emotion_block(emotion_hint, user_country)
         + _build_guardrails_block(personality)
     )
 
@@ -690,7 +690,7 @@ _DEFAULT_EXPRESSION_GUIDANCE = (
 )
 
 
-def _build_emotion_block(emotion_hint: str, user_country: str) -> str:  # noqa: ARG001 - user_country kept for signature stability; used by resolve_crisis_resource() at the call site instead
+def build_emotion_block(emotion_hint: str, user_country: str) -> str:  # noqa: ARG001 - user_country kept for signature stability; used by resolve_crisis_resource() at the call site instead
     """Build a per-emotion expression block for a single detected turn.
 
     Looks up _EMOTION_EXPRESSION_GUIDE for concrete, emotion-specific
@@ -701,6 +701,12 @@ def _build_emotion_block(emotion_hint: str, user_country: str) -> str:  # noqa: 
     docstring for why, and IntegrationOrchestrator._build_system_prompt()
     for where real sustained-distress escalation (with a crisis-resource
     mention) lives.
+
+    Public because the voice pipeline puts this block next to the user's
+    words instead of in the system prompt (build_companion_prompt() called
+    with no emotion_hint): it changes whenever the user's tone does, and a
+    system prompt that changes stops Ollama reusing the previous turn's
+    prompt processing.
     """
     if not emotion_hint or emotion_hint == "neutral":
         return ""
