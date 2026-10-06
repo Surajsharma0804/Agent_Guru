@@ -730,27 +730,6 @@ class IntegrationOrchestrator:
                 result.intent = None
             result.stages_completed = 5
 
-            # Stage 4: LLM inference (only if needed)
-            needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
-            if needs_llm:
-                try:
-                    result.llm_response = await asyncio.wait_for(
-                        self._stage_llm(
-                            result.transcript, result.memory_context,
-                            result.detected_language,
-                            personality=result.personality,
-                            intent=result.intent,
-                        ),
-                        timeout=LLM_TIMEOUT_S,
-                    )
-                except TimeoutError:
-                    logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
-                    result.llm_response = LLM_TIMEOUT_REPLY
-                    result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
-            else:
-                result.llm_response = None
-            result.stages_completed = 4
-
             # Stage 6: Policy check
             try:
                 result.policy_allowed = await asyncio.wait_for(
@@ -783,6 +762,33 @@ class IntegrationOrchestrator:
                 )
             result.stages_completed = 7
 
+            # Stage 4: LLM inference (only if needed). Stages 6 and 7 now run
+            # first: they read only the intent, never the LLM's answer, and
+            # whether the action produced a reply decides whether the answer
+            # is spoken at all, which must be known before it can be spoken
+            # while it is written.
+            needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
+            llm_done, streamed_tts = False, None
+            if needs_llm and not result.action_result:
+                llm_done, streamed_tts = await self._speak_llm_reply(result)
+            if needs_llm and not llm_done:
+                try:
+                    result.llm_response = await asyncio.wait_for(
+                        self._stage_llm(
+                            result.transcript, result.memory_context,
+                            result.detected_language,
+                            personality=result.personality,
+                            intent=result.intent,
+                        ),
+                        timeout=LLM_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
+                    result.llm_response = LLM_TIMEOUT_REPLY
+                    result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
+            elif not needs_llm:
+                result.llm_response = None
+
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
             # Not wrapped in one wait_for any more: a streamed reply plays for
@@ -791,7 +797,10 @@ class IntegrationOrchestrator:
             # synthesis by TTS_TIMEOUT_S instead, and the whole-reply path
             # keeps its old overall bound.
             try:
-                result.tts_response = await self._stage_tts(tts_text, result.personality)
+                if streamed_tts is not None:
+                    result.tts_response = streamed_tts  # already spoken as it was written
+                else:
+                    result.tts_response = await self._stage_tts(tts_text, result.personality)
             except TimeoutError:
                 logger.warning(
                     "TTS stage exceeded %.1fs - no audio for this turn", TTS_TIMEOUT_S,
@@ -1294,45 +1303,12 @@ class IntegrationOrchestrator:
     ) -> str:
         """Build enriched prompt and run LLM completion."""
         try:
-            from Agent_Guru.llm.models import CompletionRequest, Message
-            from Agent_Guru.reasoning.llm.generation import spoken_reply_tokens
-
-            prompt = self._enrich_prompt(transcript, memory_context)
-            if not prompt.strip():
+            built = await self._build_llm_request(
+                transcript, memory_context, language_code, personality, intent,
+            )
+            if built is None:
                 return ""
-
-            # Emotion detection from RAW transcript (not enriched prompt)
-            emotion_hint = self._detect_emotion(transcript)
-
-            # Web search enrichment
-            web_context = await self._fetch_web_context(transcript, intent)
-            if web_context:
-                prompt = prompt + web_context
-
-            # Resolve model and build system prompt
-            ollama_model = _configured_ollama_model()
-            system_prompt = self._build_system_prompt(
-                personality, emotion_hint, language_code, ollama_model,
-                transcript=transcript,
-            )
-
-            # Build message list with token-budgeted history
-            messages = self._build_llm_messages(Message, system_prompt, prompt)
-
-            # A spoken reply is capped (see spoken_reply_tokens() for the
-            # measurements). A clipboard rewrite is not spoken, it is written
-            # back for the user to paste, and a capped one would silently lose
-            # the end of their text, so it keeps the old budget.
-            rewrites_clipboard = self._rewrites_clipboard(transcript)
-            request = CompletionRequest(
-                model=ollama_model,
-                messages=messages,
-                max_tokens=(
-                    self._CLIPBOARD_REWRITE_MAX_TOKENS
-                    if rewrites_clipboard
-                    else spoken_reply_tokens()
-                ),
-            )
+            request, rewrites_clipboard = built
             response = await complete_fn(request)
             llm_response = response.content or ""
             if not rewrites_clipboard and getattr(response, "finish_reason", None) == "length":
@@ -1361,6 +1337,148 @@ class IntegrationOrchestrator:
                 ollama_model, e, ollama_model,
             )
             return ""
+
+    async def _build_llm_request(
+        self,
+        transcript: str,
+        memory_context: Any,
+        language_code: str,
+        personality: Personality | None,
+        intent: str | None,
+    ) -> tuple[Any, bool] | None:
+        """The LLM request for this turn and whether it rewrites the clipboard; None if nothing to ask.
+
+        Shared by the whole answer (_llm_complete) and the answer spoken as it
+        is written (_speak_llm_reply), so both ask the model the same thing.
+        """
+        from Agent_Guru.llm.models import CompletionRequest, Message
+        from Agent_Guru.reasoning.llm.generation import spoken_reply_tokens
+
+        prompt = self._enrich_prompt(transcript, memory_context)
+        if not prompt.strip():
+            return None
+
+        # Emotion detection from RAW transcript (not enriched prompt)
+        emotion_hint = self._detect_emotion(transcript)
+
+        # Web search enrichment
+        web_context = await self._fetch_web_context(transcript, intent)
+        if web_context:
+            prompt = prompt + web_context
+
+        # Resolve model and build system prompt
+        ollama_model = _configured_ollama_model()
+        system_prompt = self._build_system_prompt(
+            personality, emotion_hint, language_code, ollama_model,
+            transcript=transcript,
+        )
+
+        # Build message list with token-budgeted history
+        messages = self._build_llm_messages(Message, system_prompt, prompt)
+
+        # A spoken reply is capped (see spoken_reply_tokens() for the
+        # measurements). A clipboard rewrite is not spoken, it is written
+        # back for the user to paste, and a capped one would silently lose
+        # the end of their text, so it keeps the old budget.
+        rewrites_clipboard = self._rewrites_clipboard(transcript)
+        request = CompletionRequest(
+            model=ollama_model,
+            messages=messages,
+            max_tokens=(
+                self._CLIPBOARD_REWRITE_MAX_TOKENS
+                if rewrites_clipboard
+                else spoken_reply_tokens()
+            ),
+        )
+        return request, rewrites_clipboard
+
+    async def _speak_llm_reply(self, result: PipelineResult) -> tuple[bool, Any]:
+        """Speak the LLM's answer while it is being written.
+
+        The answer used to be spoken only after the model had finished it.
+        With gemma4 and Kokoro on the development laptop the first sentence
+        of a question's answer was complete about 2.1 s after the request
+        and the whole answer about 5 s after it. Here each sentence is
+        synthesised and played as soon as it is complete
+        (speech/tts/streaming.py). Measured with the real models, median
+        time to first audio for a question fell from 12.26 s to 11.04 s
+        (6 turns each). Synthesising while the model still writes costs
+        the first sentence some speed, which is why the gain is less than
+        the generation time it overlaps.
+
+        Only for turns where the LLM's answer is what will be spoken, so the
+        reply is unchanged: no action result (it would replace the answer),
+        not a clipboard command (it changes what is said), a runtime with
+        stream() and complete(), and an array synthesiser to stream into.
+
+        Returns (llm_done, tts_response):
+          (False, None)  not streamed, or failed before any text was
+                         spoken; the usual LLM and TTS stages run, so a
+                         failure keeps complete()'s retries.
+          (True, stream) spoken; result.llm_response holds the answer.
+          (True, None)   no text arrived in time; result.llm_response is
+                         the usual timeout reply, for the TTS stage to say.
+        """
+        from Agent_Guru.platform.features.dictation import is_clipboard_command
+
+        llm = self.llm_runtime
+        stream_fn = getattr(llm, "stream", None)
+        tts_fn = self._streamable_tts_fn()
+        if (
+            getattr(llm, "infer", None) is not None
+            or getattr(llm, "complete", None) is None
+            or stream_fn is None
+            or tts_fn is None
+            or is_clipboard_command(result.transcript or "")
+        ):
+            return False, None
+        try:
+            built = await self._build_llm_request(
+                result.transcript or "", result.memory_context, result.detected_language,
+                result.personality, result.intent,
+            )
+        except Exception:
+            logger.debug("Streamed reply: request could not be built", exc_info=True)
+            return False, None
+        if built is None:
+            return False, None
+        request, _ = built
+        finish: dict[str, str] = {}
+        parts: list[str] = []
+
+        async def chunks() -> Any:
+            async for chunk in stream_fn(request):
+                if chunk.finish_reason:
+                    finish["reason"] = chunk.finish_reason
+                if chunk.content:
+                    parts.append(chunk.content)
+                    yield chunk.content
+
+        def capped() -> bool:
+            return finish.get("reason") == "length"
+
+        try:
+            spoken = await self._speak_streaming(
+                tts_fn, chunks(), result.personality, capped=capped, text_timeout_s=LLM_TIMEOUT_S,
+            )
+        except Exception:
+            logger.warning(
+                "Streamed reply failed before its first sentence - answering the usual way",
+                exc_info=True,
+            )
+            return False, None
+        if spoken.spoken == 0:
+            if parts or spoken.error is None:
+                # Text came but none of it could be spoken, or none came at
+                # all: the usual path answers (and retries) instead.
+                return False, None
+            logger.warning("LLM stage: no text within %.1fs", LLM_TIMEOUT_S)
+            result.llm_response = LLM_TIMEOUT_REPLY
+            result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
+            return True, None
+        answer = "".join(parts)
+        result.llm_response = self._drop_unfinished_sentence(answer) if capped() else answer
+        return True, spoken
 
     #: Reply budget for a clipboard "fix", which returns up to 1000 characters
     #: of the user's text rewritten (_enrich_prompt() caps the input there).
@@ -3065,8 +3183,11 @@ class IntegrationOrchestrator:
             return None
         return fn
 
-    async def _speak_streaming(self, fn: Any, text: str, personality: Personality) -> Any:
-        """Stream text through fn, playing each sentence under the PortAudio lock."""
+    async def _speak_streaming(
+        self, fn: Any, text: Any, personality: Personality, *,
+        capped: Any = None, text_timeout_s: float | None = None,
+    ) -> Any:
+        """Stream text (a string, or chunks as they are generated) through fn under the PortAudio lock."""
         import numpy as np
         import sounddevice  # noqa: F401 - its ImportError selects the pyttsx3 fallback
 
@@ -3087,6 +3208,7 @@ class IntegrationOrchestrator:
 
         result = await speak_streaming(
             text, synthesize, play_and_wait, synth_timeout_s=TTS_TIMEOUT_S,
+            text_timeout_s=text_timeout_s, capped=capped or (lambda: False),
         )
         logger.info(
             "TTS played: %.1fs of audio in %d/%d sentences, first audio after %.2fs",
