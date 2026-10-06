@@ -1309,6 +1309,10 @@ class OSController:
         Returns:
             "sent" if the message was sent, "prefilled" if the chat is open
             with the text for the user to send, None if it could not be done.
+            Through WhatsApp Desktop, "sent" means the chat shows the message
+            as sent, delivered or read, and the result can also be "pending",
+            "not_sent", "unverified" or "draft" (MessagingController.
+            _send_in_whatsapp_desktop).
 
         """
         if self._messaging_controller is None:
