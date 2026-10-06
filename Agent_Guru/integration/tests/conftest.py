@@ -84,7 +84,7 @@ def user_memory(tmp_path, monkeypatch):
 def run_turn(user_memory, monkeypatch):
     """Return an async function that runs one spoken turn end to end."""
 
-    async def _run(transcript: str) -> Turn:
+    async def _run(transcript: str, reasoning: object = None) -> Turn:
         web_queries: list[str] = []
 
         async def _fake_search_web(query, *args, **kwargs):
@@ -97,7 +97,7 @@ def run_turn(user_memory, monkeypatch):
         orch = IntegrationOrchestrator(
             speech_engine=None, vision_engine=None, llm_runtime=llm,
             platform_controller=controller, agent_orchestrator=None,
-            memory=_Memory(), reasoning=None, security=None, policy=_AllowAll(),
+            memory=_Memory(), reasoning=reasoning, security=None, policy=_AllowAll(),
             avatar=None, deployment=None, gpu_pool=None,
         )
         orch._stage_stt = AsyncMock(return_value=(transcript, "en"))
