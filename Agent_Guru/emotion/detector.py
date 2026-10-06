@@ -1,6 +1,7 @@
 """Emotion Detector with expanded companion emotion classification."""
 from __future__ import annotations
 
+import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -79,7 +80,7 @@ _EMOTION_KEYWORDS: list[tuple[tuple[str, ...], dict[str, float]]] = [
         {"sad": 0.8, "neutral": 0.2},
     ),
     (
-        ("angry", "furious", "i hate", "pissed", "rage", "so mad"),
+        ("angry", "furious", "i hate", "pissed", "rage", "so mad", "enraged", "outraged"),
         {"angry": 0.8, "neutral": 0.2},
     ),
     (
@@ -90,6 +91,20 @@ _EMOTION_KEYWORDS: list[tuple[tuple[str, ...], dict[str, float]]] = [
 ]
 
 _NEUTRAL_SCORES: dict[str, float] = {"neutral": 0.8, "happy": 0.1, "sad": 0.1}
+
+# Each group's keywords as one pattern that matches them only at the start of
+# a word. They were matched as plain substrings, so "ugh" fired inside
+# roughly, enough, through, though, thought, bought, daughter and laugh, and
+# "rage" inside average, storage, garage and coverage: "And roughly how many
+# people live there?" was answered as if the user were frustrated, and 11 of
+# 22 ordinary sentences tried were given an emotion. The end of the word is
+# left open so inflections still count ("upsetting", "angrily"). "enraged"
+# and "outraged" were caught only through the substring "rage", so they are
+# listed above instead.
+_EMOTION_PATTERNS: list[tuple[re.Pattern[str], dict[str, float]]] = [
+    (re.compile(r"\b(?:" + "|".join(map(re.escape, keywords)) + ")"), scores)
+    for keywords, scores in _EMOTION_KEYWORDS
+]
 
 
 @dataclass
@@ -213,7 +228,7 @@ class EmotionDetector:
         Time:  O(T + K×L) where T = text length (for lower+replace),
                K = total keywords (~100), L = avg keyword length (~8 chars).
                Since K and L are bounded constants, effectively O(T).
-               The `any(w in t ...)` short-circuits on first match.
+               The group loop stops at the first group that matches.
         Space: O(T) for the normalized text copy
         """
         # Short-circuit: inputs < 4 chars ("hi", "ok", "yes") are always neutral.
@@ -226,8 +241,8 @@ class EmotionDetector:
         t = text.lower().replace("'", "").replace("\u2019", "")
 
         # Check each emotion group - short-circuits on first match
-        for keywords, scores in _EMOTION_KEYWORDS:
-            if any(w in t for w in keywords):
+        for pattern, scores in _EMOTION_PATTERNS:
+            if pattern.search(t):
                 return scores
 
         return _NEUTRAL_SCORES
