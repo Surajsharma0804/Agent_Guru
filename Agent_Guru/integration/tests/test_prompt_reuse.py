@@ -141,3 +141,54 @@ async def test_turns_left_out_of_the_prompt_stay_stored(session):
     assert session.memory.interaction_count() == 2  # nosec B101
     later = await session.memory.search("What is the capital of Japan?")
     assert {r["user_message"] for r in later} == {"What is the capital of Japan?"}  # nosec B101
+
+
+async def test_the_system_prompt_is_the_same_on_every_turn(session):
+    systems = []
+    for said in ("What is the capital of Japan?", "What should I gift my sister for her wedding?",
+                 "Tell me a fun fact about space.", "What is the capital of Japan?"):
+        _, messages = await session.turn(said)
+        systems.append(messages[0].content)
+    # Before: it ended with "This is turn N", different on every turn.
+    assert len(set(systems)) == 1  # nosec B101
+    assert "This is turn" not in systems[0]  # nosec B101
+
+
+async def test_emotion_guidance_stays_in_the_system_prompt(session):
+    # Beside the user's words it was followed literally: a question misread
+    # as frustrated was answered with the guidance's own example sentence
+    # and not answered at all, in 5 of 5 tries with the real model.
+    await session.turn("What is the capital of Japan?")
+    _, messages = await session.turn("I am so frustrated, nothing works today!")
+    assert "EMOTION DETECTED: 'frustrated'" in messages[0].content  # nosec B101
+    assert "EMOTION DETECTED" not in messages[-1].content  # nosec B101
+
+
+async def test_turn_details_reach_the_model_beside_the_users_words(session):
+    _, first = await session.turn("What is the capital of Japan?")
+    _, second = await session.turn("I am so frustrated, nothing works today!")
+    assert "SESSION START" in first[-1].content  # nosec B101
+    note, said = second[-1].content.rsplit("\n", 1)
+    assert said == "I am so frustrated, nothing works today!"  # nosec B101
+    assert "CONVERSATION STATE: This is turn 2." in note  # nosec B101
+    assert "This is turn" not in second[0].content  # nosec B101
+
+
+async def test_each_request_starts_with_the_previous_one(session):
+    # What lets Ollama reuse the previous turn: the new request repeats it
+    # up to the previous question, so only the end is processed anew.
+    previous, previous_said = None, ""
+    for said in ("What is the capital of Japan?", "What should I gift my sister for her wedding?",
+                 "Tell me a fun fact about space.", "What is the capital of Japan?"):
+        _, messages = await session.turn(said)
+        sent = [(m.role, m.content) for m in messages]
+        if previous is not None:
+            assert sent[: len(previous) - 1] == previous[:-1]  # nosec B101
+            assert sent[len(previous) - 1][1] == previous_said  # nosec B101
+        previous, previous_said = sent, said
+
+
+async def test_a_turn_with_no_memory_and_no_history_still_works(session):
+    result, messages = await session.turn("Tell me a fun fact about space.")
+    assert result.llm_response == "A day on Venus is longer than its year."  # nosec B101
+    assert [m.role for m in messages] == ["system", "user"]  # nosec B101
