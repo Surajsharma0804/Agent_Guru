@@ -3098,8 +3098,27 @@ class IntegrationOrchestrator:
                  "sms": "SMS", "email": "email"}[app]
         who = self._sanitize_output(contact)
         outcome = await ctrl.send_message(app, contact, message)
+        # What the app shows after the send (messaging_controller,
+        # _send_in_whatsapp_desktop), not just that send was pressed. Every
+        # outcome but "sent" said "ready, press send", which was wrong both
+        # ways: a message that had gone was reported as waiting, and in a box
+        # that also held an old draft "press send" would send the draft too.
         if outcome == "sent":
             return f"Sent your message to {who} on {label}."
+        if outcome == "pending":
+            return f"I sent your message to {who}, but {label} hasn't confirmed it has gone yet."
+        if outcome == "not_sent":
+            return (
+                f"I pressed send, but your message to {who} is still in {label}'s message box, "
+                "so it didn't go. It's there for you to send."
+            )
+        if outcome == "unverified":
+            return f"I pressed send, but I couldn't check that it went. Please look at your chat with {who}."
+        if outcome == "draft":
+            return (
+                f"The chat with {who} already had unsent text in it, so I didn't send anything. "
+                "Your message is in the box after that text."
+            )
         if outcome:
             return f"Your message to {who} is ready in {label}. Press send to deliver it."
         return (
