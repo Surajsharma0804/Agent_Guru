@@ -113,3 +113,36 @@ def test_text_in_the_message_box_is_not_a_message():
 def test_the_label_and_the_time_are_not_part_of_the_text():
     view = read_view(window(bubble("see you at 5", "17:02 Sent")), "see you at 5")
     assert [m.status for m in view.messages] == ["sent"]  # nosec B101
+
+
+def test_an_element_that_goes_away_mid_read_does_not_fail_the_read():
+    # Right after a send WhatsApp re-renders the chat; the first read after
+    # Enter failed as a whole on the real app and the send went unchecked.
+    from types import SimpleNamespace
+
+    from Agent_Guru.platform.controllers.whatsapp_view import _UiaNode
+
+    uia = SimpleNamespace(
+        UIA_EditControlTypeId=1, UIA_TextControlTypeId=2, UIA_ButtonControlTypeId=3,
+        UIA_DataGridControlTypeId=4, UIA_DataItemControlTypeId=5, UIA_ValueValuePropertyId=6,
+    )
+
+    class El:
+        def __init__(self, n):
+            self.n = n
+            self.CurrentControlType, self.CurrentName, self.CurrentHasKeyboardFocus = 2, f"t{n}", 0
+
+        def GetRuntimeId(self):
+            return [self.n]
+
+    class Walker:
+        def GetFirstChildElement(self, el):
+            return El(1) if el.n == 0 else None
+
+        def GetNextSiblingElement(self, el):
+            if el.n == 2:
+                raise OSError("element not available")  # comtypes raises COMError here
+            return El(el.n + 1)
+
+    kids = _UiaNode(El(0), uia, Walker()).children()
+    assert [k.name for k in kids] == ["t1", "t2"]  # nosec B101
