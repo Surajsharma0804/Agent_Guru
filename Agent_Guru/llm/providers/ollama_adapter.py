@@ -185,16 +185,11 @@ class OllamaAdapter(ProviderAdapter):
 
         # BUG FIX: same unbounded-hang risk as complete() above - guard the
         # initial call that opens the stream with the configured timeout.
-        # (Not currently reached in production: only LLMRuntime.complete()
-        # calls adapter.stream(), and production goes through LLMManager /
-        # ProviderFailoverRouter instead - see llm_manager.py. Fixed here
-        # too so this adapter is safe regardless of which caller reaches it,
-        # and so it doesn't silently regress if streaming is wired in later.
-        # A stall *mid-stream*, after this call returns, would need a
-        # per-chunk timeout around the iteration below to fully close off;
-        # that's a larger change than closing the connect-time hang this
-        # fixes, and is left as a follow-up since it isn't on the current
-        # production path.)
+        # The voice pipeline speaks its answer from this stream, through
+        # LLMRuntime.stream(). A stall mid-stream, after this call returns,
+        # is not bounded here: the voice pipeline bounds each wait for the
+        # next sentence itself (speak_streaming's text_timeout_s), and any
+        # other caller must do the same.
         stream = await asyncio.wait_for(
             client.chat(
                 model=request.model,
@@ -202,15 +197,22 @@ class OllamaAdapter(ProviderAdapter):
                 stream=True,
                 options=options,
                 think=OLLAMA_THINK,
+                # As complete() does. Without it Ollama unloads the model
+                # after its idle timeout and the next turn waits for a reload.
+                keep_alive=-1,
             ),
             timeout=self.config.timeout_s,
         )
 
         async for chunk in stream:
             if "message" in chunk:
+                # The last chunk says why the reply ended, as complete() does
+                # ("length" when num_predict cut it off). This always said
+                # "stop", so a capped reply looked finished.
+                done = chunk.get("done")
                 yield StreamChunk(
                     content=chunk["message"].get("content", ""),
-                    finish_reason="stop" if chunk.get("done") else None,
+                    finish_reason=(chunk.get("done_reason") or "stop") if done else None,
                 )
 
     async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
