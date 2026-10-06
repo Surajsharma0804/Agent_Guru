@@ -168,11 +168,24 @@ class _UiaNode:
                 self.value = None
 
     def children(self) -> list[Any]:
+        """The element's children; one that cannot be read ends the list there.
+
+        Right after a send WhatsApp re-renders the chat. On the real send of
+        "Agent Guru final verification 2026-10-06 run 2." the first read
+        after Enter ran 10.6 s and failed as a whole, so the send was
+        reported unchecked although WhatsApp showed it read; a read a
+        minute later took 38.5 s, the next ones 1 to 1.6 s. An element that
+        goes away while it is being read now costs the rest of its siblings
+        on this read, not the read.
+        """
         out = []
-        child = self._walker.GetFirstChildElement(self._el)
-        while child:
-            out.append(_UiaNode(child, self._uia, self._walker))
-            child = self._walker.GetNextSiblingElement(child)
+        try:
+            child = self._walker.GetFirstChildElement(self._el)
+            while child:
+                out.append(_UiaNode(child, self._uia, self._walker))
+                child = self._walker.GetNextSiblingElement(child)
+        except Exception:
+            logger.debug("WhatsApp view: a child element could not be read", exc_info=True)
         return out
 
 
