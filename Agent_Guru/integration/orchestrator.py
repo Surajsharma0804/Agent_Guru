@@ -1401,10 +1401,11 @@ class IntegrationOrchestrator:
         and the whole answer about 5 s after it. Here each sentence is
         synthesised and played as soon as it is complete
         (speech/tts/streaming.py). Measured with the real models, median
-        time to first audio for a question fell from 12.26 s to 11.04 s
-        (6 turns each). Synthesising while the model still writes costs
-        the first sentence some speed, which is why the gain is less than
-        the generation time it overlaps.
+        time to first audio for a question fell from 8.87 s to 6.17 s (6
+        turns each, ranges 8.35-9.13 s and 5.69-6.72 s). During a period
+        when the laptop ran Kokoro 4 to 5 times slower than usual it fell
+        only from 12.26 s to 11.04 s, because synthesising the first
+        sentence then took longer than the generation it overlaps.
 
         Only for turns where the LLM's answer is what will be spoken, so the
         reply is unchanged: no action result (it would replace the answer),
