@@ -764,6 +764,19 @@ class OSController:
             logger.exception("Could not read the state of %s", app_name)
             return None
 
+    def app_awaiting_user(self, app_name: str) -> bool | None:
+        """Whether the application is waiting for the user to answer it, such as "Save changes?".
+
+        Read only; ApplicationController.app_awaiting_user(). Closing asks
+        an application to close, and one with unsaved work asks the user
+        first; that is waiting, not a failed close. None when unknown.
+        """
+        try:
+            return self._app_controller.app_awaiting_user(app_name)
+        except Exception:
+            logger.exception("Could not read whether %s is waiting for the user", app_name)
+            return None
+
     def close_application(self, app_identifier: str, force: bool = False) -> OperationResult:
         """Close an application by name or PID.
 
