@@ -45,7 +45,6 @@ import asyncio
 import json
 import logging
 import os
-import heapq
 import threading
 import time
 from pathlib import Path
@@ -61,6 +60,8 @@ except ImportError:
     _AIOSQLITE_AVAILABLE = False
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from Agent_Guru.memory.config import MemoryConfig
 
 
@@ -124,6 +125,38 @@ def _get_real_embedder() -> Any:
 # ---------------------------------------------------------------------------
 
 PERSONALITIES = ("GURU", "MAYA")
+
+# ---------------------------------------------------------------------------
+# What search() returns
+# ---------------------------------------------------------------------------
+
+#: search() returns an interaction only if it is at least this similar to the
+#: query. It used to return the nearest `limit` whatever their score, so every
+#: voice turn was handed 5 memories: a question about the Prime Minister came
+#: with "my doctor says my blood pressure is too high" attached (0.09), which
+#: also put a different 600-token block into every prompt. Calibrated with
+#: all-MiniLM-L6-v2, query against stored "user message + reply": memories
+#: about the asked-about thing scored 0.31 to 0.56 (hike snack -> peanut
+#: allergy 0.31, sister's wedding gift -> her wedding 0.35, IPL match ->
+#: favourite team 0.36), memories unrelated to it at most 0.20. A memory
+#: related only by inference (more salt -> high blood pressure, 0.18) scores
+#: like an unrelated one and is not returned; the nearest-5 rule returned it
+#: only by accident, along with the unrelated ones.
+RELEVANT_SIMILARITY = 0.25
+
+#: A memory at least this similar to a turn the conversation already holds
+#: says nothing new and is not returned. Same calibration: the same question
+#: answered in different words scored 0.74 to 0.94 and the same fact
+#: paraphrased 0.89, while a different fact about the same person scored 0.56
+#: and a different question on the same topic 0.63.
+REDUNDANT_SIMILARITY = 0.70
+
+#: Length of the _stub_embed() fallback vector. Both thresholds above hold
+#: only for the real embedder: letter-frequency vectors put any two English
+#: texts at 0.75 to 0.79, so with them the relevance cutoff would pass
+#: everything and the repeat check would drop everything. A stub-embedded
+#: query is therefore ranked as before, without either cutoff.
+_STUB_EMBEDDING_DIM = 26
 
 # ---------------------------------------------------------------------------
 # Platform detection
@@ -215,7 +248,7 @@ def _stub_embed(text: str) -> list[float]:
     Time Complexity: O(n) where n = len(text)
     Space Complexity: O(1) - fixed 26-element output
     """
-    counts = [0.0] * 26
+    counts = [0.0] * _STUB_EMBEDDING_DIM
     for ch in text.lower():
         if "a" <= ch <= "z":
             counts[ord(ch) - ord("a")] += 1.0
@@ -602,15 +635,25 @@ class MemoryManager:
         query: str,
         limit: int = 5,
         personality: str | None = None,
+        *,
+        known: Iterable[tuple[str, str]] = (),
+        min_similarity: float = RELEVANT_SIMILARITY,
     ) -> list[dict[str, Any]]:
-        """Semantic search over stored interactions using stub embeddings.
+        """Semantic search over stored interactions.
 
         Searches all personalities unless *personality* is specified.
+        Returns at most *limit* interactions, only those relevant to the
+        query and new to the conversation (see RELEVANT_SIMILARITY and
+        REDUNDANT_SIMILARITY); fewer, or none, is a normal result.
 
         Args:
             query: Natural-language search query.
             limit: Maximum number of results to return (default 5).
             personality: Optional filter - ``"GURU"`` or ``"MAYA"``.
+            known: ``(user_message, ai_message)`` turns the caller already
+                has in front of the model. They are not returned, and
+                neither is anything that repeats them.
+            min_similarity: Lowest similarity to the query that is returned.
 
         Returns:
             List of interaction dicts ranked by similarity (best first),
@@ -640,18 +683,19 @@ class MemoryManager:
         )
 
         try:
+            known = list(known)
             if _is_desktop(self._platform):
-                return await self._search_desktop(query, limit, personality)
+                return await self._search_desktop(query, limit, personality, known, min_similarity)
             if self._platform == "android":
-                return await self._search_android(query, limit, personality)
+                return await self._search_android(query, limit, personality, known, min_similarity)
             if self._platform == "ios":
-                return await self._search_ios(query, limit, personality)
+                return await self._search_ios(query, limit, personality, known, min_similarity)
             logger.warning(
                 "search: unknown platform %r - simulating success",
                 self._platform,
             )
             query_emb = await _embed_text_async(query)
-            return self._semantic_search_in_memory(query_emb, limit, personality)
+            return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
         except Exception:
             logger.exception("search failed")
             return []
@@ -923,6 +967,8 @@ class MemoryManager:
         query: str,
         limit: int,
         personality: str | None,
+        known: list[tuple[str, str]],
+        min_similarity: float,
     ) -> list[dict[str, Any]]:
         """Semantic search against the in-memory cache (real or stub embeddings)."""
         # NOTE: real FTS would use SQLite FTS5 or a vector extension.
@@ -933,7 +979,7 @@ class MemoryManager:
         # docstring for why embedding the query with the cheap stub while
         # interactions carry real 384-dim embeddings made search a no-op.
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality)
+        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
 
     # ------------------------------------------------------------------
     # Android implementations (SharedPreferences + SQLite via adb - simulated)
@@ -980,6 +1026,8 @@ class MemoryManager:
         query: str,
         limit: int,
         personality: str | None,
+        known: list[tuple[str, str]],
+        min_similarity: float,
     ) -> list[dict[str, Any]]:
         """Semantic search on Android (simulated)."""
         logger.info(
@@ -988,7 +1036,7 @@ class MemoryManager:
             limit,
         )
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality)
+        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
 
     # ------------------------------------------------------------------
     # iOS implementations (UserDefaults + Core Data via xcrun - simulated)
@@ -1035,6 +1083,8 @@ class MemoryManager:
         query: str,
         limit: int,
         personality: str | None,
+        known: list[tuple[str, str]],
+        min_similarity: float,
     ) -> list[dict[str, Any]]:
         """Semantic search on iOS (simulated)."""
         logger.info(
@@ -1043,7 +1093,7 @@ class MemoryManager:
             limit,
         )
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality)
+        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
 
     # ------------------------------------------------------------------
     # Shared semantic search (in-memory, stub embeddings)
@@ -1054,6 +1104,8 @@ class MemoryManager:
         query_emb: list[float],
         limit: int,
         personality: str | None,
+        known: list[tuple[str, str]] = [],  # noqa: B006 - read only, never mutated
+        min_similarity: float = RELEVANT_SIMILARITY,
     ) -> list[dict[str, Any]]:
         """Rank stored interactions by cosine similarity to a pre-embedded query.
 
@@ -1077,14 +1129,13 @@ class MemoryManager:
         real embedder when available) and pass the result in here, so
         query and candidate embeddings are always in the same space.
 
-        Time Complexity: O(n * d + n log k) where n = interactions, d =
-        embedding dim (26 for the stub, 384 for the real embedder) and k =
-        limit. This used to be O(n * d * 3 + n log n): every candidate
-        recomputed the query's magnitude, and the whole candidate list was
-        fully sorted to take the top few. Recall is typically k <= 10 against
-        an entire conversation history, so both terms mattered.
-        Space Complexity: O(k) for the result heap, down from O(n) for the
-        fully scored list.
+        Time Complexity: O(n * d + r log r + k * c * d) where n =
+        interactions, d = embedding dim (26 for the stub, 384 for the real
+        embedder), r = candidates above min_similarity (a handful), k =
+        limit and c = known turns. It once was O(n * d * 3 + n log n): every
+        candidate recomputed the query's magnitude, and the whole candidate
+        list was sorted to take the top few.
+        Space Complexity: O(r + c).
 
         Args:
             query_emb: Pre-computed embedding of the search query, produced
@@ -1092,9 +1143,19 @@ class MemoryManager:
                 (see _embed_text_async()).
             limit: Maximum results to return.
             personality: Optional personality filter.
+            known: Turns already in the conversation (see search()).
+            min_similarity: Lowest similarity to the query returned.
 
         Returns:
             List of interaction dicts ranked by similarity (best first).
+
+        The conversation's own turns are stored here as well, and were
+        returned as "memories" of themselves: in a 10-turn session every
+        recall carried the session's earlier turns, word for word, beside
+        the same turns in the chat history. They are matched by their exact
+        text, which costs a set lookup per candidate, and their stored
+        embeddings are reused for the repeat check, which therefore embeds
+        nothing new and compares only the few results against them.
 
         """
         candidates: list[_Interaction] = []
@@ -1110,16 +1171,47 @@ class MemoryManager:
         if limit <= 0:
             return []
 
+        known_pairs = set(known)
+        known_embeddings: list[list[float]] = []
+        if known_pairs:
+            fresh: list[_Interaction] = []
+            for item in candidates:
+                if (item.user_message, item.ai_message) in known_pairs:
+                    known_embeddings.append(item.embedding)
+                else:
+                    fresh.append(item)
+            candidates = fresh
+
         # The query magnitude is identical for every comparison, so compute it
         # once here instead of once per candidate inside _cosine_similarity.
         query_mag = _vector_magnitude(query_emb)
+        if len(query_emb) == _STUB_EMBEDDING_DIM:
+            min_similarity, redundant_similarity = float("-inf"), float("inf")
+        else:
+            redundant_similarity = REDUNDANT_SIMILARITY
 
-        # heapq.nlargest is documented as equivalent to
-        # sorted(..., reverse=True)[:k], ties included, but costs O(n log k)
-        # instead of O(n log n) and never materialises the scored list.
-        top = heapq.nlargest(
-            limit,
-            candidates,
-            key=lambda i: _cosine_similarity(query_emb, i.embedding, query_mag),
+        # Only the candidates above min_similarity are ranked, normally a
+        # handful, so sorting them costs nothing next to scoring all n. They
+        # are walked best first until `limit` new ones are found: taking the
+        # top `limit` first and then dropping repeats would return fewer than
+        # it could, or none when many stored copies of one known turn (the
+        # same question asked often) fill the top places.
+        relevant = sorted(
+            (
+                (score, n, item)
+                for n, item in enumerate(candidates)
+                if (score := _cosine_similarity(query_emb, item.embedding, query_mag)) >= min_similarity
+            ),
+            key=lambda t: (-t[0], t[1]),
         )
-        return [item.to_dict() for item in top]
+        results: list[dict[str, Any]] = []
+        for _, _, item in relevant:
+            if len(results) == limit:
+                break
+            if any(
+                _cosine_similarity(item.embedding, seen) >= redundant_similarity
+                for seen in known_embeddings
+            ):
+                continue
+            results.append(item.to_dict())
+        return results
