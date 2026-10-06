@@ -49,9 +49,9 @@ import urllib.parse as _up
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC
-from enum import Enum
+from enum import Enum, StrEnum
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
 from Agent_Guru.reasoning.llm.generation import ollama_model as _configured_ollama_model
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
@@ -108,6 +108,141 @@ class VisionEvent:
     frame: Any  # numpy.ndarray in production
 
 
+class ActionStatus(StrEnum):
+    """What an action actually did, as far as the assistant could tell."""
+
+    SUCCESS = "success"          # done, and what the controller returned says so
+    FAILED = "failed"            # tried, and it did not work (or raised)
+    DENIED = "denied"            # not attempted: the policy or the speaker check refused it
+    CANCELLED = "cancelled"      # not done: the user said no
+    UNVERIFIED = "unverified"    # tried, but nothing returned says whether it worked
+
+
+class ActionOutcome(NamedTuple):
+    """An action's spoken reply and its status.
+
+    The action stage used to return only the reply, so a refusal, a failure
+    or an exception reached the reply as nothing, which was spoken "Done.".
+    """
+
+    text: str | None
+    status: ActionStatus | None
+
+
+#: Spoken when an action produced no reply of its own. Before, every such
+#: turn was answered "Done.", including actions the policy refused, actions
+#: that raised, and commands nothing handled.
+_STATUS_REPLIES: dict[ActionStatus | None, str] = {
+    ActionStatus.SUCCESS: "Done.",
+    ActionStatus.FAILED: "Sorry, that didn't work.",
+    ActionStatus.DENIED: "I can't do that - it isn't allowed in my current settings.",
+    ActionStatus.CANCELLED: "Okay, I cancelled that.",
+    ActionStatus.UNVERIFIED: "I tried, but I couldn't confirm that it worked.",
+    None: "Sorry, I couldn't do that.",
+}
+
+
+def _call_status(value: Any) -> ActionStatus:
+    """What one controller call's return value says about whether it worked.
+
+    OSController returns OperationResult, whose success is the answer; a
+    plain bool is read the same way. None says nothing, so the call is
+    unverified, and so is a success given as words ("yes", "done"), which
+    is not read as a claim. Anything else the call returned (a screenshot's
+    data) is taken as done. Results that need reading, such as messaging's
+    outcome strings, are read by their handler, which returns an
+    ActionOutcome of its own.
+    """
+    success = getattr(value, "success", None)
+    if isinstance(success, bool):
+        return ActionStatus.SUCCESS if success else ActionStatus.FAILED
+    if isinstance(success, str):
+        return ActionStatus.UNVERIFIED
+    if isinstance(value, bool):
+        return ActionStatus.SUCCESS if value else ActionStatus.FAILED
+    if value is None:
+        return ActionStatus.UNVERIFIED
+    return ActionStatus.SUCCESS
+
+
+class _ControllerCalls:
+    """The platform controller as an action handler sees it, noting what each call returned.
+
+    Most handlers call the controller and then return a fixed reply: "Window
+    minimized" whether minimize_window succeeded or not, "Done" for media
+    keys, "Screenshot taken". The controller's OperationResult was dropped
+    on the floor. Every call made through this wrapper records its status,
+    so the action stage knows what happened without each handler having to.
+    Sub-controllers reached through it (ctrl._screen_controller) are wrapped
+    too. Calls that raise are recorded as failed and still raise.
+    """
+
+    __slots__ = ("_record", "_target")
+
+    def __init__(self, target: Any, record: list[ActionStatus] | None = None) -> None:
+        object.__setattr__(self, "_target", target)
+        object.__setattr__(self, "_record", record if record is not None else [])
+
+    def __getattr__(self, name: str) -> Any:
+        value = getattr(self._target, name)
+        record = self._record
+        if inspect.iscoroutinefunction(value):
+            async def acall(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    out = await value(*args, **kwargs)
+                except Exception:
+                    record.append(ActionStatus.FAILED)
+                    raise
+                record.append(_call_status(out))
+                return out
+            return acall
+        if callable(value) and not isinstance(value, type):
+            def call(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    out = value(*args, **kwargs)
+                except Exception:
+                    record.append(ActionStatus.FAILED)
+                    raise
+                record.append(_call_status(out))
+                return out
+            return call
+        if type(value).__module__.startswith("Agent_Guru."):
+            return _ControllerCalls(value, record)
+        return value
+
+    def __bool__(self) -> bool:
+        return self._target is not None
+
+
+def _outcome(reply: Any, calls: list[ActionStatus]) -> ActionOutcome:
+    """The outcome of a handler that returned a plain reply, from its controller calls.
+
+    A handler's own reply is kept when nothing contradicts it. If a call
+    failed, or none of its calls said whether it worked, the reply cannot be
+    trusted as a claim of success and is replaced; a handler that checks its
+    results returns an ActionOutcome instead and is taken at its word.
+    """
+    if isinstance(reply, ActionOutcome):
+        return reply
+    if ActionStatus.FAILED in calls:
+        status: ActionStatus | None = ActionStatus.FAILED
+    elif ActionStatus.UNVERIFIED in calls:
+        status = ActionStatus.UNVERIFIED
+    elif calls or reply:
+        status = ActionStatus.SUCCESS
+    else:
+        status = None
+    if status in (ActionStatus.FAILED, ActionStatus.UNVERIFIED):
+        if reply:
+            logger.info("Action reply %r replaced: its controller calls were %s", reply, status.value)
+        return ActionOutcome(_STATUS_REPLIES[status], status)
+    return ActionOutcome(reply if isinstance(reply, str) else (str(reply) if reply else None), status)
+
+
+_STATUS_SEVERITY = [ActionStatus.FAILED, ActionStatus.UNVERIFIED, ActionStatus.DENIED,
+                    ActionStatus.CANCELLED, ActionStatus.SUCCESS]
+
+
 @dataclass
 class PipelineResult:
     """Result of a complete end-to-end pipeline run.
@@ -122,6 +257,9 @@ class PipelineResult:
         action_result: Result of action execution from stage 7.
         tts_response: TTS audio/text from stage 8.
         personality: Personality used for this interaction.
+        action_status: What the action did (ActionStatus), or None if no
+            action was attempted. The reply is chosen from it when the
+            action gave none of its own.
         awaiting_reply: True when the reply asked the user something this
             turn's action is waiting on (a message draft); the caller can
             listen for the answer without a wake word.
@@ -149,6 +287,7 @@ class PipelineResult:
     pipeline_mode: str = "full"
     error: str | None = None
     awaiting_reply: bool = False
+    action_status: ActionStatus | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -708,10 +847,11 @@ class IntegrationOrchestrator:
             # was no such state: the answer was taken as a new command, so a
             # message without its text could only open the app. Ahead of the
             # reaction rules, so a rule taught for "yes" cannot answer it.
-            draft_reply = await self._continue_message_draft(result.transcript)
-            if draft_reply is not None:
+            draft_outcome = await self._continue_message_draft(result.transcript)
+            if draft_outcome is not None:
+                draft_reply = draft_outcome.text or _STATUS_REPLIES[draft_outcome.status]
                 result.intent = "communication:message_draft"
-                result.action_result = draft_reply
+                result.action_result, result.action_status = draft_reply, draft_outcome.status
                 result.awaiting_reply = self._message_draft is not None
                 self._chat_history.append({"role": "user", "content": result.transcript, "emotion": "neutral"})
                 self._chat_history.append({"role": "assistant", "content": draft_reply})
@@ -795,9 +935,14 @@ class IntegrationOrchestrator:
             # bounding their own work (see reasoning/tools/system/_command.py,
             # which caps every subprocess it runs).
             if result.policy_allowed:
-                result.action_result = await self._stage_action(
+                outcome = await self._stage_action(
                     result.intent, pipeline_mode=result.pipeline_mode,
                 )
+                result.action_result, result.action_status = outcome.text, outcome.status
+            elif result.intent:
+                # Refused, not done. This used to leave the reply empty, and
+                # an empty reply was spoken "Done.".
+                result.action_status = ActionStatus.DENIED
             result.stages_completed = 7
 
             # Stage 4: LLM inference (only if needed). Stages 6 and 7 now run
@@ -1032,7 +1177,10 @@ class IntegrationOrchestrator:
         """Determine TTS text and handle clipboard write-back."""
         tts_text = result.action_result or result.llm_response or ""
         if not tts_text and result.transcript:
-            tts_text = "Done."
+            # What the action actually did. This was "Done." whatever had
+            # happened: a refused action, one that raised, a command nothing
+            # handled. "Done." is now said only for a success with no reply.
+            tts_text = _STATUS_REPLIES[result.action_status]
 
         if result.llm_response and result.transcript:
             from Agent_Guru.platform.features.dictation import (
@@ -2256,7 +2404,7 @@ class IntegrationOrchestrator:
             logger.exception("Policy stage error - defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
-    async def _stage_action(self, intent: str, pipeline_mode: str = "full") -> Any:
+    async def _stage_action(self, intent: str, pipeline_mode: str = "full") -> ActionOutcome:
         """Stage 7: Execute action via agent_orchestrator or OSController.
 
         Supports:
@@ -2278,22 +2426,29 @@ class IntegrationOrchestrator:
 
         """
         if not intent:
-            return None
+            return ActionOutcome(None, None)
 
         # ── Multi-step execution ──────────────────────────────────────────
+        # The steps' replies are joined; the status is the worst of theirs,
+        # so one failed step is not hidden behind the others' success.
         if "|" in intent:
             steps = [s.strip() for s in intent.split("|") if s.strip()]
             results = []
+            statuses: list[ActionStatus] = []
             for step in steps:
                 try:
-                    step_result = await self._execute_single_action(step, pipeline_mode)
-                    if step_result:
-                        results.append(str(step_result))
+                    step_outcome = await self._execute_single_action(step, pipeline_mode)
+                    if step_outcome.text:
+                        results.append(step_outcome.text)
+                    if step_outcome.status is not None:
+                        statuses.append(step_outcome.status)
                     # Give apps time to open before the next step
                     await asyncio.sleep(1.5)
                 except Exception:
                     logger.exception("Multi-step action failed for step %r", step)
-            return ". ".join(results) if results else None
+                    statuses.append(ActionStatus.FAILED)
+            status = next((st for st in _STATUS_SEVERITY if st in statuses), None)
+            return ActionOutcome(". ".join(results) if results else None, status)
 
         # ── Single action ─────────────────────────────────────────────────
         return await self._execute_single_action(intent, pipeline_mode)
@@ -2357,7 +2512,7 @@ class IntegrationOrchestrator:
         )
         return False
 
-    async def _execute_single_action(self, intent: str, pipeline_mode: str = "full") -> Any:
+    async def _execute_single_action(self, intent: str, pipeline_mode: str = "full") -> ActionOutcome:
         """Execute a single intent string. Returns a human-readable result or None.
 
         Args:
@@ -2368,7 +2523,7 @@ class IntegrationOrchestrator:
                 module docstring's "Concurrency note".
         """
         if not intent:
-            return None
+            return ActionOutcome(None, None)
 
         safe_intent = self._sanitize_output(intent)
 
@@ -2395,8 +2550,12 @@ class IntegrationOrchestrator:
                         result = await execute_fn(safe_intent)
                     else:
                         result = await loop.run_in_executor(None, execute_fn, safe_intent)
-                    if result is not None:
-                        return result
+                    if isinstance(result, str) and result:
+                        return ActionOutcome(result, ActionStatus.SUCCESS)
+                    if isinstance(getattr(result, "success", None), bool):
+                        return _outcome(getattr(result, "message", None) or None, [_call_status(result)])
+                    # None hands over to platform control; anything else
+                    # (a stub's MagicMock) says nothing and is not spoken.
                 except AttributeError as exc:
                     logger.warning(
                         "Agent orchestrator execute failed: %s - trying direct platform control",
@@ -2413,37 +2572,46 @@ class IntegrationOrchestrator:
             feature_result = await self._detect_universal_features(
                 raw_text, pipeline_mode, intent_type,
             )
-            if feature_result is not None:
+            if isinstance(feature_result, ActionOutcome):
                 return feature_result
+            if feature_result is not None:
+                # An answer the feature worked out (a briefing, the screen,
+                # a reminder set), not a claim about a controller call.
+                return ActionOutcome(str(feature_result), ActionStatus.SUCCESS)
 
             # Conversation → no action
             if intent_type == "conversation":
-                return None
+                return ActionOutcome(None, None)
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info(
                     "ACTION SKIPPED - intent_type=%r. Full intent: %r",
                     intent_type, safe_intent,
                 )
-                return None
+                return ActionOutcome(None, None)
 
             # Before the controller check: reading the clock needs no platform
             # controller, and a missing one must not turn this into silence.
             if intent_type == "information" and action == "time_date":
-                return _clock_answer()
+                return ActionOutcome(_clock_answer(), ActionStatus.SUCCESS)
 
             ctrl = self.platform_controller
             if ctrl is None:
-                return None
+                return ActionOutcome(None, None)
 
-            # Dispatch to action-specific handlers
-            return await self._dispatch_action(
-                action, intent_type, param, level_str, safe_intent, ctrl,
+            # Dispatch to action-specific handlers, through a wrapper that
+            # notes what each controller call returned (see _ControllerCalls).
+            calls = _ControllerCalls(ctrl)
+            reply = await self._dispatch_action(
+                action, intent_type, param, level_str, safe_intent, calls,
             )
+            return _outcome(reply, calls._record)
 
         except Exception:
+            # An action that raised did not work. It used to return None,
+            # which was spoken "Done.".
             logger.exception("Action stage error")
-            return None
+            return ActionOutcome(None, ActionStatus.FAILED)
 
     # ------------------------------------------------------------------
     # _execute_single_action decomposed helpers
@@ -2451,8 +2619,8 @@ class IntegrationOrchestrator:
 
     async def _gate_destructive_action(
         self, action: str, pipeline_mode: str, safe_intent: str,
-    ) -> str | None:
-        """Check destructive-action gate. Returns response string to block, or None to allow."""
+    ) -> ActionOutcome | None:
+        """Check destructive-action gate. Returns the outcome to block with, or None to allow."""
         try:
             from Agent_Guru.platform.features.confirmation import is_destructive_action
 
@@ -2462,11 +2630,11 @@ class IntegrationOrchestrator:
                         "Destructive action '%s' blocked - unverified speaker "
                         "(restricted mode)", action,
                     )
-                    return "Sorry, can't do that without verifying it's you."
+                    return ActionOutcome("Sorry, can't do that without verifying it's you.", ActionStatus.DENIED)
 
                 confirmed = await self._confirm_destructive_action(action, safe_intent)
                 if not confirmed:
-                    return "Okay, cancelled - didn't do that."
+                    return ActionOutcome("Okay, cancelled - didn't do that.", ActionStatus.CANCELLED)
         except ImportError:
             if action in {
                 "delete_file", "delete_folder", "remove", "shutdown",
@@ -2476,10 +2644,12 @@ class IntegrationOrchestrator:
                     "confirmation module unavailable - denying destructive "
                     "action '%s' for safety", action,
                 )
-                return "Sorry, I can't confirm that action right now, so I won't do it."
+                return ActionOutcome(
+                    "Sorry, I can't confirm that action right now, so I won't do it.", ActionStatus.DENIED,
+                )
         except Exception:
             logger.exception("Destructive-action gate failed - denying for safety")
-            return "Something went wrong checking that - I didn't do it, try again."
+            return ActionOutcome("Something went wrong checking that - I didn't do it, try again.", ActionStatus.FAILED)
         return None
 
     async def _detect_universal_features(
@@ -2514,9 +2684,10 @@ class IntegrationOrchestrator:
                 ctrl = self.platform_controller
                 fn = getattr(ctrl, "type_text", None) if ctrl else None
                 if fn:
-                    await asyncio.to_thread(fn, text_to_type)
-                    return f"Typed: {self._sanitize_output(text_to_type[:60])}"
-                return "Typing is not available on this platform."
+                    # "Typed: ..." was said whatever type_text returned.
+                    typed = await asyncio.to_thread(fn, text_to_type)
+                    return _outcome(f"Typed: {self._sanitize_output(text_to_type[:60])}", [_call_status(typed)])
+                return ActionOutcome("Typing is not available on this platform.", ActionStatus.FAILED)
 
         # Clipboard read
         if is_clipboard_command(raw_text):
@@ -2712,7 +2883,7 @@ class IntegrationOrchestrator:
     async def _dispatch_action(
         self, action: str, intent_type: str, param: str, level_str: str,
         safe_intent: str, ctrl: Any,
-    ) -> str | None:
+    ) -> ActionOutcome | str | None:
         """Dispatch to the appropriate action handler."""
         loop = asyncio.get_running_loop()
 
@@ -2772,27 +2943,29 @@ class IntegrationOrchestrator:
     # Individual action handlers
     # ------------------------------------------------------------------
 
-    async def _action_open_app(self, ctrl: Any, param: str) -> str:
+    async def _action_open_app(self, ctrl: Any, param: str) -> ActionOutcome:
         param = param.rstrip(".,!?;:")
         logger.info("ACTION: open_application('%s')", param)
         result = await asyncio.to_thread(ctrl.open_application, param)
         safe_param = self._sanitize_output(param)
-        if getattr(result, "success", False):
-            return f"Opening {safe_param} for you! What are we doing?"
+        if _call_status(result) is ActionStatus.SUCCESS:
+            return ActionOutcome(f"Opening {safe_param} for you! What are we doing?", ActionStatus.SUCCESS)
         err = getattr(result, "error", "unknown error")
         logger.error("Failed to open '%s': %s", param, err)
-        return f"Hmm, couldn't open {safe_param} - let me know if you wanna try something else"
+        return ActionOutcome(
+            f"Hmm, couldn't open {safe_param} - let me know if you wanna try something else",
+            ActionStatus.FAILED,
+        )
 
-    async def _action_close_app(self, ctrl: Any, param: str) -> str:
+    async def _action_close_app(self, ctrl: Any, param: str) -> ActionOutcome:
         param = param.rstrip(".,!?;:")
         logger.info("ACTION: close_application('%s')", param)
         result = await asyncio.to_thread(ctrl.close_application, param)
         safe_param = self._sanitize_output(param)
-        return (
-            f"Closed {safe_param}"
-            if getattr(result, "success", True)
-            else f"Failed to close {safe_param}"
-        )
+        # success defaulted to True here, so a result without one said "Closed".
+        if _call_status(result) is ActionStatus.SUCCESS:
+            return ActionOutcome(f"Closed {safe_param}", ActionStatus.SUCCESS)
+        return ActionOutcome(f"Failed to close {safe_param}", ActionStatus.FAILED)
 
     # Known URL map - class-level to avoid re-creating per call
     # NOTE: the site-name → URL table used to live here as a 60+-entry
@@ -3092,12 +3265,30 @@ class IntegrationOrchestrator:
             return f"Bluetooth {'enabled' if enable else 'disabled'}"
         return "Settings updated"
 
-    async def _deliver_message(self, ctrl: Any, app: str, contact: str, message: str) -> str:
+    #: The status of each send outcome the messaging controller reports. Only
+    #: "sent" is a success: "pending" and "unverified" went out without a
+    #: confirmation, the rest did not go (the reply says what to do).
+    _MESSAGE_STATUS: ClassVar[dict[str | None, ActionStatus]] = {
+        "sent": ActionStatus.SUCCESS,
+        "pending": ActionStatus.UNVERIFIED,
+        "unverified": ActionStatus.UNVERIFIED,
+        "not_sent": ActionStatus.FAILED,
+        "draft": ActionStatus.FAILED,
+        "prefilled": ActionStatus.FAILED,
+        None: ActionStatus.FAILED,
+    }
+
+    async def _deliver_message(self, ctrl: Any, app: str, contact: str, message: str) -> ActionOutcome:
         """Send through the platform controller and say what happened."""
+        outcome = await ctrl.send_message(app, contact, message)
+        status = self._MESSAGE_STATUS.get(outcome, ActionStatus.UNVERIFIED)
+        return ActionOutcome(self._message_reply(app, contact, outcome), status)
+
+    def _message_reply(self, app: str, contact: str, outcome: str | None) -> str:
+        """The reply for a send outcome."""
         label = {"whatsapp": "WhatsApp", "telegram": "Telegram", "slack": "Slack",
                  "sms": "SMS", "email": "email"}[app]
         who = self._sanitize_output(contact)
-        outcome = await ctrl.send_message(app, contact, message)
         # What the app shows after the send (messaging_controller,
         # _send_in_whatsapp_desktop), not just that send was pressed. Every
         # outcome but "sent" said "ready, press send", which was wrong both
@@ -3144,7 +3335,7 @@ class IntegrationOrchestrator:
             return f"What would you like me to send {who}?"
         return f"Your message to {who} says: {draft['message']}. Send it?"
 
-    async def _continue_message_draft(self, transcript: str) -> str | None:
+    async def _continue_message_draft(self, transcript: str) -> ActionOutcome | None:
         """Take this utterance as the answer to a message draft's question.
 
         Returns the reply, or None when there is no live draft and the
@@ -3166,7 +3357,7 @@ class IntegrationOrchestrator:
         if not draft["contact"] or not draft["message"]:
             if said.lower().strip(" .,!?") in _DRAFT_CANCEL:
                 self._message_draft = None
-                return "Okay, I won't send anything."
+                return ActionOutcome("Okay, I won't send anything.", ActionStatus.CANCELLED)
             if not draft["contact"]:
                 from Agent_Guru.platform.intent_recognizer import _RECIPIENT, _SEVERAL_RECIPIENTS
 
@@ -3175,30 +3366,30 @@ class IntegrationOrchestrator:
                     # The same test the message parser applies: one name,
                     # number or address, or the message could go astray.
                     draft["expires"] = time.monotonic() + MESSAGE_DRAFT_TTL_S
-                    return "Sorry, who should I send it to? Say one name or number."
+                    return ActionOutcome("Sorry, who should I send it to? Say one name or number.", None)
                 draft["contact"] = contact
             else:
                 draft["message"] = said
             draft["expires"] = time.monotonic() + MESSAGE_DRAFT_TTL_S
-            return self._message_draft_question()
+            return ActionOutcome(self._message_draft_question(), None)
 
         self._message_draft = None
         from Agent_Guru.platform.features.confirmation import _parse_confirmation
 
         if _parse_confirmation(said) is not True:
-            return "Okay, I didn't send it."
+            return ActionOutcome("Okay, I didn't send it.", ActionStatus.CANCELLED)
         intent = f"communication:send_message:{draft['contact']}:{draft['app']}:{draft['message']}"
         try:
             allowed = await asyncio.wait_for(self._stage_policy(intent), timeout=POLICY_TIMEOUT_S)
         except TimeoutError:
             allowed = False  # fail closed, as stage 6 does
         if not allowed:
-            return "Sorry, I'm not allowed to send that message."
+            return ActionOutcome("Sorry, I'm not allowed to send that message.", ActionStatus.DENIED)
         return await self._deliver_message(self.platform_controller, draft["app"], draft["contact"], draft["message"])
 
     async def _action_communication(
         self, ctrl: Any, action: str, param: str, level_str: str,
-    ) -> str | None:
+    ) -> ActionOutcome | str | None:
         if action in ("send_message", "reply"):
             import html
 
@@ -3218,9 +3409,9 @@ class IntegrationOrchestrator:
                 # Missing the recipient or the text: ask, and keep what was
                 # said. A recipient alone used to open the app with nothing
                 # in it, and a question asked was forgotten by the next turn.
-                return self._start_message_draft(app, contact, message)
+                return ActionOutcome(self._start_message_draft(app, contact, message), None)
             if not contact and (message or ":" in level_str):
-                return "Who should I send it to?"
+                return ActionOutcome("Who should I send it to?", None)
             if message and send is not None:
                 return await self._deliver_message(ctrl, app, contact, message)
             fn = getattr(ctrl, "open_url", None)

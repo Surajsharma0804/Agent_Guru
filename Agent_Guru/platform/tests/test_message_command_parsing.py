@@ -8,6 +8,8 @@ extracted, and 'send "hello" to John' was answered as a greeting.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -108,7 +110,11 @@ class RecordingController:
         self.opened = []
 
     def open_url(self, url):
+        # Returns what OSController.open_url returns on success. It returned
+        # None, which says nothing about whether the URL opened, and the
+        # assistant no longer reports such a call as done.
         self.opened.append(url)
+        return SimpleNamespace(success=True)
 
 
 class FakeSpeech:
