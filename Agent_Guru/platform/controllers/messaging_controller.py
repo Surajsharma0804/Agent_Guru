@@ -672,8 +672,12 @@ class MessagingController:
     _WHATSAPP_FRONT_TIMEOUT_S = 10.0
     _WHATSAPP_SETTLE_S = 1.5
     #: How long after Enter the sent message gets to appear with a status.
-    #: Each look at WhatsApp takes about 1 s.
-    _WHATSAPP_VERIFY_TIMEOUT_S = 10.0
+    #: A look at WhatsApp usually takes about 1 s, but the first one after a
+    #: send, while WhatsApp re-renders the chat, took 10.6 s on the real app
+    #: and then failed, so 10 s ended verification after a single look and
+    #: a message WhatsApp showed as read was reported unchecked. The answer
+    #: comes as soon as the message is seen; only a slow WhatsApp waits longer.
+    _WHATSAPP_VERIFY_TIMEOUT_S = 30.0
 
     #: Reads WhatsApp Desktop's message box and open chat (whatsapp_view.py);
     #: an attribute so tests can show it a WhatsApp of their own.
