@@ -1395,6 +1395,14 @@ class IntegrationOrchestrator:
             transcript=transcript,
         )
 
+        # What changes from turn to turn goes in front of the user's words,
+        # not in the system prompt. Not at the end of the message: a
+        # clipboard or screen prompt ends with the user's own text, and a
+        # note after it would read as part of that text.
+        turn_note = self._turn_note()
+        if turn_note:
+            prompt = f"{turn_note}\n{prompt}"
+
         # Build message list with token-budgeted history
         messages = self._build_llm_messages(Message, system_prompt, prompt)
 
@@ -1699,6 +1707,21 @@ class IntegrationOrchestrator:
     ) -> str:
         """Build the full system prompt with persona, emotion, distress, and language hints.
 
+        The turn number and recent moods are not here; see _turn_note(). They
+        changed on every turn, so the system prompt did too, and Ollama, which
+        reuses a previous request's prompt processing only up to where the new
+        request first differs, processed the whole request again: 2.0 to 2.5 s
+        before the first word of each answer with gemma4, 2,000 to 2,800
+        tokens.
+
+        This turn's emotion and its tone note stay here although they change
+        when the user's tone does, which costs that reuse on those turns. Sent
+        beside the user's words instead, the guidance was followed literally:
+        "And roughly how many people live there?" (misread as frustrated)
+        was answered in 5 of 5 tries with the guidance's own example ("ugh,
+        that it keeps failing on you is genuinely annoying") and no number;
+        with the guidance here, 4 of 4 answers gave the population.
+
         `transcript` is what the user actually said this turn. It is read only
         by the explicit self-harm check below, which deliberately does not go
         through the emotion label -- see detect_crisis_language(). Defaults to
@@ -1792,6 +1815,16 @@ class IntegrationOrchestrator:
                 f"and {_adapted.vocabulary_level} vocabulary in this reply."
             )
 
+        return system_prompt
+
+    def _turn_note(self) -> str:
+        """The turn number and recent moods, sent at the head of the user's message.
+
+        These lines used to end the system prompt (see _build_system_prompt()
+        for why they no longer do). Their wording is unchanged.
+        """
+        lines: list[str] = []
+
         # Conversation context note
         _turn_count = len(self._chat_history) // 2 + 1
         _recent_moods = [
@@ -1801,18 +1834,19 @@ class IntegrationOrchestrator:
         ]
         if _turn_count > 1 and _recent_moods:
             mood_summary = ", ".join(_recent_moods[-3:])
-            system_prompt += (
-                f"\n\nCONVERSATION STATE: This is turn {_turn_count}. "
-                f"The user's recent mood: [{mood_summary}]."
+            lines.append(
+                f"CONVERSATION STATE: This is turn {_turn_count}. "
+                f"The user's recent mood: [{mood_summary}].",
             )
         elif _turn_count == 1:
-            system_prompt += (
-                "\n\nSESSION START: This is the FIRST interaction of this session. "
+            lines.append(
+                "SESSION START: This is the FIRST interaction of this session. "
                 "Greet the user warmly like a friend you haven't talked to in a bit. "
-                "Ask how they're doing or what's up. Be casual and genuine."
+                "Ask how they're doing or what's up. Be casual and genuine.",
             )
-
-        return system_prompt
+        if not lines:
+            return ""
+        return "[Notes for this reply, not said by the user:\n" + "\n".join(lines) + "]"
 
     def _build_llm_messages(
         self, Message: type, system_prompt: str, prompt: str,
