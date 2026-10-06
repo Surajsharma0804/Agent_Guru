@@ -2999,66 +2999,116 @@ class IntegrationOrchestrator:
                 return unconfirmed
             await asyncio.sleep(self._APP_POLL_S)
 
-    async def _action_close_app(self, ctrl: Any, param: str) -> ActionOutcome:
-        """Close an application and report whether its windows are gone.
+    @staticmethod
+    async def _app_awaiting_user(ctrl: Any, name: str) -> bool | None:
+        """Whether the application waits for the user to answer it ("Save changes?"), or None if unknown."""
+        fn = getattr(ctrl, "app_awaiting_user", None)
+        if fn is None:
+            return None
+        found = await asyncio.to_thread(fn, name)
+        return found if isinstance(found, bool) else None
 
-        close_application() reports that a process was terminated. Windows
-        11 Notepad runs two processes; one was terminated, the Notepad
-        window stayed open, and "Closed notepad" was said. An application
-        counts as closed when none of its processes shows a window any more:
-        a helper left running in the background is not the application
-        still being open.
+    async def _action_close_app(self, ctrl: Any, param: str) -> ActionOutcome:
+        """Ask an application to close and report what it then did.
+
+        close_application() used to end the process with TerminateProcess:
+        an editor holding unsaved text was gone in 0.03 s and never asked
+        whether to save. It now asks the application's windows to close and
+        returns once they have been asked, so the reply follows what is
+        then seen. Closed means none of its processes shows a window any
+        more; a helper left running in the background is not the
+        application still being open (Windows 11 Notepad runs two).
+
+        An application with unsaved work asks the user first. That is said,
+        and nothing is answered or forced for them: not when the question
+        is seen, not at the deadline, and not on cancellation. Measured on
+        Windows 11: an empty Notepad's window was gone 0.02 to 0.05 s after
+        the request, and the question appeared after 0.06 s.
         """
         param = param.rstrip(".,!?;:")
         safe_param = self._sanitize_output(param)
         before = await self._app_instances(ctrl, param)
         if before == {}:
             return ActionOutcome(f"{safe_param} isn't open.", ActionStatus.SUCCESS)
+        if before and not any(before.values()):
+            # Closing used to kill such a process. With no window there is
+            # nothing to ask, and it is not killed instead.
+            return ActionOutcome(
+                f"{safe_param} is running without a window I can ask to close, so I left it running.",
+                ActionStatus.FAILED,
+            )
         logger.info("ACTION: close_application('%s')", param)
+        loop = asyncio.get_running_loop()
+        asked_at = loop.time()
         result = await asyncio.to_thread(ctrl.close_application, param)
         # success defaulted to True here, so a result without one said "Closed".
         if _call_status(result) is not ActionStatus.SUCCESS:
             return ActionOutcome(f"Failed to close {safe_param}", ActionStatus.FAILED)
+        logger.info("Asked '%s' to close in %.3fs", param, loop.time() - asked_at)
         unconfirmed = ActionOutcome(
             f"I asked {safe_param} to close, but I couldn't confirm that it closed.", ActionStatus.UNVERIFIED,
         )
         if before is None:
             return unconfirmed
-        windowed_before = {pid for pid, shows in before.items() if shows}
-        watched = windowed_before or set(before)
-        loop = asyncio.get_running_loop()
+        waiting = ActionOutcome(
+            f"I asked {safe_param} to close, but it's waiting for you to confirm, maybe whether to save your work.",
+            ActionStatus.UNVERIFIED,
+        )
+        watched = {pid for pid, shows in before.items() if shows}
         deadline = loop.time() + self._APP_CLOSE_VERIFY_S
+
+        async def look(read: Any) -> Any:
+            # A look that hangs must not hold the turn past the deadline.
+            try:
+                return await asyncio.wait_for(read(ctrl, param), max(deadline - loop.time(), 0) + self._APP_POLL_S)
+            except TimeoutError:
+                return None
+
         last: dict[int, bool] | None = None
         one_went_at: float | None = None
-        while True:
-            now = await self._app_instances(ctrl, param)
-            if now is not None:
-                last = now
-                remaining = {pid for pid, shows in now.items() if shows} if windowed_before else set(now)
-                if not remaining:
-                    return ActionOutcome(f"Closed {safe_param}", ActionStatus.SUCCESS)
-                if watched - set(now):
-                    # close_application() ends one process. With several
-                    # instances open, one going while the rest stay for a
-                    # second means one instance was closed, and that is
-                    # what is said, not that the application closed.
-                    one_went_at = one_went_at if one_went_at is not None else loop.time()
-                    if loop.time() - one_went_at >= 1.0:
+        try:
+            while True:
+                now = await look(self._app_instances)
+                if now is not None:
+                    last = now
+                    remaining = {pid for pid, shows in now.items() if shows}
+                    if not remaining:
+                        logger.info("'%s' closed %.3fs after it was asked", param, loop.time() - asked_at)
+                        return ActionOutcome(f"Closed {safe_param}", ActionStatus.SUCCESS)
+                    if watched - remaining:
+                        # One instance is asked to close. With several open,
+                        # its window going while the rest stay for a second
+                        # means one was closed, and that is what is said.
+                        one_went_at = one_went_at if one_went_at is not None else loop.time()
+                        if loop.time() - one_went_at >= 1.0:
+                            return ActionOutcome(
+                                f"Closed one {safe_param} window; {len(remaining)} more still open.",
+                                ActionStatus.SUCCESS,
+                            )
+                    elif await look(self._app_awaiting_user):
+                        logger.info("'%s' is waiting for the user %.3fs after it was asked", param,
+                                    loop.time() - asked_at)
+                        return waiting
+                if loop.time() >= deadline:
+                    if last is None:
+                        return unconfirmed
+                    still = {pid for pid, shows in last.items() if shows}
+                    if watched - still:
                         return ActionOutcome(
-                            f"Closed one {safe_param} window; {len(remaining)} more still open.",
-                            ActionStatus.SUCCESS,
+                            f"Closed one {safe_param} window; {len(still)} more still open.", ActionStatus.SUCCESS,
                         )
-            if loop.time() >= deadline:
-                if last is None:
-                    return unconfirmed
-                still = {pid for pid, shows in last.items() if shows} if windowed_before else set(last)
-                if watched - set(last):
-                    return ActionOutcome(
-                        f"Closed one {safe_param} window; {len(still)} more still open.", ActionStatus.SUCCESS,
-                    )
-                logger.warning("'%s' is still open %.1fs after the close", param, self._APP_CLOSE_VERIFY_S)
-                return ActionOutcome(f"I tried to close {safe_param}, but it's still open.", ActionStatus.FAILED)
-            await asyncio.sleep(self._APP_POLL_S)
+                    # Not forced: why it stayed open is not known, and
+                    # killing it could lose what the user has open.
+                    logger.warning("'%s' is still open %.1fs after it was asked to close", param,
+                                   self._APP_CLOSE_VERIFY_S)
+                    return ActionOutcome(f"I asked {safe_param} to close, but it's still open.",
+                                         ActionStatus.UNVERIFIED)
+                await asyncio.sleep(self._APP_POLL_S)
+        except asyncio.CancelledError:
+            # The cancellation goes on to whoever cancelled the turn; the
+            # application keeps whatever it was asked, and is not forced.
+            logger.info("Close of '%s' %s after it was asked; nothing forced", param, ActionStatus.CANCELLED.value)
+            raise
 
     # Known URL map - class-level to avoid re-creating per call
     # NOTE: the site-name → URL table used to live here as a 60+-entry

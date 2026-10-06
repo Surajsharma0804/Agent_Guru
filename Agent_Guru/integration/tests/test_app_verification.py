@@ -6,14 +6,21 @@ returned success and no Paint process ever appeared; "close notepad"
 returned success and the Notepad window stayed open. Now the turn looks at
 the application's instances (OSController.app_instances) before and after.
 
+Closing used to kill the process; it now asks the application to close,
+and an application with unsaved work asks the user first. That is waiting
+for the user, never forced and never reported closed.
+
 These run whole turns through run_pipeline against a fake set of running
 applications; ApplicationController's identity rules are tested in
-platform/controllers/tests/test_app_identity.py.
+platform/controllers/tests/test_app_identity.py, and how it asks a window to
+close in test_app_close.py.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -29,14 +36,17 @@ class Apps:
     """Running applications, {name: {pid: shows a window}}, and a controller over them.
 
     appear_after: looks after a launch before the app shows up (None: never).
-    close_removes: "all", "one", "window" (the windowed process only) or "none".
+    close_removes: "all", "one", "window" (the windowed process only), "hide"
+    (windows gone, processes still exiting) or "none".
+    asks: after a close, the application waits for the user ("Save changes?").
     """
 
     def __init__(self, running=None, *, open_result=OK, close_result=OK, appear_after=1,
-                 close_removes="all", readable=True):
+                 close_removes="all", readable=True, asks=False):
         self.running = {k: dict(v) for k, v in (running or {}).items()}
         self.open_result, self.close_result = open_result, close_result
         self.appear_after, self.close_removes, self.readable = appear_after, close_removes, readable
+        self.asks, self.asked_if_waiting = asks, 0
         self.launched, self.closed, self.looks, self.pending = [], [], 0, None
 
     def app_instances(self, name):
@@ -50,6 +60,10 @@ class Apps:
                 self.pending = None
         return dict(self.running.get(name, {}))
 
+    def app_awaiting_user(self, name):
+        self.asked_if_waiting += 1
+        return bool(self.asks and self.closed)
+
     def open_application(self, name):
         self.launched.append(name)
         if isinstance(self.open_result, Exception):
@@ -58,8 +72,9 @@ class Apps:
             self.pending = [name, self.appear_after]
         return self.open_result
 
-    def close_application(self, name):
-        self.closed.append(name)
+    def close_application(self, name, **kwargs):
+        # The orchestrator only ever asks; a forced close would show here.
+        self.closed.append((name, kwargs) if kwargs else name)
         if isinstance(self.close_result, Exception):
             raise self.close_result
         inst = self.running.get(name, {})
@@ -71,6 +86,9 @@ class Apps:
             elif self.close_removes == "window":
                 for pid in [p for p, w in inst.items() if w]:
                     inst.pop(pid)
+            elif self.close_removes == "hide":
+                for pid in inst:
+                    inst[pid] = False
         return self.close_result
 
 
@@ -181,10 +199,14 @@ async def test_a_close_that_removes_the_app_is_done():
 
 async def test_a_close_that_leaves_the_window_is_not_done():
     # Measured: Windows 11 Notepad; one process ended, the window stayed.
+    # Was FAILED when closing killed: a kill that leaves the window failed.
+    # Asking to close, a window still open at the deadline has no known
+    # reason (it may ask the user in a way that cannot be seen), so it is
+    # unconfirmed, never done.
     apps = Apps({"notepad": {10: False, 11: True}}, close_removes="none")
     result, spoken = await _turn("close notepad", apps)
-    assert spoken == "I tried to close notepad, but it's still open."  # nosec B101
-    assert result.action_status is ActionStatus.FAILED  # nosec B101
+    assert spoken == "I asked notepad to close, but it's still open."  # nosec B101
+    assert result.action_status is ActionStatus.UNVERIFIED  # nosec B101
 
 
 async def test_a_background_helper_left_running_is_still_closed():
@@ -235,3 +257,83 @@ async def test_an_unrelated_app_does_not_count():
     apps = Apps({"notepad": {10: True}, "paint": {20: True}})
     _, spoken = await _turn("close notepad", apps)
     assert spoken == "Closed notepad" and apps.running["paint"] == {20: True}  # nosec B101
+
+
+# ---- asking, not forcing ----
+
+async def test_a_window_gone_while_its_process_exits_is_closed():
+    # Measured: Notepad's window went 0.02 s after the request, its process 0.2 s.
+    apps = Apps({"notepad": {10: True}}, close_removes="hide")
+    result, spoken = await _turn("close notepad", apps)
+    assert spoken == "Closed notepad" and result.action_status is ActionStatus.SUCCESS  # nosec B101
+    assert apps.looks == 2  # nosec B101  stops at the first look that sees it closed
+
+
+async def test_a_save_question_is_waiting_for_the_user_and_nothing_is_forced():
+    apps = Apps({"notepad": {10: True}}, close_removes="none", asks=True)
+    orch = _orchestrator(apps)
+    orch._APP_CLOSE_VERIFY_S = 30.0
+    started = time.perf_counter()
+    result, spoken = await _turn("close notepad", apps, orch=orch)
+    assert spoken == (  # nosec B101
+        "I asked notepad to close, but it's waiting for you to confirm, maybe whether to save your work."
+    )
+    assert result.action_status is ActionStatus.UNVERIFIED  # nosec B101
+    assert apps.closed == ["notepad"] and apps.running["notepad"] == {10: True}  # nosec B101  asked once, not forced
+    assert time.perf_counter() - started < 5  # nosec B101  said when seen, not at the deadline
+
+
+async def test_a_close_that_never_happens_times_out_unconfirmed_and_unforced():
+    apps = Apps({"notepad": {10: True}}, close_removes="none")
+    started = time.perf_counter()
+    result, spoken = await _turn("close notepad", apps)
+    assert spoken == "I asked notepad to close, but it's still open."  # nosec B101
+    assert result.action_status is ActionStatus.UNVERIFIED  # nosec B101
+    assert 0.5 <= time.perf_counter() - started < 3  # nosec B101  bounded by _APP_CLOSE_VERIFY_S
+    assert apps.closed == ["notepad"] and apps.asked_if_waiting > 0  # nosec B101
+
+
+async def test_a_background_only_process_is_not_killed():
+    # Closing used to terminate it; there is no window to ask.
+    apps = Apps({"notepad": {10: False}})
+    result, spoken = await _turn("close notepad", apps)
+    assert spoken == "notepad is running without a window I can ask to close, so I left it running."  # nosec B101
+    assert result.action_status is ActionStatus.FAILED and apps.closed == []  # nosec B101
+
+
+async def test_a_look_that_hangs_does_not_hold_the_turn():
+    apps = Apps({"notepad": {10: True}}, close_removes="none")
+    real = apps.app_instances
+
+    def hangs_after_close(name):
+        if apps.closed:
+            time.sleep(1.5)
+        return real(name)
+
+    apps.app_instances = hangs_after_close
+    orch = _orchestrator(apps)
+    orch._APP_CLOSE_VERIFY_S = 0.2
+    started = time.perf_counter()
+    result, _ = await _turn("close notepad", apps, orch=orch)
+    assert result.action_status is ActionStatus.UNVERIFIED  # nosec B101
+    assert time.perf_counter() - started < 1.0  # nosec B101  not the 1.5 s the look took
+
+
+async def test_cancelling_a_close_stops_looking_forces_nothing_and_leaves_no_task(caplog):
+    apps = Apps({"notepad": {10: True}}, close_removes="none")
+    orch = _orchestrator(apps)
+    orch._APP_CLOSE_VERIFY_S = 30.0
+    caplog.set_level(logging.INFO, logger="Agent_Guru.integration.orchestrator")
+    task = asyncio.ensure_future(_turn("close notepad", apps, orch=orch))
+    while not apps.closed:
+        await asyncio.sleep(0.01)
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    looks = apps.looks
+    await asyncio.sleep(0.1)
+    assert apps.looks == looks  # nosec B101  no look after the cancel
+    assert apps.closed == ["notepad"] and apps.running["notepad"] == {10: True}  # nosec B101
+    assert "Close of 'notepad' cancelled" in caplog.text  # nosec B101
+    assert asyncio.all_tasks() == {asyncio.current_task()}  # nosec B101
