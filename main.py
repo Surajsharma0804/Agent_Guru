@@ -259,6 +259,36 @@ def _load_gpu_pool():
 from Agent_Guru.speech.audio.command_capture import capture_command, load_silero  # noqa: E402
 
 
+async def _answer_follow_ups(
+    orch: Any,
+    result: Any,
+    listen: Any,
+    make_event: Any,
+    before_turn: Any = lambda: None,
+    max_answers: int = 4,
+) -> Any:
+    """Listen for the answer when a reply asked for one, without a wake word.
+
+    A message draft asks "What would you like me to send John?" and then
+    reads the message back. Without this the user had to say the wake word
+    before each answer, three times for one message. A turn whose result is
+    awaiting_reply is followed by one more capture; silence ends it (the
+    question stays open until the draft expires, and can still be answered
+    after the wake word), and at most max_answers answers are taken.
+    """
+    answers = 0
+    while getattr(result, "awaiting_reply", False) and answers < max_answers:
+        logger.info("Listening for your answer...")
+        audio = await listen()
+        if not audio:
+            logger.info("No answer heard - say the wake word to answer later.")
+            break
+        before_turn()
+        result = await orch.run_pipeline(make_event(audio))
+        answers += 1
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Main async startup
 # ---------------------------------------------------------------------------
@@ -396,9 +426,7 @@ async def run() -> None:
             logger.warning("Command audio capture failed: %s", exc)
             audio_bytes = b""
 
-        try:
-            event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes)
-
+        def _thinking_tone() -> None:
             # Play a short "thinking" tone so the user knows we heard them
             # and are processing - prevents them thinking it's broken during LLM wait
             try:
@@ -416,7 +444,16 @@ async def run() -> None:
             except Exception:
                 pass
 
+        try:
+            event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes)
+            _thinking_tone()
             result = await orch.run_pipeline(event)
+            result = await _answer_follow_ups(
+                orch, result,
+                listen=lambda: capture_command(wake_manager),
+                make_event=lambda audio: WakeWordEvent(wake_word=detection.wake_word, audio=audio),
+                before_turn=_thinking_tone,
+            )
 
             actual_personality = result.personality.value.upper()
             logger.info(
