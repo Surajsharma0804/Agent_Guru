@@ -820,6 +820,7 @@ class _RuleEngine:
         # Try each category in priority order
         result = (
             self._try_screen_question(stripped, platform_name)
+            or self._try_dictated_message(stripped, platform_name)
             or self._try_web(stripped, platform_name)
             or self._try_system_control(stripped, platform_name)
             or self._try_communication(stripped, platform_name)
@@ -863,6 +864,21 @@ class _RuleEngine:
             platform=plat,
             method="rule_based",
         )
+
+    def _try_dictated_message(self, text: str, plat: str) -> IntentResult | None:
+        """A message whose text follows "saying" or ":", checked before the action rules.
+
+        The web and system-control rules match a verb anywhere in the
+        sentence and ran first, so the words being dictated chose the
+        action: "send a message to John saying open the door" opened a URL,
+        "... saying play some music later" paused the media, and "... final
+        verification 2026-10-06 run 2" opened an app named "Send a message"
+        and answered "Done." with nothing sent. What follows the message
+        boundary is the message, not a command.
+        """
+        if not _parse_message_command(text).get("message"):
+            return None
+        return self._try_communication(text, plat)
 
     def _try_web(self, text: str, plat: str) -> IntentResult | None:
         """Try to match a web/URL intent.
