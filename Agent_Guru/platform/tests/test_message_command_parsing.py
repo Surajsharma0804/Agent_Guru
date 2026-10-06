@@ -43,6 +43,33 @@ def test_recipient_and_message_are_separated(text, contact, message):
     assert "clarification" not in params  # nosec B101
 
 
+@pytest.mark.parametrize(("text", "contact", "message"), [
+    # Words in the dictated text used to choose an action: a URL was opened,
+    # media paused, or an app named "Send a message" opened, and nothing sent.
+    ("send a message to John saying open the door", "John", "open the door"),
+    ("send a message to John saying play some music later", "John", "play some music later"),
+    ("send John a message saying search for the keys", "John", "search for the keys"),
+    ("text John: shut down the laptop when you leave", "John", "shut down the laptop when you leave"),
+    ("send a message to +91 6299124902 saying Agent Guru final verification 2026-10-06 run 2.",
+     "+91 6299124902", "Agent Guru final verification 2026-10-06 run 2."),
+])
+def test_words_in_the_message_do_not_choose_an_action(text, contact, message):
+    intent_type, params = _parse(text)
+    assert (intent_type, params["action"]) == ("communication", "send_message")  # nosec B101
+    assert (params["contact"], params["message"]) == (contact, message)  # nosec B101
+
+
+@pytest.mark.parametrize(("text", "intent_type", "action"), [
+    ("open notepad", "system_control", "open_app"),
+    ("open whatsapp", "system_control", "open_app"),
+    ("search for react", "information", "search"),
+    ("send a message to John", "communication", "send_message"),
+])
+def test_commands_without_dictated_text_route_as_before(text, intent_type, action):
+    got_type, params = _parse(text)
+    assert (got_type, params["action"]) == (intent_type, action)  # nosec B101
+
+
 @pytest.mark.parametrize(("text", "action", "contact"), [
     ("reply to John saying sounds good", "reply", "John"),
     ("respond to Sam: on my way", "reply", "Sam"),
