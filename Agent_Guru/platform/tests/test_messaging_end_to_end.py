@@ -64,26 +64,41 @@ def ctrl(tmp_path):
     return Controller(tmp_path)
 
 
+class Session:
+    """One orchestrator spoken to turn after turn, as the running app is."""
+
+    def __init__(self, ctrl):
+        self.transcript = Transcript("")
+        self.orch = IntegrationOrchestrator(
+            speech_engine=self.transcript, vision_engine=None, llm_runtime=None,
+            platform_controller=ctrl, agent_orchestrator=None, memory=None, reasoning=None,
+            security=None, policy=_policy(), avatar=None, deployment=None, gpu_pool=None,
+        )
+        self.spoken: list[str] = []
+        self.last = None
+
+        async def tts(t, personality):
+            self.spoken.append(t)
+
+        async def silent(*a, **k):
+            return None
+
+        async def no_browser():
+            raise RuntimeError("tests never start a browser")
+
+        self.orch._stage_tts, self.orch._play_filler, self.orch._get_browser_mgr = tts, silent, no_browser
+
+    async def say(self, text):
+        self.transcript.text = text
+        before = len(self.spoken)
+        self.last = await self.orch.run_pipeline(
+            WakeWordEvent(wake_word="Hey Guru", audio=np.zeros(16000, np.float32).tobytes()),
+        )
+        return self.spoken[before] if len(self.spoken) > before else None
+
+
 async def _say(text, ctrl):
-    orch = IntegrationOrchestrator(
-        speech_engine=Transcript(text), vision_engine=None, llm_runtime=None,
-        platform_controller=ctrl, agent_orchestrator=None, memory=None, reasoning=None,
-        security=None, policy=_policy(), avatar=None, deployment=None, gpu_pool=None,
-    )
-    spoken = []
-
-    async def tts(t, personality):
-        spoken.append(t)
-
-    async def silent(*a, **k):
-        return None
-
-    async def no_browser():
-        raise RuntimeError("tests never start a browser")
-
-    orch._stage_tts, orch._play_filler, orch._get_browser_mgr = tts, silent, no_browser
-    await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=np.zeros(16000, np.float32).tobytes()))
-    return spoken[0] if spoken else None
+    return await Session(ctrl).say(text)
 
 
 async def test_message_to_a_number_opens_that_chat_with_the_text(ctrl):
@@ -126,11 +141,113 @@ async def test_missing_recipient_is_asked_for(ctrl):
     assert ctrl.opened == [] and spoken == "Who should I send it to?"  # nosec B101
 
 
-async def test_without_text_the_app_still_opens_for_the_contact(ctrl):
-    # Unchanged behaviour: no text, so nothing to send; WhatsApp is opened.
-    spoken = await _say("send a message to John", ctrl)
-    assert spoken == "Opening WhatsApp for John"  # nosec B101
-    assert ctrl.opened == ["https://web.whatsapp.com"]  # nosec B101
+async def test_without_text_the_recipient_is_asked_what_to_send(ctrl):
+    # Before: "Opening WhatsApp for John", an empty app and no message.
+    session = Session(ctrl)
+    assert await session.say("send a message to John") == "What would you like me to send John?"  # nosec B101
+    assert session.last.awaiting_reply  # nosec B101
+    assert ctrl.opened == []  # nosec B101
+
+
+async def test_the_answer_is_read_back_and_sent_on_yes(tmp_path):
+    ctrl = Controller(tmp_path, whatsapp_desktop=True, whatsapp_in_front=True)
+    await ctrl._messaging_controller.add_contact("John", whatsapp="+15551234567")
+    session = Session(ctrl)
+    await session.say("Send John a message.")
+    read_back = await session.say("I'll reach in 10 minutes")
+    assert read_back == "Your message to John says: I'll reach in 10 minutes. Send it?"  # nosec B101
+    assert ctrl.opened == [] and session.last.awaiting_reply  # nosec B101  nothing sent yet
+    assert await session.say("yes") == "Sent your message to John on WhatsApp."  # nosec B101
+    assert ctrl.opened == ["whatsapp://send?phone=15551234567&text=I%27ll%20reach%20in%2010%20minutes"]  # nosec B101
+    assert ctrl.enter_presses == 1 and not session.last.awaiting_reply  # nosec B101
+
+
+@pytest.mark.parametrize("answer", ["no", "hello there", "wait", "send it to Mary instead"])
+async def test_anything_but_yes_to_the_read_back_sends_nothing(ctrl, answer):
+    await ctrl._messaging_controller.add_contact("John", whatsapp="+15551234567")
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    await session.say("running late")
+    assert await session.say(answer) == "Okay, I didn't send it."  # nosec B101
+    assert ctrl.opened == []  # nosec B101
+    # And the draft is gone: the next "yes" is an ordinary turn.
+    await session.say("yes")
+    assert ctrl.opened == []  # nosec B101
+
+
+@pytest.mark.parametrize("answer", ["never mind", "Cancel.", "nahi"])
+async def test_the_text_question_can_be_cancelled(ctrl, answer):
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    assert await session.say(answer) == "Okay, I won't send anything."  # nosec B101
+    assert ctrl.opened == [] and not session.last.awaiting_reply  # nosec B101
+
+
+async def test_a_message_with_no_in_it_is_not_taken_as_cancel(ctrl):
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    reply = await session.say("No rush, stop by whenever you can")
+    assert reply == "Your message to John says: No rush, stop by whenever you can. Send it?"  # nosec B101
+
+
+async def test_a_missing_recipient_is_asked_for_and_kept(ctrl):
+    await ctrl._messaging_controller.add_contact("John", whatsapp="+15551234567")
+    session = Session(ctrl)
+    assert await session.say("send a message saying hello") == "Who should I send it to?"  # nosec B101
+    assert await session.say("to John") == "Your message to John says: hello. Send it?"  # nosec B101
+    await session.say("yes, send it")
+    assert ctrl.opened == ["https://wa.me/15551234567?text=hello"]  # nosec B101
+
+
+async def test_an_unclear_recipient_answer_is_asked_again(ctrl):
+    session = Session(ctrl)
+    await session.say("send a message saying hello")
+    reply = await session.say("John and Mary")
+    assert reply == "Sorry, who should I send it to? Say one name or number."  # nosec B101
+    assert session.last.awaiting_reply and ctrl.opened == []  # nosec B101
+
+
+async def test_an_unanswered_question_expires(ctrl, monkeypatch):
+    from Agent_Guru.integration import orchestrator
+
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    real = orchestrator.time.monotonic
+    monkeypatch.setattr(orchestrator.time, "monotonic", lambda: real() + orchestrator.MESSAGE_DRAFT_TTL_S + 1)
+    # Long after the question, a sentence is a new turn, not John's message.
+    await session.say("what time is it")
+    assert session.orch._message_draft is None  # nosec B101
+    assert ctrl.opened == []  # nosec B101
+
+
+async def test_a_taught_reply_does_not_answer_the_read_back(tmp_path, monkeypatch):
+    from Agent_Guru.platform.features import reaction_rules
+
+    class Rules:
+        def match(self, text):
+            return "Taught reply" if text.strip().lower() == "yes" else None
+
+    monkeypatch.setattr(reaction_rules, "get_reaction_rules", Rules)
+    ctrl = Controller(tmp_path, whatsapp_desktop=True)
+    await ctrl._messaging_controller.add_contact("John", whatsapp="+15551234567")
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    await session.say("hello")
+    assert await session.say("yes") == "Sent your message to John on WhatsApp."  # nosec B101
+
+
+async def test_the_policy_is_asked_again_before_sending(ctrl):
+    class DenyAll:
+        def evaluate(self, intent):
+            return False
+
+    await ctrl._messaging_controller.add_contact("John", whatsapp="+15551234567")
+    session = Session(ctrl)
+    await session.say("send a message to John")
+    await session.say("hello")
+    session.orch.policy = DenyAll()
+    assert await session.say("yes") == "Sorry, I'm not allowed to send that message."  # nosec B101
+    assert ctrl.opened == []  # nosec B101
 
 
 async def test_whatsapp_desktop_sends_the_message_itself(tmp_path):
