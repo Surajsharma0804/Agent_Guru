@@ -3,11 +3,11 @@
 IntegrationOrchestrator - wires all Agent Guru subsystems into a single unified
 pipeline and manages concurrent async startup.
 
-End-to-end pipeline (8 stages):
+End-to-end pipeline (stages numbered as in PipelineResult.stages_completed):
   1. STT          - speech_engine.transcribe(audio)
   2. Memory       - memory.retrieve(transcript)
-  3. Reasoning    - reasoning.analyze(transcript, memory_context)
-  4. LLM          - llm_runtime.infer(transcript, memory_context, reasoning_output)
+  3. (removed)    - the ReasoningEngine used to run here; see run_pipeline()
+  4. LLM          - llm_runtime.infer(transcript, memory_context)
   5. Intent       - extracted from LLM response
   6. Policy check - policy.evaluate(intent)
   7. Action       - agent_orchestrator.execute(intent)  [only if policy allows]
@@ -115,7 +115,6 @@ class PipelineResult:
         stages_completed: Number of pipeline stages that completed (max 8).
         transcript: STT output from stage 1.
         memory_context: Retrieved memory context from stage 2.
-        reasoning_output: Reasoning engine output from stage 3.
         llm_response: LLM response text from stage 4.
         intent: Recognised intent string from stage 5.
         policy_allowed: Whether the policy check (stage 6) allowed execution.
@@ -137,7 +136,6 @@ class PipelineResult:
     transcript: str | None = None
     detected_language: str = ""
     memory_context: Any | None = None
-    reasoning_output: Any | None = None
     llm_response: str | None = None
     intent: str | None = None
     policy_allowed: bool = False
@@ -184,7 +182,6 @@ def _env_seconds(name: str, default: float) -> float:
 
 STT_TIMEOUT_S = _env_seconds("AGENT_GURU_STT_TIMEOUT", 30.0)
 MEMORY_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_TIMEOUT", 5.0)
-REASONING_TIMEOUT_S = _env_seconds("AGENT_GURU_REASONING_TIMEOUT", 2.0)
 INTENT_TIMEOUT_S = _env_seconds("AGENT_GURU_INTENT_TIMEOUT", 5.0)
 LLM_TIMEOUT_S = _env_seconds("AGENT_GURU_LLM_TIMEOUT", 60.0)
 POLICY_TIMEOUT_S = _env_seconds("AGENT_GURU_POLICY_TIMEOUT", 5.0)
@@ -691,22 +688,17 @@ class IntegrationOrchestrator:
                 result.memory_context = None
             result.stages_completed = 2
 
-            # Stage 3: Reasoning (2s timeout)
-            try:
-                result.reasoning_output = await asyncio.wait_for(
-                    self._stage_reasoning(result.transcript, result.memory_context),
-                    timeout=REASONING_TIMEOUT_S,
-                )
-            except TimeoutError:
-                logger.debug(
-                    "Reasoning stage timed out (>%.1fs) - continuing without it",
-                    REASONING_TIMEOUT_S,
-                )
-                result.reasoning_output = None
-            except Exception:
-                logger.debug("Reasoning stage error - continuing without it")
-                result.reasoning_output = None
-            result.stages_completed = 3
+            # There is no stage 3. It ran ReasoningEngine.process() under a
+            # 2 s timeout, and for a question that call classifies the intent
+            # with the LLM and then writes a whole answer of its own: 4 to 5 s
+            # with gemma3:4b on a laptop GPU. So it was cancelled at 2.0 s on
+            # every question and its work discarded, and the spoken answer
+            # was requested only after that 2 s of waiting. The cancelled
+            # classification even kept running in its worker thread. For a
+            # rule-matched command it returned at once, and the prompt then
+            # carried its repr, a canned answer included, as "[Reasoning:
+            # ReasoningResult(...)]". Nothing else read its output. The turn
+            # already has its own intent stage and its own answer call below.
 
             # Stage 5 (before 4): Intent detection - fast path
             try:
@@ -730,7 +722,7 @@ class IntegrationOrchestrator:
                     result.llm_response = await asyncio.wait_for(
                         self._stage_llm(
                             result.transcript, result.memory_context,
-                            result.reasoning_output, result.detected_language,
+                            result.detected_language,
                             personality=result.personality,
                             intent=result.intent,
                         ),
@@ -1220,54 +1212,6 @@ class IntegrationOrchestrator:
             logger.exception("Memory stage error")
             return None
 
-    async def _stage_reasoning(self, transcript: str, memory_context: Any) -> Any:
-        """Stage 3: Reasoning analysis.
-
-        Supports both the simple analyze(transcript, context) API used in tests
-        and the ReasoningEngine.process(RawInput) API used in production.
-        """
-        try:
-            # Prefer analyze() - used by mocks and simpler subsystems
-            fn = getattr(self.reasoning, "analyze", None)
-            if fn is not None:
-                if inspect.iscoroutinefunction(fn):
-                    return await fn(transcript, memory_context)
-                loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(None, fn, transcript, memory_context)
-
-            # Fall back to ReasoningEngine.process(RawInput)
-            process_fn = getattr(self.reasoning, "process", None)
-            if process_fn is None:
-                return None
-
-            try:
-                from Agent_Guru.reasoning.input.normalizer import InputSource, RawInput
-
-                # Skip reasoning when transcript is empty (e.g. demo with no audio)
-                if not transcript or not transcript.strip():
-                    return None
-                raw = RawInput(
-                    content=transcript,
-                    source=InputSource.TEXT,
-                    user_id="guru_pipeline",
-                    metadata={"memory_context": memory_context},
-                )
-                if inspect.iscoroutinefunction(process_fn):
-                    result = await process_fn(raw)
-                else:
-                    loop = asyncio.get_running_loop()
-                    result = await loop.run_in_executor(None, process_fn, raw)
-                return result
-            except ImportError:
-                # RawInput not available - call with transcript only
-                if inspect.iscoroutinefunction(process_fn):
-                    return await process_fn(transcript)
-                loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(None, process_fn, transcript)
-        except Exception:
-            logger.exception("Reasoning stage error")
-            return None
-
     # Known model knowledge cutoffs - class-level constant
     _KNOWN_CUTOFFS: ClassVar[dict[str, str]] = {
         "gemma3": "early 2025",
@@ -1283,7 +1227,6 @@ class IntegrationOrchestrator:
         self,
         transcript: str,
         memory_context: Any,
-        reasoning_output: Any,
         language_code: str = "",
         personality: Personality | None = None,
         intent: str | None = None,
@@ -1296,11 +1239,11 @@ class IntegrationOrchestrator:
             )
             if fn is not None:
                 if inspect.iscoroutinefunction(fn):
-                    result = await fn(transcript, memory_context, reasoning_output)
+                    result = await fn(transcript, memory_context)
                 else:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(
-                        None, fn, transcript, memory_context, reasoning_output,
+                        None, fn, transcript, memory_context,
                     )
                 if hasattr(result, "content"):
                     return result.content or ""
@@ -1313,7 +1256,7 @@ class IntegrationOrchestrator:
 
             return await self._llm_complete(
                 complete_fn, transcript, memory_context,
-                reasoning_output, language_code, personality, intent,
+                language_code, personality, intent,
             )
         except Exception:
             logger.exception("LLM stage error")
@@ -1324,7 +1267,6 @@ class IntegrationOrchestrator:
         complete_fn: Any,
         transcript: str,
         memory_context: Any,
-        reasoning_output: Any,
         language_code: str,
         personality: Personality | None,
         intent: str | None = None,
@@ -1334,7 +1276,7 @@ class IntegrationOrchestrator:
             from Agent_Guru.llm.models import CompletionRequest, Message
             from Agent_Guru.reasoning.llm.generation import spoken_reply_tokens
 
-            prompt = self._enrich_prompt(transcript, memory_context, reasoning_output)
+            prompt = self._enrich_prompt(transcript, memory_context)
             if not prompt.strip():
                 return ""
 
@@ -1430,17 +1372,13 @@ class IntegrationOrchestrator:
         return stripped[: last_end + 1]
 
     @staticmethod
-    def _enrich_prompt(
-        transcript: str, memory_context: Any, reasoning_output: Any,
-    ) -> str:
+    def _enrich_prompt(transcript: str, memory_context: Any) -> str:
         """Build the enriched prompt with context, clipboard, and screen content."""
         prompt = transcript or ""
         if not prompt.strip():
             return ""
         if memory_context:
             prompt = f"[Context: {memory_context}]\n{prompt}"
-        if reasoning_output:
-            prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
 
         # Inject clipboard content if the user is asking about it
         from Agent_Guru.platform.features.dictation import (

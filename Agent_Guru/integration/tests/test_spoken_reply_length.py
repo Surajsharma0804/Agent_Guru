@@ -56,7 +56,7 @@ async def _complete(orch, transcript: str, reply: str, finish_reason: str):
         requests.append(request)
         return SimpleNamespace(content=reply, finish_reason=finish_reason)
 
-    text = await orch._llm_complete(complete_fn, transcript, None, None, "en", None, None)
+    text = await orch._llm_complete(complete_fn, transcript, None, "en", None, None)
     return text, requests[0]
 
 
