@@ -11,14 +11,49 @@ or in front is decided by the test, so nothing opens and nothing is sent.
 
 from __future__ import annotations
 
+from urllib.parse import unquote
+
 import numpy as np
 import pytest
 
 from Agent_Guru.integration.orchestrator import IntegrationOrchestrator, WakeWordEvent
 from Agent_Guru.platform.controllers.messaging_controller import MessagingController
+from Agent_Guru.platform.controllers.whatsapp_view import Message, View
 from Agent_Guru.platform.os_controller import OSController
 from Agent_Guru.policy import PolicyEngine
 from Agent_Guru.policy.defaults import install_default_policies
+
+
+class WhatsApp:
+    """WhatsApp Desktop as measured: a link adds its text to the box, Enter sends the box.
+
+    statuses: what the sent message's status button shows on each look after
+    Enter ("pending", "sent", ...; None for no button). sends=False: Enter
+    does nothing. readable=False: the window cannot be read.
+    """
+
+    def __init__(self, *, draft="", earlier=(), statuses=("sent",), sends=True, readable=True):
+        self.box = draft
+        self.messages = [(f"earlier-{i}", text, "read") for i, text in enumerate(earlier)]
+        self.statuses, self.sends, self.readable = list(statuses), sends, readable
+        self.sent_text = None
+
+    def open(self, url):
+        if url.startswith("whatsapp://send"):
+            self.box += unquote(url.split("&text=", 1)[1])
+
+    def enter(self):
+        if self.sends and self.box:
+            self.sent_text, self.box = self.box, ""
+
+    def view(self, text):
+        if not self.readable:
+            return None
+        msgs = [Message(k, s) for k, t, s in self.messages if t == text]
+        if self.sent_text == text:
+            status = self.statuses.pop(0) if len(self.statuses) > 1 else self.statuses[0]
+            msgs.append(Message("new", status))
+        return View(self.box, msgs)
 
 
 class Controller:
@@ -26,19 +61,27 @@ class Controller:
 
     send_message = OSController.send_message
 
-    def __init__(self, tmp_path, *, whatsapp_desktop=False, whatsapp_in_front=True):
+    def __init__(self, tmp_path, *, whatsapp_desktop=False, whatsapp_in_front=True, whatsapp=None):
         self.opened: list[str] = []
         self.enter_presses = 0
+        self.whatsapp = whatsapp or WhatsApp()
         m = MessagingController(platform_override="windows", contacts_path_override=tmp_path / "contacts.json")
-        m._blocking_open_url = self.opened.append
+        m._blocking_open_url = self._open
         m._whatsapp_desktop_installed = lambda: whatsapp_desktop
         m._foreground_is_whatsapp = lambda: whatsapp_in_front
         m._press_enter = self._press
+        m._whatsapp_view = self.whatsapp.view
         m._WHATSAPP_FRONT_TIMEOUT_S, m._WHATSAPP_SETTLE_S = 0.5, 0.01
+        m._WHATSAPP_VERIFY_TIMEOUT_S, m._WHATSAPP_VERIFY_POLL_S = 0.2, 0.01
         self._messaging_controller = m
+
+    def _open(self, url):
+        self.opened.append(url)
+        self.whatsapp.open(url)
 
     def _press(self):
         self.enter_presses += 1
+        self.whatsapp.enter()
 
     def open_url(self, url):
         self.opened.append(url)
@@ -264,6 +307,72 @@ async def test_enter_is_never_pressed_when_whatsapp_is_not_in_front(tmp_path):
     spoken = await _say("send a message to +919876543210 saying hello", ctrl)
     assert ctrl.enter_presses == 0  # nosec B101
     assert "ready in WhatsApp" in spoken and "Press send" in spoken  # nosec B101
+
+
+# What "sent" means through WhatsApp Desktop: the chat shows the new message
+# as sent, delivered or read. Before, it meant only that Enter was pressed.
+
+SAY = "send a message to +919876543210 saying I'm on my way"
+
+
+async def _desktop(tmp_path, **whatsapp):
+    ctrl = Controller(tmp_path, whatsapp_desktop=True, whatsapp=WhatsApp(**whatsapp))
+    return ctrl, await _say(SAY, ctrl)
+
+
+async def test_a_message_shown_as_sent_is_reported_sent(tmp_path):
+    ctrl, spoken = await _desktop(tmp_path, statuses=("pending", "pending", "sent"))
+    assert spoken == "Sent your message to +919876543210 on WhatsApp."  # nosec B101
+    assert ctrl.enter_presses == 1  # nosec B101
+
+
+async def test_an_unsent_draft_in_the_box_is_not_sent_with_it(tmp_path):
+    # The link adds its text after the draft; Enter would have sent both.
+    ctrl, spoken = await _desktop(tmp_path, draft="half-written reply ")
+    assert ctrl.enter_presses == 0 and ctrl.whatsapp.sent_text is None  # nosec B101
+    assert "already had unsent text" in spoken and "didn't send anything" in spoken  # nosec B101
+
+
+async def test_enter_that_does_not_send_is_reported_and_not_repeated(tmp_path):
+    ctrl, spoken = await _desktop(tmp_path, sends=False)
+    assert ctrl.enter_presses == 1  # nosec B101  never pressed again
+    assert "still in WhatsApp's message box" in spoken and "didn't go" in spoken  # nosec B101
+
+
+async def test_a_message_still_pending_is_not_reported_sent(tmp_path):
+    ctrl, spoken = await _desktop(tmp_path, statuses=("pending",))
+    assert ctrl.enter_presses == 1  # nosec B101
+    assert spoken == "I sent your message to +919876543210, but WhatsApp hasn't confirmed it has gone yet."  # nosec B101
+
+
+async def test_an_unreadable_window_is_not_sent_to_blind(tmp_path):
+    ctrl, spoken = await _desktop(tmp_path, readable=False)
+    assert ctrl.enter_presses == 0  # nosec B101
+    assert "ready in WhatsApp" in spoken and "Press send" in spoken  # nosec B101
+
+
+async def test_an_older_identical_message_is_not_taken_for_the_new_one(tmp_path):
+    # The same words were sent before; Enter does nothing this time. The old
+    # message must not count as this one having been sent.
+    ctrl, spoken = await _desktop(tmp_path, earlier=["I'm on my way"], sends=False)
+    assert "didn't go" in spoken  # nosec B101
+
+
+async def test_a_window_unreadable_after_enter_is_unverified(tmp_path):
+    whatsapp = WhatsApp()
+    ctrl = Controller(tmp_path, whatsapp_desktop=True, whatsapp=whatsapp)
+    real_enter = whatsapp.enter
+
+    def enter_then_unreadable():
+        real_enter()
+        whatsapp.readable = False
+
+    whatsapp.enter = enter_then_unreadable
+    spoken = await _say(SAY, ctrl)
+    assert ctrl.enter_presses == 1  # nosec B101
+    assert spoken == (  # nosec B101
+        "I pressed send, but I couldn't check that it went. Please look at your chat with +919876543210."
+    )
 
 
 @pytest.mark.parametrize(("action", "allowed"), [

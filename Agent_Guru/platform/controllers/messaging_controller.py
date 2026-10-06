@@ -73,6 +73,7 @@ import re
 import urllib.parse
 from pathlib import Path
 
+from Agent_Guru.platform.controllers.whatsapp_view import whatsapp_view
 from Agent_Guru.platform.platform_detector import PlatformDetector
 from Agent_Guru.platform.utils import normalize as _normalize
 
@@ -343,6 +344,10 @@ class MessagingController:
             opened with the text in it for the user to send, ``None`` if it
             could not be done. send_message() only said True or False, so a
             caller could not tell the user whether the message had gone.
+            Through WhatsApp Desktop, "sent" means the chat shows the message
+            as sent, delivered or read, and the outcome can also be
+            "pending", "not_sent", "unverified" or "draft"; see
+            _send_in_whatsapp_desktop().
 
         """
         app_norm = _normalize(app)
@@ -647,11 +652,9 @@ class MessagingController:
             if digits_only.isdigit() and self._platform == "windows" and self._whatsapp_desktop_installed():
                 url = f"whatsapp://send?phone={digits_only}&text={encoded}"
                 await loop.run_in_executor(None, self._blocking_open_url, url)
-                if await self._press_send_in_whatsapp():
-                    logger.info("WhatsApp Desktop: message sent to %s", digits_only)
-                    return "sent"
-                logger.warning("WhatsApp Desktop did not come to the front; message left ready to send")
-                return "prefilled"
+                outcome = await self._send_in_whatsapp_desktop(message)
+                logger.info("WhatsApp Desktop: message to %s: %s", digits_only, outcome)
+                return outcome
             if digits_only.isdigit():
                 url = f"https://wa.me/{digits_only}?text={encoded}"
             else:
@@ -668,15 +671,83 @@ class MessagingController:
     #: chat named in the link (not one already open) has the text.
     _WHATSAPP_FRONT_TIMEOUT_S = 10.0
     _WHATSAPP_SETTLE_S = 1.5
+    #: How long after Enter the sent message gets to appear with a status.
+    #: Each look at WhatsApp takes about 1 s.
+    _WHATSAPP_VERIFY_TIMEOUT_S = 10.0
 
-    async def _press_send_in_whatsapp(self) -> bool:
-        """Press Enter once WhatsApp has been the foreground window for the settle time."""
+    #: Reads WhatsApp Desktop's message box and open chat (whatsapp_view.py);
+    #: an attribute so tests can show it a WhatsApp of their own.
+    _whatsapp_view = staticmethod(whatsapp_view)
+
+    async def _send_in_whatsapp_desktop(self, message: str) -> str:
+        """Send the opened chat's message, once, and report what WhatsApp then shows.
+
+        Enter used to be pressed as soon as WhatsApp was in front, and the
+        message reported "sent" from that alone. The whatsapp:// link adds
+        its text to whatever is already in the chat's message box, so with
+        an unsent draft there Enter sent the draft and the message together.
+        Now Enter is pressed only when the box holds exactly this message,
+        and the result is what the chat shows afterwards. Enter is never
+        pressed twice: a message that did not go is left for the user to
+        see, not sent again.
+
+        Returns:
+            "sent"        the message is in the chat as sent, delivered or read;
+            "pending"     it is in the chat, not yet confirmed sent;
+            "not_sent"    Enter was pressed and it is still in the message box;
+            "unverified"  Enter was pressed and the chat could not be read;
+            "draft"       the box held other text too, so nothing was pressed;
+            "prefilled"   WhatsApp did not come to the front, or its box could
+                          not be read, so nothing was pressed.
+        """
+        if not await self._wait_for_whatsapp_front():
+            logger.warning("WhatsApp Desktop did not come to the front; message left ready to send")
+            return "prefilled"
+        before = await asyncio.to_thread(self._whatsapp_view, message)
+        if before is None or before.compose is None:
+            logger.warning("WhatsApp's message box could not be read; not pressing Enter blind")
+            return "prefilled"
+        if before.compose != message:
+            logger.warning(
+                "WhatsApp's message box holds other text besides this message (%d chars, expected %d); "
+                "not pressing Enter", len(before.compose), len(message),
+            )
+            return "draft"
+        known = {m.key for m in before.messages}
+
+        self._press_enter()
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self._WHATSAPP_VERIFY_TIMEOUT_S
+        last = None
+        appeared = False
+        while loop.time() < deadline:
+            await asyncio.sleep(self._WHATSAPP_VERIFY_POLL_S)
+            view = await asyncio.to_thread(self._whatsapp_view, message)
+            if view is None:
+                continue
+            last = view
+            new = [m for m in view.messages if m.key not in known]
+            if new:
+                appeared = True
+                if new[-1].status in ("sent", "delivered", "read"):
+                    return "sent"
+        if appeared:
+            return "pending"
+        if last is not None and last.compose == message:
+            return "not_sent"
+        return "unverified"
+
+    #: Pause between looks at WhatsApp after Enter.
+    _WHATSAPP_VERIFY_POLL_S = 0.5
+
+    async def _wait_for_whatsapp_front(self) -> bool:
+        """True once WhatsApp has been the foreground window for the settle time."""
         deadline = asyncio.get_running_loop().time() + self._WHATSAPP_FRONT_TIMEOUT_S
         while asyncio.get_running_loop().time() < deadline:
             if self._foreground_is_whatsapp():
                 await asyncio.sleep(self._WHATSAPP_SETTLE_S)
                 if self._foreground_is_whatsapp():
-                    self._press_enter()
                     return True
             await asyncio.sleep(0.25)
         return False
