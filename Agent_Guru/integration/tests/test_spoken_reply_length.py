@@ -123,3 +123,48 @@ async def test_the_voice_adapter_reports_a_capped_reply(monkeypatch):
         )
     )
     assert response.finish_reason == "length"
+
+
+async def test_the_voice_adapter_reports_a_capped_streamed_reply(monkeypatch):
+    """Streamed, the reply is spoken as it arrives, so the last chunk must say it was capped.
+
+    stream() used to end every reply with finish_reason="stop", so a capped
+    answer would be spoken up to its last, unfinished word. It also left out
+    keep_alive, so Ollama unloaded the model after its idle timeout.
+    """
+    from Agent_Guru.llm.models import CompletionRequest, Message, OllamaConfig
+    from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
+
+    for name, value in (
+        ("OLLAMA_KEEP_ALIVE", "-1"),
+        ("OLLAMA_FLASH_ATTENTION", "1"),
+        ("OLLAMA_NUM_PARALLEL", "1"),
+    ):
+        monkeypatch.setenv(name, value)
+    sent: dict = {}
+
+    class FakeClient:
+        async def chat(self, **kwargs):
+            sent.update(kwargs)
+
+            async def chunks():
+                yield {"message": {"content": CAPPED[:40]}, "done": False}
+                yield {"message": {"content": CAPPED[40:]}, "done": False}
+                yield {"message": {"content": ""}, "done": True, "done_reason": "length"}
+
+            return chunks()
+
+    adapter = OllamaAdapter(OllamaConfig())
+    adapter._client = FakeClient()
+    chunks = [
+        c async for c in adapter.stream(
+            CompletionRequest(
+                model="gemma3:4b",
+                messages=[Message(role="user", content="history of India")],
+                max_tokens=100,
+            )
+        )
+    ]
+    assert "".join(c.content for c in chunks) == CAPPED
+    assert [c.finish_reason for c in chunks] == [None, None, "length"]
+    assert sent["keep_alive"] == -1
