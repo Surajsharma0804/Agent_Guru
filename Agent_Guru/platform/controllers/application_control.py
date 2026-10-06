@@ -564,13 +564,20 @@ class ApplicationController:
         Time Complexity: O(n) where n is number of processes
         Space Complexity: O(1)
 
+        On Windows, without force, the application is asked to close
+        (_request_close) and this returns as soon as it has been asked: it
+        may close, or ask the user something first, such as whether to save.
+        Whether it closed is for the caller to check (app_instances,
+        app_awaiting_user).
+
         Args:
             app_identifier: Application name or PID
             force: Whether to force kill (True) or graceful shutdown (False)
             timeout: Timeout in seconds for graceful shutdown
 
         Returns:
-            True if application was closed successfully
+            True if application was closed successfully, or on Windows
+            without force, if its windows were asked to close
 
         Raises:
             ProcessLookupError: If application not found
@@ -633,7 +640,15 @@ class ApplicationController:
                 )
                 raise ValueError(msg)
 
-            # Terminate process via platform integration
+            # On Windows terminate_process() is TerminateProcess even with
+            # force=False: the application got no say, and unsaved work
+            # was gone. Measured: an editor holding unsaved text was ended
+            # in 0.03 s with no "Save changes?" asked. Its windows are now
+            # asked to close, as clicking their X does, and nothing is
+            # killed if it does not close.
+            if self.platform == "win32" and not force:
+                return self._request_close(pid)
+
             success = self._platform_integration.terminate_process(pid, force=force)
 
             if success:
@@ -842,6 +857,85 @@ class ApplicationController:
             return None
         windowed = {w.pid for w in windows}
         return {pid: pid in windowed for pid in pids}
+
+    def _request_close(self, pid: int) -> bool:
+        """Ask one process's own windows to close, as clicking their X does (Windows).
+
+        Only the top-level windows the chosen instance itself owns get
+        WM_CLOSE: never a window found by title, never another process,
+        never a broadcast. A dialog it shows (a window with an owner) is
+        left alone, because closing "Save changes?" answers it with
+        Cancel, which is the user's decision. Posted, not sent: a hung
+        application cannot block the caller.
+
+        Returns:
+            True if at least one window was asked to close; False when the
+            process shows no window that could be asked. It is not
+            terminated instead: a process without a window is left running.
+
+        """
+        hwnds = [w.handle for w in self.list_windows() if w.pid == pid and not self._window_owner(w.handle)]
+        if not hwnds:
+            logger.warning("PID %s shows no window to ask to close; leaving it running", pid)
+            return False
+        for hwnd in hwnds:
+            self._post_close(hwnd)
+        logger.info("Asked %d window(s) of PID %s to close", len(hwnds), pid)
+        return True
+
+    @staticmethod
+    def _window_owner(hwnd: Any) -> int:
+        import win32con  # type: ignore[import-untyped]
+        import win32gui  # type: ignore[import-untyped]
+
+        return win32gui.GetWindow(hwnd, win32con.GW_OWNER)
+
+    @staticmethod
+    def _window_enabled(hwnd: Any) -> bool:
+        import win32gui  # type: ignore[import-untyped]
+
+        return bool(win32gui.IsWindowEnabled(hwnd))
+
+    @staticmethod
+    def _post_close(hwnd: Any) -> None:
+        import win32con  # type: ignore[import-untyped]
+        import win32gui  # type: ignore[import-untyped]
+
+        win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+
+    def app_awaiting_user(self, app_name: str) -> bool | None:
+        """Whether the application is waiting for the user to answer it, such as "Save changes?".
+
+        Read only. Asked to close with unsaved work, an application shows
+        a modal dialog: a window owned by its main window, which stays
+        disabled until the dialog is answered (measured on Windows 11: a
+        #32770 box 0.06 s after WM_CLOSE). Such a dialog that belongs to
+        one of the application's processes (exact names, _process_names)
+        means it is waiting for the user, not that it failed to close.
+
+        Returns:
+            True if one of its processes shows such a dialog, False if not,
+            None if that cannot be told (not Windows, or the state could
+            not be read).
+
+        """
+        if self.platform != "win32":
+            return None
+        try:
+            names = self._process_names(app_name)
+            processes = self._platform_integration.get_process_list(include_usage=False)
+            pids = {p.pid for p in processes if p.name.lower() in names}
+            if not pids:
+                return False
+            for w in self.list_windows():
+                if w.pid in pids:
+                    owner = self._window_owner(w.handle)
+                    if owner and not self._window_enabled(owner):
+                        return True
+        except Exception:
+            logger.exception("Failed to read whether %s is waiting for the user", app_name)
+            return None
+        return False
 
     def minimize_window(self, window_identifier: str) -> bool:
         """Minimize an application window.
