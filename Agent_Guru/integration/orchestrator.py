@@ -633,9 +633,24 @@ class IntegrationOrchestrator:
 
         from Agent_Guru.platform.features.user_memory import get_user_memory as _get_um
 
-        # Filler response in the post-wake-word pause
-        await self._play_filler(result, _wake_timestamp, _get_um)
+        # The filler plays while the turn is worked on. It was awaited before
+        # STT, so every turn waited for the whole clip (0.58 to 0.84 s
+        # measured) before transcription started, although main.py has
+        # already recorded the command by the time the pipeline runs.
+        # Playback holds the process-wide PortAudio lock, so the reply still
+        # cannot start until the filler has finished.
+        filler = asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
+        try:
+            return await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
+        finally:
+            # Never left running unobserved; it is usually long finished.
+            with contextlib.suppress(asyncio.CancelledError):
+                await filler
 
+    async def _run_turn(
+        self, wake_event: WakeWordEvent, result: PipelineResult, _wake_timestamp: float, _get_um: Any,
+    ) -> PipelineResult:
+        """Stages 1 to 8 of run_pipeline, run while the filler plays."""
         _pipeline_mode = "full"
         result.pipeline_mode = _pipeline_mode
 
@@ -844,7 +859,13 @@ class IntegrationOrchestrator:
             from Agent_Guru.speech.filler_response import get_filler_cache
             _filler_cache = get_filler_cache()
             if not _filler_cache._initialized:
-                await asyncio.to_thread(_filler_cache.initialize)
+                # Startup normally builds the cache. If it has not, building
+                # it now takes seconds (7.0 s measured) and the filler would
+                # play after a quick reply, so this turn goes without one and
+                # the cache is built for the next.
+                if getattr(self, "_filler_warmup", None) is None:
+                    self._filler_warmup = asyncio.ensure_future(asyncio.to_thread(_filler_cache.initialize))
+                return
             _lang_pref = _get_um().get("code_mixing", "hinglish")
             _persona_str = "maya" if result.personality == Personality.MAYA else "guru"
             await _filler_cache.play_filler_async(
@@ -3187,8 +3208,15 @@ class IntegrationOrchestrator:
                                 else:
                                     engine.setProperty("voice", voices[0].id)
                             engine.setProperty("rate", 175)
-                            engine.say(text)
-                            engine.runAndWait()
+                            # Under the playback lock like every other reply,
+                            # because the filler now plays while the turn is
+                            # worked on: without it this fallback voice could
+                            # speak over a filler that has not finished.
+                            from Agent_Guru.speech.audio.portaudio_lock import portaudio_in_use
+
+                            with portaudio_in_use():
+                                engine.say(text)
+                                engine.runAndWait()
 
                         loop = asyncio.get_running_loop()
                         await loop.run_in_executor(None, _play_pyttsx3)
