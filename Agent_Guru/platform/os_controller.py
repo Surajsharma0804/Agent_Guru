@@ -748,6 +748,22 @@ class OSController:
                 error=str(e),
             )
 
+    def app_instances(self, app_name: str) -> dict[int, bool] | None:
+        """The application's running processes, each with whether it shows a window.
+
+        Read only; ApplicationController.app_instances(). None when the
+        state cannot be read. Opening and closing check against it, because
+        open_application() and close_application() report only that the
+        request was made: on Windows 11 "open paint" reported success with
+        no Paint process ever appearing, and "close notepad" reported
+        success with the Notepad window still open.
+        """
+        try:
+            return self._app_controller.app_instances(app_name)
+        except Exception:
+            logger.exception("Could not read the state of %s", app_name)
+            return None
+
     def close_application(self, app_identifier: str, force: bool = False) -> OperationResult:
         """Close an application by name or PID.
 
