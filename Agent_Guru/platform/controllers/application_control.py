@@ -760,14 +760,36 @@ class ApplicationController:
         "snipping tool": ["snippingtool.exe", "sniptool.exe"],
     }
 
+    def _process_names(self, app_name: str) -> set[str]:
+        """The exact executable names that are this application (lowercase).
+
+        The alias table for known names ("calculator" is CalculatorApp.exe
+        or calc.exe), otherwise the name itself as an .exe. Exact names
+        only: see _find_process_by_name() for what substring matching did.
+        """
+        name = app_name.strip().lower()
+        aliases = self._PROCESS_NAME_ALIASES.get(name)
+        if aliases:
+            return {a.lower() for a in aliases}
+        return {name if name.endswith(".exe") else f"{name}.exe"}
+
     def _find_process_by_name(self, app_name: str) -> int | None:
-        """Find process ID by application name.
+        """Find the process to close for an application name.
 
-        Handles Windows 11 UWP app process name aliases (e.g. Calculator →
-        CalculatorApp.exe) so that close_application works reliably.
+        Only processes whose executable is exactly one of the application's
+        names (_process_names) are considered. This used to fall back to a
+        substring match, also for known names when their real executable
+        was not running, so "close word" with WordPad open matched
+        wordpad.exe, and an unknown short name matched any process whose
+        name contained it.
 
-        Time Complexity: O(n) where n is number of processes
-        Space Complexity: O(1)
+        Among those, one that owns a visible window comes first. Windows 11
+        Notepad runs two notepad.exe processes, and the first one found was
+        the one without the window: it was terminated, the window stayed
+        open, and the close was reported done.
+
+        Time Complexity: O(n + w) for n processes and w windows
+        Space Complexity: O(n)
 
         Args:
             app_name: Application name (friendly name or exe name)
@@ -777,32 +799,49 @@ class ApplicationController:
 
         """
         try:
+            names = self._process_names(app_name)
             processes = self._platform_integration.get_process_list(include_usage=False)
-            app_name_lower = app_name.strip().lower()
-
-            # Build the set of exe names to match against
-            aliases = self._PROCESS_NAME_ALIASES.get(app_name_lower)
-            if aliases:
-                # Exact match against known aliases first (most reliable)
-                for process in processes:
-                    if process.name.lower() in aliases:
-                        return process.pid
-            else:
-                # Fallback: substring match for unknown app names
-                for process in processes:
-                    if app_name_lower in process.name.lower():
-                        return process.pid
-
-            # Second pass: substring match even for known apps (catches edge cases)
-            for process in processes:
-                if app_name_lower in process.name.lower():
-                    return process.pid
-
-            return None
+            pids = [p.pid for p in processes if p.name.lower() in names]
+            if not pids:
+                return None
+            windowed = {w.pid for w in self.list_windows()}
+            return next((pid for pid in pids if pid in windowed), pids[0])
 
         except Exception:
             logger.exception("Failed to find process")
             return None
+
+    def app_instances(self, app_name: str) -> dict[int, bool] | None:
+        """The running processes that are this application, each with whether it shows a window.
+
+        Read only; used to check that opening or closing an application did
+        what was asked, not just that the launch or close call returned. A
+        process counts by its exact executable name (_process_names), so a
+        launcher or an unrelated process with a similar name does not. None
+        when the state cannot be read: not Windows, the process list
+        failed, or no window could be listed at all (a desktop session
+        always has some, so an empty list means the listing failed and
+        "no window" would be a guess).
+
+        Returns:
+            {pid: has a visible titled window} for each running instance, or
+            None if that cannot be told.
+
+        """
+        if self.platform != "win32":
+            return None
+        try:
+            names = self._process_names(app_name)
+            processes = self._platform_integration.get_process_list(include_usage=False)
+            pids = [p.pid for p in processes if p.name.lower() in names]
+            windows = self.list_windows()
+        except Exception:
+            logger.exception("Failed to read the state of %s", app_name)
+            return None
+        if pids and not windows:
+            return None
+        windowed = {w.pid for w in windows}
+        return {pid: pid in windowed for pid in pids}
 
     def minimize_window(self, window_identifier: str) -> bool:
         """Minimize an application window.
