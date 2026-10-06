@@ -2,8 +2,9 @@
 
 The shapes here are the ones measured on WhatsApp Desktop for Windows
 (WebView2): the message box is the Edit holding keyboard focus and reports
-"\n" when empty; a message is a Text whose name is its text, in a row with a
-"<time> <status>" button; the chat list repeats each chat's last message
+"\n" when empty; a message is a DataItem row whose Texts, in order, are its
+text (split at links), beside a "You:" label and a "<time> <status> " button
+holding the time as a Text; the chat list repeats each chat's last message
 inside a DataGrid; every subtree appears twice.
 """
 
@@ -12,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from Agent_Guru.platform.controllers.whatsapp_view import BUTTON, DATAGRID, EDIT, TEXT, read_view
+from Agent_Guru.platform.controllers.whatsapp_view import BUTTON, DATAGRID, EDIT, ROW, TEXT, read_view
 
 _keys = iter(range(1, 10_000))
 
@@ -34,10 +35,12 @@ class N:
         return self.kids
 
 
-def bubble(text, status_button, key=None):
-    """A message row as WhatsApp shows it: the text, and next to it the time and status."""
-    t = N(TEXT, text, key=key)
-    return N(kids=[N(kids=[N(kids=[t]), N(kids=[N(BUTTON, status_button)])])])
+def bubble(text, status_button, key=None, parts=None):
+    """A message row as WhatsApp shows it: "You:", the text, then the time and status."""
+    texts = [N(TEXT, p) for p in (parts or [text])]
+    time = status_button.split()[0]
+    button = N(BUTTON, status_button, kids=[N(TEXT, time), N(kids=[N(kind="image", name="wds-ic-read")])])
+    return N(ROW, key=key, kids=[N(kids=[N(kids=[N(name="You:"), N(kids=texts), N(kids=[button])])])])
 
 
 def window(*conversation, compose="\n", chat_list=()):
@@ -73,14 +76,13 @@ def test_the_chat_list_preview_is_not_a_message_in_the_chat():
 
 
 def test_a_repeated_subtree_counts_once():
-    text_key = ("runtime", 7)
-    row = bubble("hello", "9:05 Delivered", key=text_key)
+    row = bubble("hello", "9:05 Delivered", key=("runtime", 7))
     view = read_view(N(kids=[N(kids=[row]), N(kids=[row])]), "hello")
     assert [m.status for m in view.messages] == ["delivered"]  # nosec B101
 
 
 def test_status_forms():
-    for button, status in (("20:11 Pending", "pending"), ("8:05 PM Sent", "sent"),
+    for button, status in (("20:11 Pending", "pending"), ("8:05 PM Sent", "sent"), ("20:31 Read ", "read"),
                            ("8:05 p.m. Delivered", "delivered"), ("12:00 Read", "read")):
         view = read_view(window(bubble("x y z", button)), "x y z")
         assert [m.status for m in view.messages] == [status], button  # nosec B101
@@ -89,3 +91,25 @@ def test_status_forms():
 def test_a_message_without_a_status_button_has_no_status():
     view = read_view(window(bubble("hello", "Reply")), "hello")
     assert [m.status for m in view.messages] == [None]  # nosec B101
+
+
+def test_a_message_split_at_a_link_is_read_whole():
+    # Measured: "Agent Guru final verification 2026-10-06." came as three Texts,
+    # the date inside a Hyperlink. Matching single Texts found nothing.
+    link = N(kind="hyperlink", name="2026-10-06", kids=[N(TEXT, "2026-10-06")])
+    row = bubble("", "20:31 Read ", parts=["Agent Guru final verification "])
+    row.kids[0].kids[0].kids[1].kids += [link, N(TEXT, ".")]
+    view = read_view(window(row), "Agent Guru final verification 2026-10-06.")
+    assert [m.status for m in view.messages] == ["read"]  # nosec B101
+
+
+def test_text_in_the_message_box_is_not_a_message():
+    # Before sending, the box's own text was taken for a message in the chat.
+    box = N(EDIT, "Type to John", value="hello", has_focus=True, kids=[N(TEXT, "hello")])
+    view = read_view(N(kids=[N(kids=[box])]), "hello")
+    assert view.compose == "hello" and view.messages == []  # nosec B101
+
+
+def test_the_label_and_the_time_are_not_part_of_the_text():
+    view = read_view(window(bubble("see you at 5", "17:02 Sent")), "see you at 5")
+    assert [m.status for m in view.messages] == ["sent"]  # nosec B101

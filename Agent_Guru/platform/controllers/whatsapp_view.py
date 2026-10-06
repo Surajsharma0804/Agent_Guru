@@ -16,10 +16,14 @@ What was found on WhatsApp Desktop for Windows (WebView2), 2026-10-06:
 - The message box is an Edit control holding keyboard focus; its Value is
   the text in it. UI Automation's own focused element stops at the WebView2
   host pane, so the Edit's HasKeyboardFocus is what identifies it.
-- A message in the open chat is a Text element whose name is the message,
-  inside a row that also holds a Button named "<time> <status>", e.g.
-  "20:11 Read". The chat list on the left repeats the last message of each
-  chat inside a DataGrid; those are not messages in the open chat.
+- A message in the open chat is a DataItem row. Its text is the row's Text
+  elements in order: WhatsApp splits a message at links, so "Agent Guru
+  final verification 2026-10-06." is the Texts "Agent Guru final
+  verification ", "2026-10-06" (inside a Hyperlink) and ".". The row also
+  holds a Button named "<time> <status> ", e.g. "20:31 Read ", whose own
+  Text (the time) is not message text. The chat list on the left repeats
+  the last message of each chat inside a DataGrid; those are not messages
+  in the open chat.
 - The page's tree is exposed only while WhatsApp has been on screen, and
   every subtree appears twice; elements are told apart by runtime id.
 - Walking the whole window (about 1,700 elements) takes about 1 s; asking
@@ -32,10 +36,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -45,21 +46,21 @@ _STATUS = re.compile(
     r"^\s*\d{1,2}:\d{2}(?:\s*[AaPp]\.?[Mm]\.?)?\s+(Pending|Sent|Delivered|Read)\s*$",
 )
 
-#: How far above a message's text its row reaches. The status button sat two
-#: levels up from the text, in the same row.
-_ROW_LEVELS = 4
+#: How deep under a message row its text and status button lie. They were
+#: five levels down; this leaves room without walking into another row.
+_ROW_DEPTH = 10
 
 #: More than a whole WhatsApp window has; a bound on a tree gone wrong.
 _MAX_NODES = 20_000
 
-EDIT, TEXT, BUTTON, DATAGRID = "edit", "text", "button", "datagrid"
+EDIT, TEXT, BUTTON, DATAGRID, ROW = "edit", "text", "button", "datagrid", "row"
 
 
 class Node(Protocol):
     """The little of a UI element this module reads."""
 
     key: Any            # stable identity (UI Automation runtime id)
-    kind: str           # EDIT, TEXT, BUTTON, DATAGRID or anything else
+    kind: str           # EDIT, TEXT, BUTTON, DATAGRID, ROW (a DataItem) or anything else
     name: str
     value: str | None   # Value pattern text, for an Edit
     has_focus: bool
@@ -84,14 +85,21 @@ class View:
 
 
 def read_view(window: Node, text: str) -> View:
-    """The focused message box and the open chat's messages whose text is exactly `text`."""
+    """The focused message box and the open chat's messages whose text is `text`.
+
+    A message matches when its row's text equals `text` with runs of
+    whitespace counted as one. Matching single Text elements found nothing
+    for a message containing a link (WhatsApp splits it there), and it took
+    the text inside the message box for a message in the chat.
+    """
+    want = " ".join(text.split())
     compose: str | None = None
     messages: dict[Any, Message] = {}
     seen: set[Any] = set()
     count = 0
-    stack: list[tuple[Node, tuple[Node, ...], bool]] = [(window, (), False)]
+    stack: list[tuple[Node, bool]] = [(window, False)]
     while stack and count < _MAX_NODES:
-        node, ancestors, in_chat_list = stack.pop()
+        node, in_chat_list = stack.pop()
         for child in node.children():
             count += 1
             if child.key in seen:
@@ -102,29 +110,31 @@ def read_view(window: Node, text: str) -> View:
                 # An empty message box reports "\n", one with text reports
                 # the text alone, so a trailing newline is not text.
                 compose = (child.value or "").rstrip("\n")
-            elif child.kind == TEXT and not listed and child.name == text and child.key not in messages:
-                messages[child.key] = Message(child.key, _status_near((*ancestors, node)))
-            stack.append((child, (*ancestors, node), listed))
+            elif child.kind == ROW and not listed:
+                said, status = _row(child)
+                if " ".join(said.split()) == want:
+                    messages[child.key] = Message(child.key, status)
+            stack.append((child, listed))
     return View(compose, list(messages.values()))
 
 
-def _status_near(ancestors: tuple[Node, ...]) -> str | None:
-    """The status in the row holding a message: a "<time> <status>" button under a near ancestor."""
-    for row in reversed(ancestors[-_ROW_LEVELS:]):
-        for node in _descendants(row, depth=_ROW_LEVELS + 2):
-            if node.kind == BUTTON:
-                m = _STATUS.match(node.name)
-                if m:
-                    return m.group(1).lower()
-    return None
-
-
-def _descendants(node: Node, depth: int) -> Iterator[Node]:
-    if depth <= 0:
-        return
-    for child in node.children():
-        yield child
-        yield from _descendants(child, depth - 1)
+def _row(row: Node) -> tuple[str, str | None]:
+    """A message row's text (its Texts in order, not the status button's) and status."""
+    parts: list[str] = []
+    status: str | None = None
+    stack = [(c, 0) for c in reversed(row.children())]
+    while stack:
+        node, depth = stack.pop()
+        if node.kind == BUTTON:
+            m = _STATUS.match(node.name)
+            if m and status is None:
+                status = m.group(1).lower()
+            continue
+        if node.kind == TEXT:
+            parts.append(node.name)
+        if depth < _ROW_DEPTH:
+            stack.extend((c, depth + 1) for c in reversed(node.children()))
+    return "".join(parts), status
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +154,7 @@ class _UiaNode:
         self.kind = {
             uia.UIA_EditControlTypeId: EDIT, uia.UIA_TextControlTypeId: TEXT,
             uia.UIA_ButtonControlTypeId: BUTTON, uia.UIA_DataGridControlTypeId: DATAGRID,
+            uia.UIA_DataItemControlTypeId: ROW,
         }.get(ctype, "")
         self.name = el.CurrentName or ""
         self.has_focus = bool(el.CurrentHasKeyboardFocus) if self.kind == EDIT else False
