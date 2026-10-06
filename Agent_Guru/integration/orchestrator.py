@@ -1229,18 +1229,40 @@ class IntegrationOrchestrator:
         return (str(result).strip() if result else "", "")
 
     async def _stage_memory(self, transcript: str) -> Any:
-        """Stage 2: Retrieve memory context."""
+        """Stage 2: Retrieve memory context.
+
+        MemoryManager.search() is told which turns the chat history already
+        holds. It used to be asked with the transcript alone, and as every
+        turn is also stored as a memory, it returned this session's earlier
+        turns beside the same turns in the history, together with whatever
+        else was nearest. That block differed every turn and stopped Ollama
+        reusing the previous turn's prompt processing. search() now returns
+        only memories relevant to the question and new to the conversation.
+        """
         try:
-            fn = getattr(self.memory, "retrieve", None) or getattr(self.memory, "search", None)
+            fn = getattr(self.memory, "retrieve", None)
+            kwargs: dict[str, Any] = {}
+            if fn is None:
+                fn = getattr(self.memory, "search", None)
+                kwargs = {"known": self._conversation_turns()}
             if fn is None:
                 return None
             if inspect.iscoroutinefunction(fn):
-                return await fn(transcript)
+                return await fn(transcript, **kwargs)
             loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(None, fn, transcript)
+            return await loop.run_in_executor(None, lambda: fn(transcript, **kwargs))
         except Exception:
             logger.exception("Memory stage error")
             return None
+
+    def _conversation_turns(self) -> list[tuple[str, str]]:
+        """(user, reply) pairs in the chat history, as _store_turn_in_memory stores them."""
+        history = list(self._chat_history)
+        return [
+            (said["content"], reply["content"])
+            for said, reply in zip(history, history[1:], strict=False)
+            if said.get("role") == "user" and reply.get("role") == "assistant"
+        ]
 
     # Known model knowledge cutoffs - class-level constant
     _KNOWN_CUTOFFS: ClassVar[dict[str, str]] = {
