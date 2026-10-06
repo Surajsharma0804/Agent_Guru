@@ -44,6 +44,7 @@ import logging
 import os
 import re
 import sys
+import time
 import urllib.parse as _up
 from collections import deque
 from dataclasses import dataclass, field
@@ -121,6 +122,9 @@ class PipelineResult:
         action_result: Result of action execution from stage 7.
         tts_response: TTS audio/text from stage 8.
         personality: Personality used for this interaction.
+        awaiting_reply: True when the reply asked the user something this
+            turn's action is waiting on (a message draft); the caller can
+            listen for the answer without a wake word.
         pipeline_mode: "full" or "restricted" - set by speaker verification.
             "restricted" means the speaking voice did not match the enrolled
             owner profile; destructive actions and memory writes are denied
@@ -144,6 +148,7 @@ class PipelineResult:
     personality: Personality = Personality.GURU
     pipeline_mode: str = "full"
     error: str | None = None
+    awaiting_reply: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +197,19 @@ MEMORY_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_WRITE_TIMEOUT", 10.0)
 #: staring at a silent assistant; falling through to the generic "Done."
 #: would be worse still, because it claims an action succeeded.
 LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask me again?"
+
+#: How long a message draft waits for its answer. After that the next
+#: utterance is an ordinary command again, so a question left unanswered
+#: cannot turn a later, unrelated sentence into a message to someone.
+MESSAGE_DRAFT_TTL_S = _env_seconds("AGENT_GURU_MESSAGE_DRAFT_TTL", 60.0)
+
+#: Said instead of the missing recipient or text, the whole utterance and
+#: nothing else, to drop a draft. Matched whole: a message may well contain
+#: "no" or "stop" ("No rush, stop by later").
+_DRAFT_CANCEL = frozenset({
+    "cancel", "never mind", "nevermind", "forget it", "no", "nope", "nothing",
+    "stop", "nahi", "rehne do", "chhodo", "mat bhejo",
+})
 
 
 def _local_now() -> _dt.datetime:
@@ -339,6 +357,10 @@ class IntegrationOrchestrator:
         # A companion must remember at least the recent conversation.
         # The token budget guard in _stage_llm handles overflow gracefully.
         self._chat_history: deque = deque(maxlen=24)  # 12 user + 12 assistant turns
+
+        # A message waiting for its recipient, its text or the user's yes:
+        # {"app", "contact", "message", "expires"}. See _continue_message_draft.
+        self._message_draft: dict[str, Any] | None = None
 
         # NOTE: there is intentionally NO self._pipeline_mode attribute.
         # pipeline_mode (speaker-verification outcome) is carried per-call on
@@ -681,6 +703,22 @@ class IntegrationOrchestrator:
             # Speaker verification (opt-in)
             _pipeline_mode = self._verify_speaker(wake_event, result)
 
+            # The answer to a question the previous turn asked about a
+            # message ("What would you like me to send John?"). Before, there
+            # was no such state: the answer was taken as a new command, so a
+            # message without its text could only open the app. Ahead of the
+            # reaction rules, so a rule taught for "yes" cannot answer it.
+            draft_reply = await self._continue_message_draft(result.transcript)
+            if draft_reply is not None:
+                result.intent = "communication:message_draft"
+                result.action_result = draft_reply
+                result.awaiting_reply = self._message_draft is not None
+                self._chat_history.append({"role": "user", "content": result.transcript, "emotion": "neutral"})
+                self._chat_history.append({"role": "assistant", "content": draft_reply})
+                result.stages_completed = 8
+                result.tts_response = await self._stage_tts(draft_reply, result.personality)
+                return result
+
             # Reaction-rule early returns
             early_result = await self._check_reaction_rules(
                 result, _pipeline_mode, _wake_timestamp, _get_um,
@@ -788,6 +826,9 @@ class IntegrationOrchestrator:
                     result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
             elif not needs_llm:
                 result.llm_response = None
+
+            # A draft started by this turn's action is waiting for an answer.
+            result.awaiting_reply = self._message_draft is not None
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
@@ -3051,6 +3092,91 @@ class IntegrationOrchestrator:
             return f"Bluetooth {'enabled' if enable else 'disabled'}"
         return "Settings updated"
 
+    async def _deliver_message(self, ctrl: Any, app: str, contact: str, message: str) -> str:
+        """Send through the platform controller and say what happened."""
+        label = {"whatsapp": "WhatsApp", "telegram": "Telegram", "slack": "Slack",
+                 "sms": "SMS", "email": "email"}[app]
+        who = self._sanitize_output(contact)
+        outcome = await ctrl.send_message(app, contact, message)
+        if outcome == "sent":
+            return f"Sent your message to {who} on {label}."
+        if outcome:
+            return f"Your message to {who} is ready in {label}. Press send to deliver it."
+        return (
+            f"I couldn't send that to {who} on {label}. If {who} isn't a saved "
+            "contact, say their number or address instead."
+        )
+
+    def _start_message_draft(self, app: str, contact: str, message: str) -> str:
+        """Keep a message that lacks its recipient or text, and ask for it."""
+        self._message_draft = {
+            "app": app, "contact": contact, "message": message,
+            "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S,
+        }
+        return self._message_draft_question()
+
+    def _message_draft_question(self) -> str:
+        draft = self._message_draft
+        assert draft is not None  # nosec B101 - only called with a draft
+        if not draft["contact"]:
+            return "Who should I send it to?"
+        who = self._sanitize_output(draft["contact"])
+        if not draft["message"]:
+            return f"What would you like me to send {who}?"
+        return f"Your message to {who} says: {draft['message']}. Send it?"
+
+    async def _continue_message_draft(self, transcript: str) -> str | None:
+        """Take this utterance as the answer to a message draft's question.
+
+        Returns the reply, or None when there is no live draft and the
+        utterance is an ordinary command. The recipient and the text are
+        asked for in turn, then the whole message is read back, and only a
+        yes sends it: the answer to "what would you like me to send?" can be
+        any sentence, so the user hears exactly what will go before it goes.
+        Anything but a yes to the read-back cancels it.
+        """
+        draft = self._message_draft
+        if draft is None:
+            return None
+        if time.monotonic() > draft["expires"]:
+            self._message_draft = None
+            logger.info("Message draft to %r expired unanswered", draft["contact"])
+            return None
+        said = transcript.strip()
+
+        if not draft["contact"] or not draft["message"]:
+            if said.lower().strip(" .,!?") in _DRAFT_CANCEL:
+                self._message_draft = None
+                return "Okay, I won't send anything."
+            if not draft["contact"]:
+                from Agent_Guru.platform.intent_recognizer import _RECIPIENT, _SEVERAL_RECIPIENTS
+
+                contact = re.sub(r"^(?:to|for)\s+", "", said.strip(" .,!?"), flags=re.IGNORECASE)
+                if not re.fullmatch(_RECIPIENT, contact) or _SEVERAL_RECIPIENTS.search(contact):
+                    # The same test the message parser applies: one name,
+                    # number or address, or the message could go astray.
+                    draft["expires"] = time.monotonic() + MESSAGE_DRAFT_TTL_S
+                    return "Sorry, who should I send it to? Say one name or number."
+                draft["contact"] = contact
+            else:
+                draft["message"] = said
+            draft["expires"] = time.monotonic() + MESSAGE_DRAFT_TTL_S
+            return self._message_draft_question()
+
+        self._message_draft = None
+        from Agent_Guru.platform.features.confirmation import _parse_confirmation
+
+        if _parse_confirmation(said) is not True:
+            return "Okay, I didn't send it."
+        intent = f"communication:send_message:{draft['contact']}:{draft['app']}:{draft['message']}"
+        try:
+            allowed = await asyncio.wait_for(self._stage_policy(intent), timeout=POLICY_TIMEOUT_S)
+        except TimeoutError:
+            allowed = False  # fail closed, as stage 6 does
+        if not allowed:
+            return "Sorry, I'm not allowed to send that message."
+        return await self._deliver_message(self.platform_controller, draft["app"], draft["contact"], draft["message"])
+
     async def _action_communication(
         self, ctrl: Any, action: str, param: str, level_str: str,
     ) -> str | None:
@@ -3068,22 +3194,16 @@ class IntegrationOrchestrator:
             message = html.unescape(message).strip()
             if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
                 app = "whatsapp"
+            send = getattr(ctrl, "send_message", None)
+            if send is not None and (not contact or not message) and (contact or message or ":" in level_str):
+                # Missing the recipient or the text: ask, and keep what was
+                # said. A recipient alone used to open the app with nothing
+                # in it, and a question asked was forgotten by the next turn.
+                return self._start_message_draft(app, contact, message)
             if not contact and (message or ":" in level_str):
                 return "Who should I send it to?"
-            send = getattr(ctrl, "send_message", None)
             if message and send is not None:
-                label = {"whatsapp": "WhatsApp", "telegram": "Telegram", "slack": "Slack",
-                         "sms": "SMS", "email": "email"}[app]
-                who = self._sanitize_output(contact)
-                outcome = await send(app, contact, message)
-                if outcome == "sent":
-                    return f"Sent your message to {who} on {label}."
-                if outcome:
-                    return f"Your message to {who} is ready in {label}. Press send to deliver it."
-                return (
-                    f"I couldn't send that to {who} on {label}. If {who} isn't a saved "
-                    "contact, say their number or address instead."
-                )
+                return await self._deliver_message(ctrl, app, contact, message)
             fn = getattr(ctrl, "open_url", None)
             if fn and contact:
                 if app == "whatsapp":
