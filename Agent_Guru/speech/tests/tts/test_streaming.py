@@ -8,13 +8,14 @@ overran the 30 s stage budget.
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 
 import numpy as np
 import pytest
 
-from Agent_Guru.speech.tts.streaming import split_sentences, speak_streaming
+from Agent_Guru.speech.tts.streaming import split_sentences, speak_streaming, stream_sentences
 
 RATE = 1000
 
@@ -137,3 +138,124 @@ class TestStreaming:
         with pytest.raises(RuntimeError, match="sentence 1"):
             await speak_streaming(text, rec.synthesize, rec.play, synth_timeout_s=5)
         assert rec.played == []
+
+
+async def _chunks(text: str, *, size: int = 7, delay_s: float = 0.0, then: BaseException | None = None,
+                  hang_after: int | None = None):
+    """The reply as an LLM streams it: a few characters at a time."""
+    for n, at in enumerate(range(0, len(text), size)):
+        if hang_after is not None and n == hang_after:
+            await asyncio.sleep(3600)
+        if delay_s:
+            await asyncio.sleep(delay_s)
+        yield text[at:at + size]
+    if then is not None:
+        raise then
+
+
+async def _collect(source, **kw) -> list[str]:
+    return [s async for s in stream_sentences(source, **kw)]
+
+
+class TestGeneratedReply:
+    """The reply spoken while the LLM is still writing it.
+
+    It used to be spoken only once the model had finished: for the voice
+    pipeline's own request the first sentence existed after 0.12 to 0.14 s
+    and the whole answer after 1.9 to 4.6 s, all of it silence.
+    """
+
+    async def test_split_matches_the_whole_text_split(self) -> None:
+        text = _reply(4)
+        assert await _collect(_chunks(text)) == split_sentences(text)
+
+    async def test_a_sentence_is_yielded_before_the_reply_ends(self) -> None:
+        released = asyncio.Event()
+
+        async def source():
+            yield "The capital of France is Paris. "
+            await released.wait()
+            yield "It is known for the Eiffel Tower."
+
+        sentences = stream_sentences(source())
+        first = await asyncio.wait_for(anext(sentences), timeout=1.0)
+        assert first == "The capital of France is Paris."
+        released.set()
+        assert [s async for s in sentences] == ["It is known for the Eiffel Tower."]
+
+    async def test_a_capped_reply_drops_its_unfinished_sentence(self) -> None:
+        text = "The capital of France is Paris. It is known for the Eiffel"
+        assert await _collect(_chunks(text), capped=lambda: True) == ["The capital of France is Paris."]
+        assert await _collect(_chunks(text)) == ["The capital of France is Paris.", "It is known for the Eiffel"]
+
+    async def test_a_capped_reply_with_no_sentence_end_is_kept(self) -> None:
+        text = "Paris is the capital and largest city of"
+        assert await _collect(_chunks(text), capped=lambda: True) == [text]
+
+    async def test_first_audio_comes_before_the_reply_is_written(self) -> None:
+        text = _reply(4)
+        rec = _recorder_for(text, synth_s=0.02, play_s=0.05)
+        start = time.perf_counter()
+        result = await speak_streaming(
+            _chunks(text, delay_s=0.05), rec.synthesize, rec.play, synth_timeout_s=5, text_timeout_s=5,
+        )
+        written_s = 0.05 * -(-len(text) // 7)
+        assert result.complete and rec.played == [0, 1, 2, 3]
+        assert result.first_audio_s < written_s / 2, (result.first_audio_s, written_s)
+        assert time.perf_counter() - start >= written_s
+
+    async def test_a_stalled_reply_ends_after_what_was_spoken(self) -> None:
+        text = _reply(3)
+        rec = _recorder_for(text)
+        start = time.perf_counter()
+        result = await speak_streaming(
+            _chunks(text, size=len(text) // 3 + 1, hang_after=1), rec.synthesize, rec.play,
+            synth_timeout_s=5, text_timeout_s=0.3,
+        )
+        assert rec.played == [0]
+        assert "stopped arriving after 1" in result.error
+        assert time.perf_counter() - start < 2.0
+
+    async def test_a_reply_that_fails_before_its_first_sentence_raises(self) -> None:
+        rec = Recorder()
+        with pytest.raises(RuntimeError, match="before its first sentence"):
+            await speak_streaming(
+                _chunks("The capital", then=ConnectionError("ollama went away")),
+                rec.synthesize, rec.play, synth_timeout_s=5, text_timeout_s=5,
+            )
+        assert rec.played == []
+
+    async def test_a_reply_that_fails_later_reports_how_far_it_got(self) -> None:
+        text = _reply(2) + " "
+        rec = _recorder_for(text)
+        result = await speak_streaming(
+            _chunks(text, then=ConnectionError("ollama went away")),
+            rec.synthesize, rec.play, synth_timeout_s=5, text_timeout_s=5,
+        )
+        assert rec.played == [0, 1]
+        assert "ollama went away" in result.error
+
+    async def test_cancelling_the_reply_stops_the_generation(self) -> None:
+        # At shutdown the turn is cancelled; the model must not go on
+        # writing an answer nobody will hear.
+        closed = asyncio.Event()
+
+        async def source():
+            try:
+                yield "The capital of France is Paris. "
+                await asyncio.sleep(3600)
+                yield "It is known for the Eiffel Tower."
+            finally:
+                closed.set()
+
+        rec = Recorder()
+        rec.index = {"The capital of France is Paris.": 0}
+        task = asyncio.ensure_future(
+            speak_streaming(source(), rec.synthesize, rec.play, synth_timeout_s=5, text_timeout_s=60),
+        )
+        while not rec.played:
+            await asyncio.sleep(0.01)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        await asyncio.wait_for(closed.wait(), timeout=1.0)
