@@ -192,3 +192,13 @@ async def test_a_turn_with_no_memory_and_no_history_still_works(session):
     result, messages = await session.turn("Tell me a fun fact about space.")
     assert result.llm_response == "A day on Venus is longer than its year."  # nosec B101
     assert [m.role for m in messages] == ["system", "user"]  # nosec B101
+
+
+async def test_a_factual_follow_up_keeps_the_system_prompt(session):
+    # "roughly" was read as frustrated ("ugh" inside it), which put
+    # frustration guidance in the system prompt for this turn alone and
+    # cost the reuse of the previous turn's processing.
+    _, first = await session.turn("What is the capital of Japan?")
+    _, second = await session.turn("And roughly how many people live there?")
+    assert second[0].content == first[0].content  # nosec B101
+    assert "EMOTION DETECTED" not in second[0].content  # nosec B101
