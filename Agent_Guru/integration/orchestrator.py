@@ -2943,29 +2943,122 @@ class IntegrationOrchestrator:
     # Individual action handlers
     # ------------------------------------------------------------------
 
+    #: How long an opened application gets to show up, and a closed one to
+    #: go. Measured on Windows 11: Notepad's process appeared 0.46 s after
+    #: the request, Calculator's 5.6 s (its first launch route fails and a
+    #: second one is tried); closes finished within 0.1 s. Looks stop as
+    #: soon as the expected state is seen.
+    _APP_OPEN_VERIFY_S: ClassVar[float] = 10.0
+    _APP_CLOSE_VERIFY_S: ClassVar[float] = 5.0
+    _APP_POLL_S: ClassVar[float] = 0.1
+
+    @staticmethod
+    async def _app_instances(ctrl: Any, name: str) -> dict[int, bool] | None:
+        """The application's running instances ({pid: shows a window}), or None if unknown."""
+        fn = getattr(ctrl, "app_instances", None)
+        if fn is None:
+            return None
+        found = await asyncio.to_thread(fn, name)
+        return found if isinstance(found, dict) else None
+
     async def _action_open_app(self, ctrl: Any, param: str) -> ActionOutcome:
+        """Open an application and report what is then running, not what the launcher said.
+
+        open_application() reports that the launch was requested. On Windows
+        11 "open paint" reported success and no Paint process ever appeared,
+        so "Opening paint for you!" was said about nothing.
+        """
         param = param.rstrip(".,!?;:")
+        safe_param = self._sanitize_output(param)
+        before = await self._app_instances(ctrl, param)
+        if before:
+            # Already running: launching again only adds a duplicate window.
+            logger.info("ACTION: %s is already running (%d instance(s)); not launching", param, len(before))
+            return ActionOutcome(f"{safe_param} is already open.", ActionStatus.SUCCESS)
         logger.info("ACTION: open_application('%s')", param)
         result = await asyncio.to_thread(ctrl.open_application, param)
-        safe_param = self._sanitize_output(param)
-        if _call_status(result) is ActionStatus.SUCCESS:
-            return ActionOutcome(f"Opening {safe_param} for you! What are we doing?", ActionStatus.SUCCESS)
-        err = getattr(result, "error", "unknown error")
-        logger.error("Failed to open '%s': %s", param, err)
-        return ActionOutcome(
-            f"Hmm, couldn't open {safe_param} - let me know if you wanna try something else",
-            ActionStatus.FAILED,
+        if _call_status(result) is not ActionStatus.SUCCESS:
+            err = getattr(result, "error", "unknown error")
+            logger.error("Failed to open '%s': %s", param, err)
+            return ActionOutcome(
+                f"Hmm, couldn't open {safe_param} - let me know if you wanna try something else",
+                ActionStatus.FAILED,
+            )
+        unconfirmed = ActionOutcome(
+            f"I started {safe_param}, but I couldn't confirm that it opened.", ActionStatus.UNVERIFIED,
         )
+        if before is None:
+            return unconfirmed
+        deadline = asyncio.get_running_loop().time() + self._APP_OPEN_VERIFY_S
+        while True:
+            now = await self._app_instances(ctrl, param)
+            if now:
+                return ActionOutcome(f"Opening {safe_param} for you! What are we doing?", ActionStatus.SUCCESS)
+            if asyncio.get_running_loop().time() >= deadline:
+                logger.warning("'%s' was launched but no instance appeared in %.1fs", param, self._APP_OPEN_VERIFY_S)
+                return unconfirmed
+            await asyncio.sleep(self._APP_POLL_S)
 
     async def _action_close_app(self, ctrl: Any, param: str) -> ActionOutcome:
+        """Close an application and report whether its windows are gone.
+
+        close_application() reports that a process was terminated. Windows
+        11 Notepad runs two processes; one was terminated, the Notepad
+        window stayed open, and "Closed notepad" was said. An application
+        counts as closed when none of its processes shows a window any more:
+        a helper left running in the background is not the application
+        still being open.
+        """
         param = param.rstrip(".,!?;:")
+        safe_param = self._sanitize_output(param)
+        before = await self._app_instances(ctrl, param)
+        if before == {}:
+            return ActionOutcome(f"{safe_param} isn't open.", ActionStatus.SUCCESS)
         logger.info("ACTION: close_application('%s')", param)
         result = await asyncio.to_thread(ctrl.close_application, param)
-        safe_param = self._sanitize_output(param)
         # success defaulted to True here, so a result without one said "Closed".
-        if _call_status(result) is ActionStatus.SUCCESS:
-            return ActionOutcome(f"Closed {safe_param}", ActionStatus.SUCCESS)
-        return ActionOutcome(f"Failed to close {safe_param}", ActionStatus.FAILED)
+        if _call_status(result) is not ActionStatus.SUCCESS:
+            return ActionOutcome(f"Failed to close {safe_param}", ActionStatus.FAILED)
+        unconfirmed = ActionOutcome(
+            f"I asked {safe_param} to close, but I couldn't confirm that it closed.", ActionStatus.UNVERIFIED,
+        )
+        if before is None:
+            return unconfirmed
+        windowed_before = {pid for pid, shows in before.items() if shows}
+        watched = windowed_before or set(before)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self._APP_CLOSE_VERIFY_S
+        last: dict[int, bool] | None = None
+        one_went_at: float | None = None
+        while True:
+            now = await self._app_instances(ctrl, param)
+            if now is not None:
+                last = now
+                remaining = {pid for pid, shows in now.items() if shows} if windowed_before else set(now)
+                if not remaining:
+                    return ActionOutcome(f"Closed {safe_param}", ActionStatus.SUCCESS)
+                if watched - set(now):
+                    # close_application() ends one process. With several
+                    # instances open, one going while the rest stay for a
+                    # second means one instance was closed, and that is
+                    # what is said, not that the application closed.
+                    one_went_at = one_went_at if one_went_at is not None else loop.time()
+                    if loop.time() - one_went_at >= 1.0:
+                        return ActionOutcome(
+                            f"Closed one {safe_param} window; {len(remaining)} more still open.",
+                            ActionStatus.SUCCESS,
+                        )
+            if loop.time() >= deadline:
+                if last is None:
+                    return unconfirmed
+                still = {pid for pid, shows in last.items() if shows} if windowed_before else set(last)
+                if watched - set(last):
+                    return ActionOutcome(
+                        f"Closed one {safe_param} window; {len(still)} more still open.", ActionStatus.SUCCESS,
+                    )
+                logger.warning("'%s' is still open %.1fs after the close", param, self._APP_CLOSE_VERIFY_S)
+                return ActionOutcome(f"I tried to close {safe_param}, but it's still open.", ActionStatus.FAILED)
+            await asyncio.sleep(self._APP_POLL_S)
 
     # Known URL map - class-level to avoid re-creating per call
     # NOTE: the site-name → URL table used to live here as a 60+-entry

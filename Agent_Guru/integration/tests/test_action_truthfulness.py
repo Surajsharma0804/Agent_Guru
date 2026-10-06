@@ -127,7 +127,11 @@ async def test_an_open_that_fails_says_so():
 
 
 async def test_an_open_that_works_keeps_its_reply():
-    result, spoken = await _turn("open notepad", Controller(OK))
+    # Works means Notepad is then seen running, not only that the launch
+    # call said success (see test_app_verification.py).
+    ctrl = Controller(OK)
+    ctrl.app_instances = lambda name: {7: True} if "open_application" in ctrl.calls else {}
+    result, spoken = await _turn("open notepad", ctrl)
     assert spoken == "Opening notepad for you! What are we doing?"  # nosec B101
     assert result.action_status is ActionStatus.SUCCESS  # nosec B101
 
