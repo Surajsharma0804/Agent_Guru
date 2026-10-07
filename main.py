@@ -251,6 +251,22 @@ def _load_trace_store():
         return None
 
 
+def _load_document_store():
+    """The owner's documents (documents.db), searched for passages that answer a question.
+
+    None if the store cannot be opened; the assistant then answers as it
+    did before documents could be added.
+    """
+    try:
+        from Agent_Guru.platform.features.documents import DocumentStore
+        from Agent_Guru.utils.path_utils import app_data_dir
+
+        return DocumentStore(app_data_dir("documents.db"))
+    except Exception as e:
+        logger.warning("Documents unavailable (%s) - answering without them", e)
+        return None
+
+
 def _load_audit_logger():
     """The audit log kept on disk, chained and signed with a key that survives restarts.
 
@@ -373,6 +389,7 @@ async def run() -> None:
     gpu_pool   = _load_gpu_pool()
     trace_store = _load_trace_store()
     audit_logger = _load_audit_logger()
+    document_store = _load_document_store()
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
@@ -397,6 +414,7 @@ async def run() -> None:
         audit_logger=audit_logger,
         reminder_store=reminder_store,
         learn_facts=learn_facts,
+        document_store=document_store,
     )
 
     # --- Concurrent startup of all subsystems ---

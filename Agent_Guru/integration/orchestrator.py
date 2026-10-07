@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from Agent_Guru.integration.gpu_pool import GPUResourcePool
+    from Agent_Guru.platform.features.documents import DocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -487,6 +488,7 @@ class IntegrationOrchestrator:
         audit_logger: AuditLogger | None = None,
         reminder_store: Path | None = None,
         learn_facts: bool = False,
+        document_store: DocumentStore | None = None,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -514,6 +516,9 @@ class IntegrationOrchestrator:
         # none is collected mid-flight.
         self._learn_facts = learn_facts
         self._learning_tasks: set[asyncio.Task[None]] = set()
+        # The owner's documents, searched for passages that answer a
+        # question; from main.py. None (tests) searches nothing.
+        self._documents = document_store
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -1840,6 +1845,9 @@ class IntegrationOrchestrator:
         web_context = await self._fetch_web_context(transcript, intent)
         if web_context:
             prompt = prompt + web_context
+        document_context = await self._fetch_document_context(transcript, intent)
+        if document_context:
+            prompt = prompt + document_context
 
         # Resolve model and build system prompt
         ollama_model = _configured_ollama_model()
@@ -2164,6 +2172,40 @@ class IntegrationOrchestrator:
             logger.info("Web search injected for: %r", transcript[:60])
             return f"\n\nLive web search result: {web_snippet}"
         return ""
+
+    async def _fetch_document_context(self, transcript: str, intent: str | None) -> str:
+        """Passages from the owner's documents that answer this turn, named by document.
+
+        Only for conversation and questions, and not for live information
+        (weather, news, a search): "what is the weather in Pune today" found
+        the Goa itinerary's Pune flight at 0.49 in the calibration set, and
+        the forecast is what was asked for. Each passage passes the
+        injection guard, since its text was written by someone else.
+        """
+        if self._documents is None or not transcript.strip():
+            return ""
+        intent_type = (intent or "").split(":", 1)[0].lower().strip()
+        if intent_type not in {"", "conversation", "information"} or self._intent_needs_web(intent, transcript):
+            return ""
+        from Agent_Guru.llm.security import guard_external_text
+
+        try:
+            passages = await asyncio.wait_for(self._documents.search(transcript), timeout=MEMORY_TIMEOUT_S)
+        except TimeoutError:
+            logger.warning("Document search exceeded %.1fs - answering without documents", MEMORY_TIMEOUT_S)
+            return ""
+        except Exception:
+            logger.exception("Document search failed - answering without documents")
+            return ""
+        kept = [
+            f"[{p.document}] {text}"
+            for p in passages
+            if (text := guard_external_text(p.text, f"document {p.document}"))
+        ]
+        if not kept:
+            return ""
+        logger.info("Document passages for %r: %s", transcript[:60], [p.document for p in passages])
+        return "\n\nFrom the owner's documents:\n" + "\n".join(kept)
 
     def _build_system_prompt(
         self,

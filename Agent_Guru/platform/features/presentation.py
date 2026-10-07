@@ -6,7 +6,7 @@ services and no API key required for the default path.
 
 Three cooperating pieces, from simplest to richest:
 
-1. Source extraction (_read_source_text): .txt/.md are read natively.
+1. Source extraction (read_source_text): .txt/.md are read natively.
    .docx (python-docx) and .pdf (pypdf) are OPTIONAL soft dependencies
    - matching the rest of this codebase's pattern (see
    platform/features/web_search.py) - a missing library raises a
@@ -175,13 +175,15 @@ class PresentationError(Exception):
 # ---------------------------------------------------------------------------
 
 
-async def _read_source_text(path: Path) -> str:
+async def read_source_text(path: Path) -> str:
     """Extract plain text from a source file.
 
     .txt/.md/.markdown are read directly. .docx and .pdf are supported
     only if python-docx / pypdf are installed; any other extension is
     given a best-effort plain-text read (covers .rst, .log, source
     code, etc.) rather than being refused outright.
+    Also reads the documents the owner adds to the assistant's
+    knowledge (memory/documents.py).
     """
     suffix = path.suffix.lower()
     loop = asyncio.get_running_loop()
@@ -563,7 +565,7 @@ async def generate_presentation(
 
     resolved_output = Path(output_path) if output_path is not None else source_path.with_suffix(".pptx")
 
-    text = await _read_source_text(source_path)
+    text = await read_source_text(source_path)
     if not text or not text.strip():
         msg = f"Source file has no extractable text: {source_path}"
         raise PresentationError(msg)
@@ -645,7 +647,7 @@ async def generate_presentation_gamma(
         msg = f"Source file not found: {source_path}"
         raise PresentationError(msg)
 
-    text = await _read_source_text(source_path)
+    text = await read_source_text(source_path)
     if not text or not text.strip():
         msg = f"Source file has no extractable text: {source_path}"
         raise PresentationError(msg)

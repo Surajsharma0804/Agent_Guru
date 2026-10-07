@@ -108,6 +108,16 @@ capabilities:
     owner: memory
     do_not_duplicate: The 0.25 cutoff is a user decision; do not tune it.
 
+  - id: documents
+    name: Answers from the owner's documents
+    category: memory
+    status: live
+    gap_id: MEM-5
+    implementation: Agent_Guru/platform/features/documents.py (DocumentStore, documents.db; `python -m Agent_Guru documents`)
+    owner: platform
+    evaluation: scripts/document_recall_eval.py
+    do_not_duplicate: Files are read by presentation.read_source_text and embedded by memory_manager's embedder; reuse both.
+
   - id: user-facts
     name: Facts about the user
     category: memory

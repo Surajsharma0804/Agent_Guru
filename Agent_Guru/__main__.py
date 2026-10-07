@@ -22,6 +22,11 @@ def _run() -> None:
         from Agent_Guru.platform.error_handling.doctor import run
 
         sys.exit(run(sys.argv[2:]))
+    if sys.argv[1:2] == ["documents"]:
+        # Adds, removes or lists the documents the assistant answers from.
+        from Agent_Guru.platform.features.documents import run as run_documents
+
+        sys.exit(run_documents(sys.argv[2:]))
     # Import main's async entry point and run it
     try:
         # Import from the top-level main.py
