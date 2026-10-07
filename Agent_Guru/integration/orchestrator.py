@@ -54,10 +54,11 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
 from Agent_Guru.reasoning.llm.generation import ollama_model as _configured_ollama_model
+from Agent_Guru.integration.turn_trace import StageTiming, TurnRecord, TurnTraceStore
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from Agent_Guru.integration.gpu_pool import GPUResourcePool
 
@@ -288,6 +289,20 @@ class PipelineResult:
     error: str | None = None
     awaiting_reply: bool = False
     action_status: ActionStatus | None = None
+    # (stage name, wall-clock start, seconds) in the order the stages ran.
+    # Nothing measured a stage before: only wake-to-first-speech, and only
+    # on two shortcut paths, so "which stage was slow" had no answer.
+    stage_timings: list[tuple[str, float, float]] = field(default_factory=list)
+
+
+@contextlib.contextmanager
+def _timed(result: PipelineResult, stage: str) -> Iterator[None]:
+    """Record how long *stage* took on *result*, also when it raises or returns early."""
+    wall, start = time.time(), time.perf_counter()
+    try:
+        yield
+    finally:
+        result.stage_timings.append((stage, wall, time.perf_counter() - start))
 
 
 # ---------------------------------------------------------------------------
@@ -331,6 +346,9 @@ LLM_TIMEOUT_S = _env_seconds("AGENT_GURU_LLM_TIMEOUT", 60.0)
 POLICY_TIMEOUT_S = _env_seconds("AGENT_GURU_POLICY_TIMEOUT", 5.0)
 TTS_TIMEOUT_S = _env_seconds("AGENT_GURU_TTS_TIMEOUT", 30.0)
 MEMORY_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_WRITE_TIMEOUT", 10.0)
+# Writing the turn's trace happens after the reply, before main.py listens
+# for a follow-up; a stalled disk must not hold that up.
+TRACE_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_TRACE_WRITE_TIMEOUT", 2.0)
 
 #: Spoken when the LLM exceeds its budget. Saying nothing leaves the user
 #: staring at a silent assistant; falling through to the generic "Done."
@@ -431,6 +449,8 @@ class IntegrationOrchestrator:
         avatar: Any,
         deployment: Any,
         gpu_pool: GPUResourcePool,
+        *,
+        trace_store: TurnTraceStore | None = None,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -444,6 +464,9 @@ class IntegrationOrchestrator:
         self.avatar = avatar
         self.deployment = deployment
         self.gpu_pool = gpu_pool
+        # Given by main.py. None (tests, embedders) records nothing, so a
+        # test turn is never written into the user's own trace database.
+        self.trace_store = trace_store
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -801,8 +824,11 @@ class IntegrationOrchestrator:
         # Playback holds the process-wide PortAudio lock, so the reply still
         # cannot start until the filler has finished.
         filler = asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
+        started_at = _time.time()
         try:
-            return await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
+            turn = await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
+            await self._record_trace(turn, started_at, _time.perf_counter() - _wake_timestamp)
+            return turn
         finally:
             # Never left running unobserved; it is usually long finished.
             with contextlib.suppress(asyncio.CancelledError):
@@ -818,18 +844,19 @@ class IntegrationOrchestrator:
         try:
             # Stage 1: STT. On timeout the transcript stays empty, which the
             # existing "nothing was said" path below already handles.
-            try:
-                result.transcript, result.detected_language = await asyncio.wait_for(
-                    self._stage_stt(wake_event.audio, result.personality),
-                    timeout=STT_TIMEOUT_S,
-                )
-            except TimeoutError:
-                logger.warning(
-                    "STT stage exceeded %.1fs - treating the utterance as unheard",
-                    STT_TIMEOUT_S,
-                )
-                result.transcript, result.detected_language = "", ""
-                result.error = f"stt_timeout after {STT_TIMEOUT_S:.1f}s"
+            with _timed(result, "stt"):
+                try:
+                    result.transcript, result.detected_language = await asyncio.wait_for(
+                        self._stage_stt(wake_event.audio, result.personality),
+                        timeout=STT_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "STT stage exceeded %.1fs - treating the utterance as unheard",
+                        STT_TIMEOUT_S,
+                    )
+                    result.transcript, result.detected_language = "", ""
+                    result.error = f"stt_timeout after {STT_TIMEOUT_S:.1f}s"
             result.stages_completed = 1
 
             if not result.transcript:
@@ -847,7 +874,8 @@ class IntegrationOrchestrator:
             # was no such state: the answer was taken as a new command, so a
             # message without its text could only open the app. Ahead of the
             # reaction rules, so a rule taught for "yes" cannot answer it.
-            draft_outcome = await self._continue_message_draft(result.transcript)
+            with _timed(result, "message_draft"):
+                draft_outcome = await self._continue_message_draft(result.transcript)
             if draft_outcome is not None:
                 draft_reply = draft_outcome.text or _STATUS_REPLIES[draft_outcome.status]
                 result.intent = "communication:message_draft"
@@ -856,29 +884,32 @@ class IntegrationOrchestrator:
                 self._chat_history.append({"role": "user", "content": result.transcript, "emotion": "neutral"})
                 self._chat_history.append({"role": "assistant", "content": draft_reply})
                 result.stages_completed = 8
-                result.tts_response = await self._stage_tts(draft_reply, result.personality)
+                with _timed(result, "tts"):
+                    result.tts_response = await self._stage_tts(draft_reply, result.personality)
                 return result
 
             # Reaction-rule early returns
-            early_result = await self._check_reaction_rules(
-                result, _pipeline_mode, _wake_timestamp, _get_um,
-            )
+            with _timed(result, "reaction_rules"):
+                early_result = await self._check_reaction_rules(
+                    result, _pipeline_mode, _wake_timestamp, _get_um,
+                )
             if early_result is not None:
                 return early_result
 
             # Stage 2: Memory context. Recall is an enhancement, never a
             # precondition for answering, so a slow store degrades to "no
             # context" rather than stalling the turn.
-            try:
-                result.memory_context = await asyncio.wait_for(
-                    self._stage_memory(result.transcript), timeout=MEMORY_TIMEOUT_S,
-                )
-            except TimeoutError:
-                logger.warning(
-                    "Memory stage exceeded %.1fs - answering without recalled context",
-                    MEMORY_TIMEOUT_S,
-                )
-                result.memory_context = None
+            with _timed(result, "memory"):
+                try:
+                    result.memory_context = await asyncio.wait_for(
+                        self._stage_memory(result.transcript), timeout=MEMORY_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "Memory stage exceeded %.1fs - answering without recalled context",
+                        MEMORY_TIMEOUT_S,
+                    )
+                    result.memory_context = None
             result.stages_completed = 2
 
             # There is no stage 3. It ran ReasoningEngine.process() under a
@@ -894,35 +925,37 @@ class IntegrationOrchestrator:
             # already has its own intent stage and its own answer call below.
 
             # Stage 5 (before 4): Intent detection - fast path
-            try:
-                result.intent = await asyncio.wait_for(
-                    self._stage_intent(result.transcript or ""), timeout=INTENT_TIMEOUT_S,
-                )
-            except TimeoutError:
-                # No intent means no action is attempted; the LLM still answers
-                # conversationally, which is the safe degradation.
-                logger.warning(
-                    "Intent stage exceeded %.1fs - continuing without an intent",
-                    INTENT_TIMEOUT_S,
-                )
-                result.intent = None
+            with _timed(result, "intent"):
+                try:
+                    result.intent = await asyncio.wait_for(
+                        self._stage_intent(result.transcript or ""), timeout=INTENT_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    # No intent means no action is attempted; the LLM still answers
+                    # conversationally, which is the safe degradation.
+                    logger.warning(
+                        "Intent stage exceeded %.1fs - continuing without an intent",
+                        INTENT_TIMEOUT_S,
+                    )
+                    result.intent = None
             result.stages_completed = 5
 
             # Stage 6: Policy check
-            try:
-                result.policy_allowed = await asyncio.wait_for(
-                    self._stage_policy(result.intent), timeout=POLICY_TIMEOUT_S,
-                )
-            except TimeoutError:
-                # FAIL CLOSED. A policy check that did not complete has not
-                # granted anything; treating "slow" as "allowed" would turn a
-                # hung policy engine into an authorization bypass.
-                logger.warning(
-                    "Policy stage exceeded %.1fs - denying the action (fail closed)",
-                    POLICY_TIMEOUT_S,
-                )
-                result.policy_allowed = False
-                result.error = f"policy_timeout after {POLICY_TIMEOUT_S:.1f}s"
+            with _timed(result, "policy"):
+                try:
+                    result.policy_allowed = await asyncio.wait_for(
+                        self._stage_policy(result.intent), timeout=POLICY_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    # FAIL CLOSED. A policy check that did not complete has not
+                    # granted anything; treating "slow" as "allowed" would turn a
+                    # hung policy engine into an authorization bypass.
+                    logger.warning(
+                        "Policy stage exceeded %.1fs - denying the action (fail closed)",
+                        POLICY_TIMEOUT_S,
+                    )
+                    result.policy_allowed = False
+                    result.error = f"policy_timeout after {POLICY_TIMEOUT_S:.1f}s"
             result.stages_completed = 6
 
             # Stage 7: Action execution.
@@ -935,9 +968,10 @@ class IntegrationOrchestrator:
             # bounding their own work (see reasoning/tools/system/_command.py,
             # which caps every subprocess it runs).
             if result.policy_allowed:
-                outcome = await self._stage_action(
-                    result.intent, pipeline_mode=result.pipeline_mode,
-                )
+                with _timed(result, "action"):
+                    outcome = await self._stage_action(
+                        result.intent, pipeline_mode=result.pipeline_mode,
+                    )
                 result.action_result, result.action_status = outcome.text, outcome.status
             elif result.intent:
                 # Refused, not done. This used to leave the reply empty, and
@@ -953,22 +987,25 @@ class IntegrationOrchestrator:
             needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
             llm_done, streamed_tts = False, None
             if needs_llm and not result.action_result:
-                llm_done, streamed_tts = await self._speak_llm_reply(result)
+                # Written and spoken together: this stage includes the speech.
+                with _timed(result, "answer_spoken"):
+                    llm_done, streamed_tts = await self._speak_llm_reply(result)
             if needs_llm and not llm_done:
-                try:
-                    result.llm_response = await asyncio.wait_for(
-                        self._stage_llm(
-                            result.transcript, result.memory_context,
-                            result.detected_language,
-                            personality=result.personality,
-                            intent=result.intent,
-                        ),
-                        timeout=LLM_TIMEOUT_S,
-                    )
-                except TimeoutError:
-                    logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
-                    result.llm_response = LLM_TIMEOUT_REPLY
-                    result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
+                with _timed(result, "answer"):
+                    try:
+                        result.llm_response = await asyncio.wait_for(
+                            self._stage_llm(
+                                result.transcript, result.memory_context,
+                                result.detected_language,
+                                personality=result.personality,
+                                intent=result.intent,
+                            ),
+                            timeout=LLM_TIMEOUT_S,
+                        )
+                    except TimeoutError:
+                        logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
+                        result.llm_response = LLM_TIMEOUT_REPLY
+                        result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
             elif not needs_llm:
                 result.llm_response = None
 
@@ -986,7 +1023,8 @@ class IntegrationOrchestrator:
                 if streamed_tts is not None:
                     result.tts_response = streamed_tts  # already spoken as it was written
                 else:
-                    result.tts_response = await self._stage_tts(tts_text, result.personality)
+                    with _timed(result, "tts"):
+                        result.tts_response = await self._stage_tts(tts_text, result.personality)
             except TimeoutError:
                 logger.warning(
                     "TTS stage exceeded %.1fs - no audio for this turn", TTS_TIMEOUT_S,
@@ -1045,6 +1083,74 @@ class IntegrationOrchestrator:
     # ------------------------------------------------------------------
     # run_pipeline decomposed helpers
     # ------------------------------------------------------------------
+
+    async def _record_trace(self, result: PipelineResult, started_at: float, turn_seconds: float) -> None:
+        """Keep what this turn heard, did, said and how long each stage took. Never raises.
+
+        Runs after the reply has been spoken. The write goes to a worker
+        thread and is bounded, so a slow or broken disk costs at most
+        TRACE_WRITE_TIMEOUT_S before main.py listens again, and costs the
+        record, not the turn.
+        """
+        store = self.trace_store
+        if store is None:
+            return
+        try:
+            turn = self._turn_record(result, started_at, turn_seconds)
+            await asyncio.wait_for(asyncio.to_thread(store.record, turn), timeout=TRACE_WRITE_TIMEOUT_S)
+        except TimeoutError:
+            logger.warning("Recording this turn exceeded %.1fs - turn not recorded", TRACE_WRITE_TIMEOUT_S)
+        except Exception:
+            logger.warning("Could not record this turn", exc_info=True)
+
+    @staticmethod
+    def _turn_record(result: PipelineResult, started_at: float, turn_seconds: float) -> TurnRecord:
+        """The TurnRecord for one turn, from its PipelineResult."""
+        status = result.action_status
+        if result.error or status is ActionStatus.FAILED:
+            outcome: str | None = "failure"
+        elif status is ActionStatus.SUCCESS:
+            outcome = "success"
+        else:
+            # An answer may or may not have been right; an unverified,
+            # refused or cancelled action is not a success either.
+            outcome = None
+        said = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
+        answered = any(name.startswith("answer") for name, _, _ in result.stage_timings)
+        details_by_stage = {
+            "stt": {"chars": len(result.transcript or ""), "language": result.detected_language},
+            "memory": {"recalled": bool(result.memory_context)},
+            "intent": {"intent": result.intent},
+            "policy": {"allowed": result.policy_allowed},
+            "action": {"status": status.value if status else None},
+        }
+        tts = result.tts_response
+        speech_error = getattr(tts, "error", None)
+        return TurnRecord(
+            started_at=started_at,
+            seconds=turn_seconds,
+            personality=result.personality.value,
+            heard=result.transcript or "",
+            said=said or "",
+            intent=result.intent,
+            action_status=status.value if status else None,
+            outcome=outcome,
+            model=_configured_ollama_model() if answered else "",
+            stages=[
+                StageTiming(name=name, started_at=wall, seconds=seconds, detail=details_by_stage.get(name, {}))
+                for name, wall, seconds in result.stage_timings
+            ],
+            details={
+                "policy_allowed": result.policy_allowed,
+                "pipeline_mode": result.pipeline_mode,
+                "stages_completed": result.stages_completed,
+                "awaiting_reply": result.awaiting_reply,
+                "error": result.error,
+                "first_audio_s": getattr(tts, "first_audio_s", None),
+                "audio_seconds": getattr(tts, "audio_seconds", None),
+                "speech_error": speech_error if isinstance(speech_error, str) else None,
+            },
+        )
 
     async def _play_filler(
         self, result: PipelineResult, wake_timestamp: float, _get_um: Any,

@@ -223,6 +223,27 @@ def _stub(name: str, critical: bool = False):
 # GPU pool
 # ---------------------------------------------------------------------------
 
+def _load_trace_store():
+    """The store each voice turn is recorded in, or None to record nothing.
+
+    A turn's result used to be logged and dropped, so stage timings, the
+    action's verified status and the spoken reply were not kept anywhere.
+    Off with AGENT_GURU_TRACES=0. Kept in turns.db beside memory.db, which
+    already holds the same transcripts and replies.
+    """
+    if os.environ.get("AGENT_GURU_TRACES", "1").strip().lower() in {"0", "false", "no", "off"}:
+        logger.info("Turn traces off (AGENT_GURU_TRACES)")
+        return None
+    try:
+        from Agent_Guru.integration.turn_trace import TurnTraceStore
+        from Agent_Guru.utils.path_utils import app_data_dir
+
+        return TurnTraceStore(app_data_dir("turns.db"))
+    except Exception as e:
+        logger.warning("Turn traces unavailable (%s) - turns will not be recorded", e)
+        return None
+
+
 def _load_gpu_pool():
     try:
         from Agent_Guru.integration.gpu_pool import GPUResourcePool
@@ -320,6 +341,7 @@ async def run() -> None:
     avatar     = _load_avatar()
     deployment = _load_deployment()
     gpu_pool   = _load_gpu_pool()
+    trace_store = _load_trace_store()
 
     # --- Wire through IntegrationOrchestrator ---
     orch = IntegrationOrchestrator(
@@ -335,6 +357,7 @@ async def run() -> None:
         avatar=avatar,
         deployment=deployment,
         gpu_pool=gpu_pool,
+        trace_store=trace_store,
     )
 
     # --- Concurrent startup of all subsystems ---
