@@ -24,7 +24,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | Batch | Items | Condition | State |
 |---|---|---|---|
 | 2.1 | SEC-4 audit log on disk, tamper-evident | signing key kept with Windows DPAPI for the owner's account (the key store's master password is empty everywhere, so it would protect nothing) | done |
-| 2.2 | SCH-1 reminders and schedules in SQLite | owner's rule for reminders due while the app was off | waiting on owner |
+| 2.2 | SCH-1 reminders and schedules kept on disk | owner's rule (2026-10-07): a reminder due while the app was off is said on the next start, with how late | done; the production policy still refuses reminders, so the voice command reaches this only once the owner allows it |
 | 2.3 | ARCH-3, ARCH-1 file-based configuration | keep environment variables working | planned |
 
 ## Phase 3: memory

@@ -5,27 +5,31 @@ Handles voice commands like:
   "set a timer for 5 minutes"
   "remind me at 3pm to call John"
 
-Reminders fire by speaking the reminder text via TTS. They're stored in
-memory so they survive across sessions (if the app is running).
-
-This is intentionally simple - no external calendar integration needed.
-Just asyncio tasks that sleep and then speak.
+Reminders fire by speaking the reminder text via TTS. Each one is an asyncio
+task that sleeps and then speaks; given a store_path, the manager also keeps
+the pending ones on disk. They used to live only in memory, so a reminder
+was lost if the app stopped before it fired, without a word. A reminder that
+came due while the app was off is said on the next start, with how late it
+is: dropping it would lose it as silently as before.
 """
 
 from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.utils.duration import DURATION_PATTERN, describe_duration, normalize_duration_words, parse_duration
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +54,11 @@ class ReminderManager:
         await mgr.set_reminder("call John", at_time="3pm")
     """
 
-    def __init__(self, speak_callback: Callable[[str], Any] | None = None) -> None:
+    def __init__(self, speak_callback: Callable[[str], Any] | None = None, store_path: Path | None = None) -> None:
         self._reminders: dict[str, Reminder] = {}
         self._tasks: dict[str, asyncio.Task] = {}  # type: ignore[type-arg]
         self._speak = speak_callback
-        self._counter = 0
+        self._store_path = store_path
 
     def set_speak_callback(self, callback: Callable[[str], Any]) -> None:
         """Set the TTS callback used to speak reminders."""
@@ -79,8 +83,9 @@ class ReminderManager:
             Confirmation message for TTS.
 
         """
-        self._counter += 1
-        rid = f"reminder_{self._counter}"
+        # Unique across runs: a counter restarted at reminder_1 every start
+        # and would clash with the reminders kept from the last one.
+        rid = f"reminder_{uuid.uuid4().hex[:12]}"
 
         if seconds is not None:
             delay = seconds
@@ -100,6 +105,7 @@ class ReminderManager:
         # Schedule the asyncio task
         task = asyncio.create_task(self._fire_after(reminder, delay))
         self._tasks[rid] = task
+        self._save()
 
         # Human-readable confirmation. A duration is said exactly ("1 minute
         # 30 seconds"); it used to be cut to whole minutes, so a 90-second
@@ -133,6 +139,7 @@ class ReminderManager:
             del self._tasks[reminder_id]
             if reminder_id in self._reminders:
                 del self._reminders[reminder_id]
+            self._save()
             return True
         return False
 
@@ -146,15 +153,80 @@ class ReminderManager:
             await asyncio.sleep(delay)
             reminder.fired = True
             logger.info("Reminder firing: %s", reminder.message)
-            if self._speak is not None:
-                try:
-                    result = self._speak(reminder.message)
-                    if asyncio.iscoroutine(result):
-                        await result
-                except Exception:
-                    logger.exception("Reminder TTS failed")
+            await self._say(reminder.message)
+            # Forgotten only once said: if the app stops while it speaks,
+            # the next start says it again rather than never.
+            self._reminders.pop(reminder.reminder_id, None)
+            self._tasks.pop(reminder.reminder_id, None)
+            self._save()
         except asyncio.CancelledError:
             logger.debug("Reminder cancelled: %s", reminder.reminder_id)
+
+    async def _say(self, text: str) -> None:
+        """Speak *text*; a plain function runs in a worker thread.
+
+        The speaker callback synthesizes and plays the whole sentence. Called
+        on the event loop, it held up everything else, wake-word listening
+        included, for as long as the reminder took to say.
+        """
+        if self._speak is None:
+            return
+        try:
+            if asyncio.iscoroutinefunction(self._speak):
+                await self._speak(text)
+            else:
+                result = await asyncio.to_thread(self._speak, text)
+                if asyncio.iscoroutine(result):
+                    await result
+        except Exception:
+            logger.exception("Reminder TTS failed")
+
+    async def restore(self, now: float | None = None) -> list[str]:
+        """Pick up the reminders kept by an earlier run; returns what was said for the missed ones.
+
+        Reminders still ahead are scheduled for their remaining time. One
+        that came due while the app was off is said now, with how late it is.
+        """
+        if self._store_path is None or not self._store_path.exists():
+            return []
+        now = time.time() if now is None else now
+        try:
+            saved = json.loads(self._store_path.read_text(encoding="utf-8"))
+            pending = [Reminder(**{k: item[k] for k in ("reminder_id", "message", "fire_at", "created_at")})
+                       for item in saved]
+        except (OSError, ValueError, TypeError, KeyError):
+            # Unreadable: keep the file for inspection instead of overwriting it.
+            broken = self._store_path.with_suffix(".unreadable.json")
+            logger.exception("Kept reminders could not be read; moved to %s", broken)
+            self._store_path.replace(broken)
+            return []
+        said = []
+        for reminder in sorted(pending, key=lambda r: r.fire_at):
+            if reminder.fire_at > now:
+                self._reminders[reminder.reminder_id] = reminder
+                self._tasks[reminder.reminder_id] = asyncio.create_task(
+                    self._fire_after(reminder, reminder.fire_at - now),
+                )
+                continue
+            late = _how_late(now - reminder.fire_at)
+            text = f"You had a reminder {late} ago: {reminder.message}" if late else f"Reminder: {reminder.message}"
+            logger.info("Missed reminder said on start: %s", text)
+            await self._say(text)
+            said.append(text)
+        self._save()
+        return said
+
+    def _save(self) -> None:
+        """Keep the pending reminders on disk, if a store was given; never raises."""
+        if self._store_path is None:
+            return
+        from Agent_Guru.utils.secure_file import secure_write_bytes
+
+        pending = [asdict(r) for r in self._reminders.values() if not r.fired]
+        try:
+            secure_write_bytes(self._store_path, json.dumps(pending, indent=1).encode("utf-8"))
+        except OSError:
+            logger.exception("Could not keep reminders on disk; they will not survive a restart")
 
     @staticmethod
     def _parse_time_to_delay(time_str: str) -> float | None:
@@ -200,6 +272,16 @@ class ReminderManager:
             return (target - now).total_seconds()
 
         return None
+
+
+def _how_late(seconds: float) -> str | None:
+    """How late a missed reminder is, in words fit to say; None if under a minute."""
+    if seconds < 60:
+        return None
+    if seconds < 2 * 86400:
+        return describe_duration(round(seconds / 60) * 60)
+    days = round(seconds / 86400)
+    return f"{days} days"
 
 
 def parse_reminder_from_transcript(transcript: str) -> dict | None:

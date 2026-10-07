@@ -366,6 +366,10 @@ async def run() -> None:
     gpu_pool   = _load_gpu_pool()
     trace_store = _load_trace_store()
     audit_logger = _load_audit_logger()
+    from Agent_Guru.utils.path_utils import app_data_dir
+    # Pending reminders are kept here between runs; one missed while the app
+    # was off is said on the next start, with how late it is.
+    reminder_store = app_data_dir("reminders.json")
 
     # --- Wire through IntegrationOrchestrator ---
     orch = IntegrationOrchestrator(
@@ -383,6 +387,7 @@ async def run() -> None:
         gpu_pool=gpu_pool,
         trace_store=trace_store,
         audit_logger=audit_logger,
+        reminder_store=reminder_store,
     )
 
     # --- Concurrent startup of all subsystems ---

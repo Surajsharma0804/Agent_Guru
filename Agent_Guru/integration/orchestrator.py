@@ -59,6 +59,7 @@ from Agent_Guru.security.audit.logger import AuditLogger, EventType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from pathlib import Path
 
     from Agent_Guru.integration.gpu_pool import GPUResourcePool
 
@@ -484,6 +485,7 @@ class IntegrationOrchestrator:
         *,
         trace_store: TurnTraceStore | None = None,
         audit_logger: AuditLogger | None = None,
+        reminder_store: Path | None = None,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -502,6 +504,9 @@ class IntegrationOrchestrator:
         self.trace_store = trace_store
         # The last answer recorded, so "that was wrong" knows what it means.
         self._last_turn_id: str | None = None
+        # Where reminders are kept between runs; from main.py. None keeps
+        # them in memory, as tests need.
+        self._reminder_store = reminder_store
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -651,6 +656,14 @@ class IntegrationOrchestrator:
         # Seed default allow policy for the assistant principal so the pipeline
         # can execute OS actions without requiring manual policy configuration.
         self._seed_default_policy()
+
+        # After the speech engine is up, so a reminder missed while the app
+        # was off can be said now.
+        if self._reminder_store is not None:
+            try:
+                await self._reminders().restore()
+            except Exception:
+                logger.exception("Kept reminders could not be restored")
 
         self._sleeping = False
         logger.info("IntegrationOrchestrator.startup() - all subsystems ready")
@@ -3008,9 +3021,17 @@ class IntegrationOrchestrator:
         if not reminder_params:
             return None
 
+        msg = reminder_params.get("message", "reminder")
+        mins = reminder_params.get("minutes")
+        secs = reminder_params.get("seconds")
+        at_t = reminder_params.get("at_time")
+        return await self._reminders().set_reminder(msg, minutes=mins, seconds=secs, at_time=at_t)
+
+    def _reminders(self) -> Any:
+        """The one ReminderManager, made on first use, speaking through the speech engine."""
         if self._reminder_mgr is None:
             from Agent_Guru.platform.features.reminders import ReminderManager
-            self._reminder_mgr = ReminderManager()
+            self._reminder_mgr = ReminderManager(store_path=self._reminder_store)
             tts_eng = getattr(self.speech_engine, "tts_engine", None)
             if tts_eng:
                 import sounddevice  # noqa: F401 - checks PortAudio is present before wiring the speaker
@@ -3029,12 +3050,7 @@ class IntegrationOrchestrator:
                     except Exception as _e:
                         logger.exception("Reminder TTS failed")
                 self._reminder_mgr.set_speak_callback(_speak_reminder)
-
-        msg = reminder_params.get("message", "reminder")
-        mins = reminder_params.get("minutes")
-        secs = reminder_params.get("seconds")
-        at_t = reminder_params.get("at_time")
-        return await self._reminder_mgr.set_reminder(msg, minutes=mins, seconds=secs, at_time=at_t)
+        return self._reminder_mgr
 
     async def _handle_user_memory(
         self, raw_text: str, pipeline_mode: str, intent_type: str = "",

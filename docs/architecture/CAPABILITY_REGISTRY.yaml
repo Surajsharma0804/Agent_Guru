@@ -121,9 +121,11 @@ capabilities:
     category: automation
     status: live
     gap_id: SCH-1
-    implementation: Agent_Guru/platform/features/reminders.py
+    implementation: Agent_Guru/platform/features/reminders.py (ReminderManager, restore); one manager from IntegrationOrchestrator._reminders(); kept in reminders.json given by main.py
     owner: platform
-    priority: P1 (not persisted across restarts)
+    security: reminders.json owner-only, written atomically
+    tests: [Agent_Guru/platform/tests/test_reminders_kept.py, Agent_Guru/platform/tests/test_reminder_command_flow.py]
+    do_not_duplicate: Scheduled speech goes through ReminderManager; the production policy refuses the reminder intent today.
 
   - id: audit
     name: Per-turn audit log, chained and signed
