@@ -244,6 +244,29 @@ def _load_trace_store():
         return None
 
 
+def _load_audit_logger():
+    """The audit log kept on disk, chained and signed with a key that survives restarts.
+
+    The orchestrator's audit log used to live in memory, so every turn's
+    entry was gone when the app exited. If the signing key cannot be read
+    (another Windows account, a damaged file), the log falls back to memory
+    for this run and says so, rather than replacing the key: a new key would
+    make every earlier entry fail verification.
+    """
+    try:
+        from Agent_Guru.security.audit.logger import AuditLogger, signing_key_at
+        from Agent_Guru.utils.path_utils import app_data_dir
+        from Agent_Guru.utils.secure_file import restrict_file_permissions
+
+        path = app_data_dir("audit.db")
+        audit = AuditLogger(str(path), signing_key=signing_key_at(app_data_dir("audit_signing.key")))
+        restrict_file_permissions(path)
+        return audit
+    except Exception as e:
+        logger.warning("Audit log kept in memory only for this run (%s)", e)
+        return None
+
+
 def _load_gpu_pool():
     try:
         from Agent_Guru.integration.gpu_pool import GPUResourcePool
@@ -342,6 +365,7 @@ async def run() -> None:
     deployment = _load_deployment()
     gpu_pool   = _load_gpu_pool()
     trace_store = _load_trace_store()
+    audit_logger = _load_audit_logger()
 
     # --- Wire through IntegrationOrchestrator ---
     orch = IntegrationOrchestrator(
@@ -358,6 +382,7 @@ async def run() -> None:
         deployment=deployment,
         gpu_pool=gpu_pool,
         trace_store=trace_store,
+        audit_logger=audit_logger,
     )
 
     # --- Concurrent startup of all subsystems ---

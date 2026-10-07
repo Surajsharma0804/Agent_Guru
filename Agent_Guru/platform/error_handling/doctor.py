@@ -367,6 +367,27 @@ async def check_databases() -> ComponentHealth:
     return _ok("databases", message + ("; " + "; ".join(notes) if notes else ""), databases=found)
 
 
+async def check_audit_log() -> ComponentHealth:
+    """The audit log on disk is unbroken: every signature valid, every entry linked to the one before."""
+    from Agent_Guru.security.audit.logger import AuditLogger, signing_key_at
+
+    folder = _app_data()
+    path, key_path = folder / "audit.db", folder / "audit_signing.key"
+    if not path.exists():
+        return _ok("audit_log", "no audit log yet")
+    try:
+        key = await asyncio.to_thread(signing_key_at, key_path)
+    except Exception as exc:
+        return _fail("audit_log", f"the signing key cannot be read ({type(exc).__name__}): earlier entries cannot be verified")
+    log = AuditLogger(str(path), signing_key=key)
+    ok, broken_at = await asyncio.to_thread(log.verify_chain)
+    if not ok:
+        return _fail("audit_log", f"entry {broken_at} was changed, or an entry before it was removed or moved")
+    with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM audit_logs").fetchone()[0]
+    return _ok("audit_log", f"{count} entries, signatures and chain intact")
+
+
 async def check_policy() -> ComponentHealth:
     """Which kinds of action the installed policy lets the assistant take.
 
@@ -416,6 +437,7 @@ def build_manager(*, quick: bool = False, sound: bool = False) -> HealthCheckMan
         manager.register_check("speech", check_speech, timeout=240.0)
     manager.register_check("data_folder", check_data_folder)
     manager.register_check("databases", check_databases, timeout=30.0)
+    manager.register_check("audit_log", check_audit_log, timeout=60.0)
     manager.register_check("policy", check_policy)
     return manager
 

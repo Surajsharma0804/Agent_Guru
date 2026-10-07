@@ -3,22 +3,31 @@
 Each log entry is signed with an Ed25519 key to ensure tamper-evidence.
 Entries are stored in SQLite and signatures are verified on query.
 
+Entries are also chained: each one records the hash of the entry before it,
+and that hash is part of what is signed. A signature alone shows an entry
+was not edited; it cannot show that one was deleted or reordered, and the
+chain can. Entries written before the chain existed keep verifying with the
+content they were signed with; the chain starts after them. Deleting the
+newest entries is not detectable from the log alone.
+
 Performance target: <50ms per log_event call.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import logging
 import sqlite3
+import sys
 import threading
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -27,7 +36,51 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 
 from Agent_Guru.security.crypto.errors import AuditLogError
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 logger = logging.getLogger(__name__)
+
+_KEY_DESCRIPTION = "Agent Guru audit signing key"
+
+
+def signing_key_at(path: Path) -> bytes:
+    """The audit log's Ed25519 signing key kept at *path*, created on first use.
+
+    A log kept on disk needs the same key on every start: with a fresh key
+    each run, every entry from an earlier run fails verification. On Windows
+    the key is encrypted with DPAPI for the current user account, so another
+    account, or the file copied to another machine, cannot use it, and no
+    password is asked for. Elsewhere the file is readable by its owner only.
+
+    Raises:
+        OSError, ValueError or pywintypes.error when an existing key file
+        cannot be read or decrypted. It is never replaced silently: a new
+        key would make every earlier entry fail verification.
+
+    """
+    from Agent_Guru.utils.secure_file import secure_write_bytes
+
+    if path.exists():
+        stored = path.read_bytes()
+        if sys.platform == "win32":
+            import win32crypt  # type: ignore[import-untyped]
+
+            _, stored = win32crypt.CryptUnprotectData(stored, None, None, None, 0)
+        Ed25519PrivateKey.from_private_bytes(stored)
+        return stored
+    key = Ed25519PrivateKey.generate().private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    stored = key
+    if sys.platform == "win32":
+        import win32crypt  # type: ignore[import-untyped]
+
+        stored = win32crypt.CryptProtectData(key, _KEY_DESCRIPTION, None, None, None, 0)
+    secure_write_bytes(path, stored)
+    return key
 
 # Sensitive keys that must be scrubbed from log details
 _SENSITIVE_KEYS = frozenset(
@@ -72,6 +125,10 @@ class AuditLogEntry:
     details: dict[str, Any]
     signature: bytes  # Ed25519 signature of entry content
     tampered: bool = False
+    # Hash of the entry before this one ("" for the first chained entry) and
+    # of this entry. None for entries written before the chain existed.
+    prev_hash: str | None = None
+    entry_hash: str | None = None
 
 
 @dataclass
@@ -189,30 +246,34 @@ class AuditLogger:
             timestamp = datetime.now(tz=UTC)
             sanitized_details = self._sanitize_details(details)
 
-            # Build signable content
-            content = self._build_signable_content(
-                entry_id,
-                timestamp,
-                event_type,
-                actor_id,
-                target_id,
-                outcome,
-                sanitized_details,
-            )
-            signature = self._private_key.sign(content)
-
-            entry = AuditLogEntry(
-                entry_id=entry_id,
-                timestamp=timestamp,
-                event_type=event_type,
-                actor_id=actor_id,
-                target_id=target_id,
-                outcome=outcome,
-                details=sanitized_details,
-                signature=signature,
-            )
-
-            self._persist_entry(entry)
+            # Reading the previous hash and inserting must not interleave
+            # with another writer, or two entries would claim the same
+            # predecessor and the chain would fork.
+            with self._lock:
+                prev_hash = self._tail_hash()
+                content = self._build_signable_content(
+                    entry_id,
+                    timestamp,
+                    event_type,
+                    actor_id,
+                    target_id,
+                    outcome,
+                    sanitized_details,
+                    prev_hash,
+                )
+                entry = AuditLogEntry(
+                    entry_id=entry_id,
+                    timestamp=timestamp,
+                    event_type=event_type,
+                    actor_id=actor_id,
+                    target_id=target_id,
+                    outcome=outcome,
+                    details=sanitized_details,
+                    signature=self._private_key.sign(content),
+                    prev_hash=prev_hash,
+                    entry_hash=hashlib.sha256(content).hexdigest(),
+                )
+                self._persist_entry(entry)
             return entry
 
         except Exception as exc:
@@ -277,11 +338,35 @@ class AuditLogger:
                 entry.target_id,
                 entry.outcome,
                 entry.details,
+                entry.prev_hash,
             )
             self._public_key.verify(entry.signature, content)
-            return True
+            return entry.entry_hash is None or entry.entry_hash == hashlib.sha256(content).hexdigest()
         except Exception:
             return False
+
+    def verify_chain(self) -> tuple[bool, str | None]:
+        """Check every entry's signature and its link to the one before.
+
+        Returns:
+            (True, None) when the log is intact, else (False, entry_id) for
+            the first entry that was edited, or whose predecessor was
+            deleted or moved.
+
+        """
+        with self._lock:
+            rows = self._conn.execute("SELECT * FROM audit_logs ORDER BY rowid").fetchall()
+        expected_prev: str | None = None
+        for row in rows:
+            entry = self._row_to_entry(row)
+            if not self.verify_log_integrity(entry):
+                return False, entry.entry_id
+            if entry.prev_hash is None:
+                continue  # written before the chain existed
+            if entry.prev_hash != (expected_prev or ""):
+                return False, entry.entry_id
+            expected_prev = entry.entry_hash
+        return True, None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -303,14 +388,27 @@ class AuditLogger:
                 )
                 """,
             )
+            columns = {row[1] for row in self._conn.execute("PRAGMA table_info(audit_logs)")}
+            for column in ("prev_hash", "entry_hash"):
+                if column not in columns:
+                    self._conn.execute(f"ALTER TABLE audit_logs ADD COLUMN {column} TEXT")
+
+    def _tail_hash(self) -> str:
+        """The newest chained entry's hash, "" if none; call with self._lock held."""
+        row = self._conn.execute(
+            "SELECT entry_hash FROM audit_logs WHERE entry_hash IS NOT NULL ORDER BY rowid DESC LIMIT 1",
+        ).fetchone()
+        return row[0] if row else ""
 
     def _persist_entry(self, entry: AuditLogEntry) -> None:
-        with self._lock, self._conn:
+        """Insert *entry*; call with self._lock held."""
+        with self._conn:
             self._conn.execute(
                 """
                 INSERT INTO audit_logs
-                    (entry_id, timestamp, event_type, actor_id, target_id, outcome, details, signature)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (entry_id, timestamp, event_type, actor_id, target_id, outcome, details, signature,
+                     prev_hash, entry_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     entry.entry_id,
@@ -321,6 +419,8 @@ class AuditLogger:
                     entry.outcome,
                     json.dumps(entry.details),
                     entry.signature,
+                    entry.prev_hash,
+                    entry.entry_hash,
                 ),
             )
 
@@ -371,6 +471,8 @@ class AuditLogger:
             outcome=row["outcome"],
             details=json.loads(row["details"]),
             signature=bytes(row["signature"]),
+            prev_hash=row["prev_hash"],
+            entry_hash=row["entry_hash"],
         )
 
     @staticmethod
@@ -382,8 +484,14 @@ class AuditLogger:
         target_id: str | None,
         outcome: str,
         details: dict[str, Any],
+        prev_hash: str | None = None,
     ) -> bytes:
-        """Build deterministic bytes to sign."""
+        """Build deterministic bytes to sign.
+
+        prev_hash is included only for chained entries, so an entry written
+        before the chain existed is checked against exactly the bytes it was
+        signed with.
+        """
         data = {
             "entry_id": entry_id,
             "timestamp": timestamp.isoformat(),
@@ -393,6 +501,8 @@ class AuditLogger:
             "outcome": outcome,
             "details": details,
         }
+        if prev_hash is not None:
+            data["prev_hash"] = prev_hash
         return json.dumps(data, sort_keys=True).encode("utf-8")
 
     def _sanitize_details(self, details: dict[str, Any]) -> dict[str, Any]:

@@ -126,13 +126,16 @@ capabilities:
     priority: P1 (not persisted across restarts)
 
   - id: audit
-    name: Per-turn audit event
+    name: Per-turn audit log, chained and signed
     category: security
     status: live
     gap_id: SEC-4
-    implementation: Agent_Guru/security/audit/logger.py, created in IntegrationOrchestrator.__init__
+    implementation: Agent_Guru/security/audit/logger.py (AuditLogger, verify_chain, signing_key_at); audit.db created by main.py _load_audit_logger and passed to IntegrationOrchestrator
     owner: security
-    priority: P1 (in-memory store; lost on exit)
+    security: Ed25519 signatures over entries that include the previous entry's hash; key encrypted with DPAPI for the owner's Windows account; audit.db owner-only. Deleting the newest entries is not detectable from the log alone.
+    performance: 2.55 ms median per entry on disk, once per turn after the reply
+    tests: [Agent_Guru/security/tests/test_audit_log.py]
+    do_not_duplicate: Security events go through AuditLogger; doctor verifies the chain.
 
   - id: vision
     name: Vision (faces, screen, visual questions)

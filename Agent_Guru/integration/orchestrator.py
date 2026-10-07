@@ -483,6 +483,7 @@ class IntegrationOrchestrator:
         gpu_pool: GPUResourcePool,
         *,
         trace_store: TurnTraceStore | None = None,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -521,8 +522,11 @@ class IntegrationOrchestrator:
         self._tts_fn: Callable | None = None
         self._tts_fn_type: str = "unknown"  # "array", "response", "bytes", or "unknown"
 
-        # Audit logger - records every pipeline execution
-        self._audit_logger: AuditLogger = AuditLogger()
+        # Records every pipeline execution. main.py gives one kept on disk;
+        # the default lives in memory, so tests never write to the owner's
+        # audit log. It used to be the only kind: the whole trail was lost
+        # whenever the app exited.
+        self._audit_logger: AuditLogger = audit_logger or AuditLogger()
 
         # Persistent browser manager - one Chrome instance, CDP reconnect
         self._browser_mgr: Any = None  # lazy-init on first YouTube command
