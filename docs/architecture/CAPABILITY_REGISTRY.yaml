@@ -175,3 +175,24 @@ capabilities:
     implementation: Agent_Guru/reasoning/tools/registry.py; Agent_Guru/reasoning/tools/selector.py
     owner: reasoning
     do_not_duplicate: The live path dispatches actions in IntegrationOrchestrator._dispatch_action; a tool loop must reuse this registry.
+
+  - id: doctor
+    name: Machine diagnostics (agent-guru doctor)
+    category: diagnostics
+    status: live
+    gap_id: CLI-1
+    implementation: Agent_Guru/platform/error_handling/doctor.py on HealthCheckManager (Agent_Guru/platform/error_handling/health_check.py); entry in Agent_Guru/__main__.py
+    owner: platform
+    security: reads only; nvidia-smi and icacls run with fixed arguments and a time limit; the microphone is read for 0.5 s and not kept; the speaker plays only with --sound
+    tests: [Agent_Guru/platform/error_handling/tests/test_doctor.py]
+    do_not_duplicate: New health checks register on HealthCheckManager; do not write a second health or diagnostics runner.
+
+  - id: turn-evaluation
+    name: End-to-end turn evaluation and latency benchmark
+    category: evaluation
+    status: tool
+    gap_id: EVAL-1
+    implementation: Agent_Guru/integration/turn_eval_set.py (cases); scripts/turn_eval.py (runner, --latency, --rated)
+    owner: integration
+    tests: [Agent_Guru/integration/tests/test_turn_eval_set.py]
+    do_not_duplicate: Add cases to turn_eval_set.py; vision questions stay in vision/eval_set.py.

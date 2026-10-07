@@ -17,7 +17,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | 1.2 | TEL-1, TEL-4 tokens, time to first token and decode speed in the answer stage | one store instead of two | done, bb2ef774 |
 | 1.3 | TRC-3, LRN-3 queries over turn records, rating a turn by voice | spoken "that was wrong" or "galat hai" marks the last answer; stage medians and p95 from the records | done |
 | 1.4 | EVAL-1, EVAL-2 evaluation runner and latency bench fed by real turns | cases from real turns, plus the owner's voice-rated turns (`--rated`); real speech in and out for latency | done |
-| 1.5 | CLI-1, CLI-2, INT-4, SEC-11 `doctor` and a command line: Ollama, model, GPU and VRAM, microphone, speaker, data folder, privacy checks | checks the audio devices a voice assistant depends on | planned |
+| 1.5 | CLI-1, CLI-2, INT-4, SEC-11 `doctor` and a command line: Ollama, model, GPU and VRAM, microphone, speaker, data folder, privacy checks | checks the audio devices and a real speech round trip (Kokoro speaks, Whisper must hear it), and who can read the owner's databases | `agent-guru doctor` done; still open: model recommendation from the hardware (INT-4) and commands beyond `doctor` (CLI-2) |
 
 ## Phase 2: things that must survive a restart
 
@@ -84,6 +84,13 @@ Findings from it, each to fix in its own batch:
 - The first memory search after start loads the embedding model and hits
   the 5 s memory timeout (p95 5.00 s), so the first answer gets no
   memories; that turn took 16 s.
+
+First `agent-guru doctor` run on the development laptop (2026-10-07): 9 ok,
+3 warnings, 0 failed. Warnings: under 2 GB RAM free; Whisper on the CPU
+(cublas64_12.dll missing); memory.db readable by SYSTEM and Administrators.
+The model took 26.7 s to answer its first token from cold (23.7 s loading),
+2.8 s warm. The speech engine also logs that the Kokoro model and voices
+files have no pinned SHA-256.
 
 Outside this roadmap and pending from earlier work: the production policy
 still refuses app open and close although both are implemented and

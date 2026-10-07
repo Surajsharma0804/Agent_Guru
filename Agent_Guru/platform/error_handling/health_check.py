@@ -166,13 +166,16 @@ class HealthCheckManager:
 
         """
         self._checks: dict[str, HealthCheckFunc] = {}
+        self._timeouts: dict[str, float] = {}
         self._check_timeout = check_timeout
         self._last_health_status: SystemHealth | None = None
         self._cache_ttl = timedelta(seconds=10)  # Cache health status for 10s
 
         logger.info("HealthCheckManager initialized")
 
-    def register_check(self, component_name: str, check_func: HealthCheckFunc) -> None:
+    def register_check(
+        self, component_name: str, check_func: HealthCheckFunc, timeout: float | None = None,
+    ) -> None:
         """Register a health check for a component.
 
         Time Complexity: O(1)
@@ -180,6 +183,9 @@ class HealthCheckManager:
         Args:
             component_name: Unique name for the component
             check_func: Async function that returns ComponentHealth
+            timeout: Seconds this check may take; the manager's check_timeout
+                when None. A check that loads a model needs minutes where a
+                port probe needs seconds.
 
         Raises:
             ValueError: If component_name already registered
@@ -190,6 +196,8 @@ class HealthCheckManager:
             raise ValueError(msg)
 
         self._checks[component_name] = check_func
+        if timeout is not None:
+            self._timeouts[component_name] = timeout
         logger.info("Registered health check for component: %s", component_name)
 
     def unregister_check(self, component_name: str) -> None:
@@ -203,9 +211,10 @@ class HealthCheckManager:
         """
         if component_name in self._checks:
             del self._checks[component_name]
+            self._timeouts.pop(component_name, None)
             logger.info("Unregistered health check for component: %s", component_name)
 
-    async def check_health(self, use_cache: bool = True) -> SystemHealth:
+    async def check_health(self, use_cache: bool = True, sequential: bool = False) -> SystemHealth:
         """Perform health checks on all registered components.
 
         Time Complexity: O(n) where n is number of components
@@ -213,6 +222,11 @@ class HealthCheckManager:
 
         Args:
             use_cache: If True, return cached result if available and fresh
+            sequential: Run the checks one after another, in registration
+                order, instead of all at once. Checks that load models or
+                open audio devices compete for the same GPU, memory and
+                PortAudio when run together, and the times they report then
+                measure the contention.
 
         Returns:
             SystemHealth with aggregated status
@@ -229,7 +243,9 @@ class HealthCheckManager:
         component_results: list[ComponentHealth] = []
 
         # Execute all health checks concurrently
-        if self._checks:
+        if self._checks and sequential:
+            component_results = [await self._execute_check(name, func) for name, func in self._checks.items()]
+        elif self._checks:
             tasks = [self._execute_check(name, func) for name, func in self._checks.items()]
             component_results = await asyncio.gather(*tasks)
 
@@ -290,10 +306,11 @@ class HealthCheckManager:
 
         """
         start_time = time.perf_counter()
+        timeout = self._timeouts.get(component_name, self._check_timeout)
 
         try:
             # Execute check with timeout
-            result = await asyncio.wait_for(check_func(), timeout=self._check_timeout)
+            result = await asyncio.wait_for(check_func(), timeout=timeout)
 
             end_time = time.perf_counter()
             result.response_time_ms = (end_time - start_time) * 1000
@@ -310,7 +327,7 @@ class HealthCheckManager:
             return ComponentHealth(
                 name=component_name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Health check timed out after {self._check_timeout}s",
+                message=f"Health check timed out after {timeout}s",
                 last_check=datetime.now(tz=UTC),
                 response_time_ms=response_time_ms,
             )

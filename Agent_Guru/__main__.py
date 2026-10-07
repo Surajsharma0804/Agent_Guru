@@ -17,6 +17,11 @@ if _project_root not in sys.path:
 
 def _run() -> None:
     """Entry point for PyInstaller / console_scripts."""
+    if sys.argv[1:2] == ["doctor"]:
+        # Checks the machine instead of starting the assistant.
+        from Agent_Guru.platform.error_handling.doctor import run
+
+        sys.exit(run(sys.argv[2:]))
     # Import main's async entry point and run it
     try:
         # Import from the top-level main.py
