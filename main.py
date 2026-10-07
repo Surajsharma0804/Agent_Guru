@@ -71,6 +71,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("guru.main")
 
+# Before anything reads its settings: settings.toml in the data folder fills in
+# the environment variables every module reads; a variable already set wins.
+from Agent_Guru.utils.path_utils import app_data_dir as _app_data_dir  # noqa: E402
+from Agent_Guru.utils.settings import apply_settings_file  # noqa: E402
+
+apply_settings_file(_app_data_dir("settings.toml"))
+
 # Startup timeout - prevents infinite hang if Ollama or Whisper download stalls
 _STARTUP_TIMEOUT_S = float(os.environ.get("AGENT_GURU_STARTUP_TIMEOUT", "120"))
 # Max restart attempts with exponential backoff before giving up

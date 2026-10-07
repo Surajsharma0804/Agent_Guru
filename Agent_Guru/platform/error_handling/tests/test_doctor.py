@@ -231,3 +231,13 @@ def test_the_quick_doctor_skips_only_the_model_loading_checks():
     full = set(doctor.build_manager().get_registered_components())
     quick = set(doctor.build_manager(quick=True).get_registered_components())
     assert full - quick == {"model", "speech"}  # nosec B101
+
+
+async def test_the_settings_check_reports_what_was_ignored_and_why(tmp_path, monkeypatch):
+    monkeypatch.setattr(doctor, "_app_data", lambda: tmp_path)
+    assert (await doctor.check_settings()).status is HealthStatus.HEALTHY  # nosec B101  no file is fine
+    (tmp_path / "settings.toml").write_text('OLLAMA_MODEL = "gemma4"\nOPENAI_API_KEY = "sk-1"\n', encoding="utf-8")
+    result = await doctor.check_settings()
+    assert result.status is HealthStatus.DEGRADED and "OPENAI_API_KEY (secrets" in result.message  # nosec B101
+    (tmp_path / "settings.toml").write_text("not toml =", encoding="utf-8")
+    assert (await doctor.check_settings()).status is HealthStatus.UNHEALTHY  # nosec B101

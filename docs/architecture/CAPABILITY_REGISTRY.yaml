@@ -201,3 +201,14 @@ capabilities:
     owner: integration
     tests: [Agent_Guru/integration/tests/test_turn_eval_set.py]
     do_not_duplicate: Add cases to turn_eval_set.py; vision questions stay in vision/eval_set.py.
+
+  - id: settings-file
+    name: Settings file
+    category: configuration
+    status: live
+    gap_id: ARCH-3
+    implementation: Agent_Guru/utils/settings.py (apply_settings_file, KNOWN_SETTINGS); applied at the top of main.py from the data folder's settings.toml
+    owner: utils
+    security: only listed settings are taken, each type-checked; names that look like secrets are refused; the environment wins over the file
+    tests: [Agent_Guru/utils/tests/test_settings.py]
+    do_not_duplicate: A new setting is an environment variable read where it is used, plus a line in KNOWN_SETTINGS; do not add another configuration loader.

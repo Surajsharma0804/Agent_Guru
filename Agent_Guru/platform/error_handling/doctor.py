@@ -388,6 +388,25 @@ async def check_audit_log() -> ComponentHealth:
     return _ok("audit_log", f"{count} entries, signatures and chain intact")
 
 
+async def check_settings() -> ComponentHealth:
+    """What settings.toml in the data folder set, and what it was refused."""
+    from Agent_Guru.utils.settings import apply_settings_file
+
+    path = _app_data() / "settings.toml"
+    if not path.exists():
+        return _ok("settings", f"no settings file; built-in settings and the environment are used ({path})")
+    report = apply_settings_file(path, environ=dict(os.environ))
+    if report.error:
+        return _fail("settings", f"{path} cannot be read: {report.error}")
+    parts = [f"{len(report.applied)} applied"]
+    if report.overridden:
+        parts.append("overridden by the environment: " + ", ".join(report.overridden))
+    if report.refused:
+        parts.append("ignored: " + "; ".join(f"{k} ({why})" for k, why in report.refused.items()))
+        return _warn("settings", ", ".join(parts), applied=report.applied, refused=report.refused)
+    return _ok("settings", ", ".join(parts), applied=report.applied)
+
+
 async def check_policy() -> ComponentHealth:
     """Which kinds of action the installed policy lets the assistant take.
 
@@ -438,6 +457,7 @@ def build_manager(*, quick: bool = False, sound: bool = False) -> HealthCheckMan
     manager.register_check("data_folder", check_data_folder)
     manager.register_check("databases", check_databases, timeout=30.0)
     manager.register_check("audit_log", check_audit_log, timeout=60.0)
+    manager.register_check("settings", check_settings)
     manager.register_check("policy", check_policy)
     return manager
 
