@@ -16,7 +16,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | 1.1 | TRC-1, TRC-2 turn records with stage timings | records the verified action status and the voice stages (speech, first audio), which the reference has no notion of | done, 98718451 |
 | 1.2 | TEL-1, TEL-4 tokens, time to first token and decode speed in the answer stage | one store instead of two | done, bb2ef774 |
 | 1.3 | TRC-3, LRN-3 queries over turn records, rating a turn by voice | spoken "that was wrong" or "galat hai" marks the last answer; stage medians and p95 from the records | done |
-| 1.4 | EVAL-1, EVAL-2 evaluation runner and latency bench fed by real turns | benchmarks built from the owner's own turns, not public datasets only | planned |
+| 1.4 | EVAL-1, EVAL-2 evaluation runner and latency bench fed by real turns | cases from real turns, plus the owner's voice-rated turns (`--rated`); real speech in and out for latency | done |
 | 1.5 | CLI-1, CLI-2, INT-4, SEC-11 `doctor` and a command line: Ollama, model, GPU and VRAM, microphone, speaker, data folder, privacy checks | checks the audio devices a voice assistant depends on | planned |
 
 ## Phase 2: things that must survive a restart
@@ -61,6 +61,29 @@ Found by the turn records (2026-10-07) and fixed: the first-turn note told
 the model to greet and ask what's up whatever was said, so a first question
 was answered after a sentence of small talk (answer at character 128,
 median of 10 with gemma4); now 42, and greetings are still greeted.
+
+Measured by `scripts/turn_eval.py` (2026-10-07, gemma4):
+
+- Scoring: 20 of 23 cases pass. First questions 3/3, long-term memory 2/2
+  (0/1 before the memory fix in 6bec04ec), commands 5/5, feedback 2/2.
+- Latency over 9 spoken turns: speech recognition 1.08 s median (2.91 s
+  p95), intent 0.001 s, policy 0.001 s, memory 0.012 s median, first text
+  0.72 s, first audio ready 2.51 s, whole turn 8.0 s. Not measured: wake word
+  and microphone capture, speaker output.
+
+Findings from it, each to fix in its own batch:
+
+- After the first turn the answer is still often behind persona filler
+  ("Haha, seriously? Still doing basic math, bro?"): answer at characters
+  93 and 68 in two of three cases.
+- "open zxqvbn", an application that does not exist, is recognized as a
+  website to open.
+- Whisper runs on the CPU because the CUDA 12 libraries are missing
+  (cublas64_12.dll); the app's own log puts the GPU at about 0.2 s against
+  1.1 s measured.
+- The first memory search after start loads the embedding model and hits
+  the 5 s memory timeout (p95 5.00 s), so the first answer gets no
+  memories; that turn took 16 s.
 
 Outside this roadmap and pending from earlier work: the production policy
 still refuses app open and close although both are implemented and
