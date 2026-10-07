@@ -1969,11 +1969,14 @@ class IntegrationOrchestrator:
             prompt = f"[Context: {memory_context}]\n{prompt}"
 
         # Inject clipboard content if the user is asking about it
+        from Agent_Guru.llm.security import guard_external_text
         from Agent_Guru.platform.features.dictation import (
             get_clipboard_action, get_clipboard_text, is_clipboard_command,
         )
         if is_clipboard_command(prompt):
-            clip_text = get_clipboard_text()
+            # Copied from anywhere, so it may carry instructions meant for
+            # the model; see guard_external_text().
+            clip_text = guard_external_text(get_clipboard_text() or "", "clipboard")
             if clip_text:
                 clip_action = get_clipboard_action(prompt)
                 if clip_action == "summarize":
@@ -1986,7 +1989,7 @@ class IntegrationOrchestrator:
             is_screen_read_command, read_screen_text,
         )
         if is_screen_read_command(prompt):
-            screen_text = read_screen_text()
+            screen_text = guard_external_text(read_screen_text() or "", "screen")
             if screen_text:
                 prompt = f"{prompt}\n\nCurrent screen content:\n{screen_text[:1500]}"
 
@@ -2105,11 +2108,12 @@ class IntegrationOrchestrator:
         also logged it. Whatever the user said on an earlier turn, however
         private, left the machine attached to an unrelated question.
         """
+        from Agent_Guru.llm.security import guard_external_text
         from Agent_Guru.platform.features.web_search import search_web
 
         if not self._intent_needs_web(intent, transcript):
             return ""
-        web_snippet = await search_web(transcript)
+        web_snippet = guard_external_text(await search_web(transcript) or "", "web search")
         if web_snippet:
             logger.info("Web search injected for: %r", transcript[:60])
             return f"\n\nLive web search result: {web_snippet}"

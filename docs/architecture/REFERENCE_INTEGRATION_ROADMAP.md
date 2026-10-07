@@ -31,7 +31,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 
 | Batch | Items | Condition | State |
 |---|---|---|---|
-| 3.1 | SEC-2 injection scan for text entering prompts from outside | none | planned |
+| 3.1 | SEC-2 injection scan for text entering prompts from outside | none | done: web results, clipboard and screen text are scanned; old patterns flagged 4 of 8 ordinary sentences and missed 6 of 8 attacks, the new ones 0 and 0 |
 | 3.2 | MEM-1, MEM-2 durable facts extracted by the model, with provenance and quarantine | GPU cost of the extra model call measured; run when idle if it delays replies | planned |
 | 3.3 | MEM-3, MEM-4 keyword and meaning search fused | evaluation set from 1.4; the 0.25 cutoff stays | planned |
 | 3.4 | MEM-5 document ingestion into a knowledge store | 3.3 | planned |
