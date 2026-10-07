@@ -110,6 +110,8 @@ class EventType(str, Enum):
     TRUST_RELATIONSHIP_REVOKED = "trust_relationship_revoked"
     POLICY_VIOLATION = "policy_violation"
     POLICY_ALLOWED = "policy_allowed"
+    #: A call to a tool on an external (MCP) server, allowed or not.
+    EXTERNAL_TOOL_CALL = "external_tool_call"
 
 
 @dataclass
@@ -580,3 +582,20 @@ class AuditLogger:
                 },
             )
         return output.getvalue()
+
+
+def open_owner_audit_log() -> AuditLogger:
+    """The owner's audit log on disk (audit.db in the data folder), signed with the key kept beside it.
+
+    Used by the assistant at start and by commands run beside it (such as
+    `python -m Agent_Guru mcp call`), so both write to one chained log.
+    Raises if the log or its key cannot be opened; the caller decides
+    whether to go on without it.
+    """
+    from Agent_Guru.utils.path_utils import app_data_dir
+    from Agent_Guru.utils.secure_file import restrict_file_permissions
+
+    path = app_data_dir("audit.db")
+    audit = AuditLogger(str(path), signing_key=signing_key_at(app_data_dir("audit_signing.key")))
+    restrict_file_permissions(path)
+    return audit

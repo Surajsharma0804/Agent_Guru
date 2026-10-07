@@ -108,6 +108,15 @@ capabilities:
     owner: memory
     do_not_duplicate: The 0.25 cutoff is a user decision; do not tune it.
 
+  - id: mcp-client
+    name: Tools on external MCP servers
+    category: tools
+    status: command
+    gap_id: TOOL-7
+    implementation: Agent_Guru/reasoning/tools/mcp_client.py (connection); Agent_Guru/reasoning/tools/mcp_schema.py (arguments); Agent_Guru/integration/mcp_tools.py (settings [mcp], policy, status, audit; `python -m Agent_Guru mcp`)
+    owner: integration
+    do_not_duplicate: Every MCP call goes through MCPToolbox.call; the tool loop (4.2) must use it, not the connection directly.
+
   - id: documents
     name: Answers from the owner's documents
     category: memory

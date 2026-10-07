@@ -75,6 +75,10 @@ KNOWN_SETTINGS: dict[str, str] = {
     "KOKORO_VOICES_PATH": "path",
 }
 
+#: Tables in the file that are not environment variables, each read by the
+#: part of the assistant it configures: [mcp] by integration/mcp_tools.py.
+SECTIONS = frozenset({"mcp"})
+
 _SECRET = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|DSN|URI|CREDENTIAL", re.IGNORECASE)
 _MAX_TEXT = 300
 
@@ -137,6 +141,8 @@ def apply_settings_file(path: Path, environ: dict[str, str] | None = None) -> Se
         logger.warning("Settings file %s not used: %s", path, report.error)
         return report
     for name, value in data.items():
+        if name in SECTIONS:
+            continue
         if _SECRET.search(name):
             report.refused[name] = "secrets are not read from this file; set it in the environment or .env"
         elif name not in KNOWN_SETTINGS:
@@ -157,3 +163,23 @@ def apply_settings_file(path: Path, environ: dict[str, str] | None = None) -> Se
     if report.applied:
         logger.info("Settings from %s: %s", path, ", ".join(f"{k}={v}" for k, v in report.applied.items()))
     return report
+
+
+def read_settings_section(path: Path, name: str) -> dict[str, object]:
+    """The [*name*] table of the settings file, or {} when there is no file or no such table.
+
+    Raises ValueError with the reason when the file cannot be read, so the
+    caller can tell the owner rather than run with half a configuration.
+    """
+    if not path.exists():
+        return {}
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        msg = f"{path} cannot be read: {type(exc).__name__}: {exc}"
+        raise ValueError(msg) from exc
+    section = data.get(name, {})
+    if not isinstance(section, dict):
+        msg = f"{path}: {name} must be a table ([{name}])"
+        raise ValueError(msg)
+    return section

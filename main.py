@@ -277,14 +277,9 @@ def _load_audit_logger():
     make every earlier entry fail verification.
     """
     try:
-        from Agent_Guru.security.audit.logger import AuditLogger, signing_key_at
-        from Agent_Guru.utils.path_utils import app_data_dir
-        from Agent_Guru.utils.secure_file import restrict_file_permissions
+        from Agent_Guru.security.audit.logger import open_owner_audit_log
 
-        path = app_data_dir("audit.db")
-        audit = AuditLogger(str(path), signing_key=signing_key_at(app_data_dir("audit_signing.key")))
-        restrict_file_permissions(path)
-        return audit
+        return open_owner_audit_log()
     except Exception as e:
         logger.warning("Audit log kept in memory only for this run (%s)", e)
         return None

@@ -33,6 +33,7 @@ Apache-2.0 license text is distributed with it.
 | AGENT_GURU component | Source consulted | Relationship | Copied code | Notice required | Date | Commit |
 |---|---|---|---|---|---|---|
 | `Agent_Guru/integration/turn_trace.py` (`TurnTraceStore`, `TurnRecord`, `StageTiming`), turn recording in `integration/orchestrator.py` and `main.py` | Reference project: `traces/store.py` and the `Trace`/`TraceStep` types in `core/types.py` | Independent implementation. Idea taken: keep one SQLite row per interaction and one per step, with an FTS5 index over the text. Written for AGENT_GURU's voice turn: different tables, fields, API and connection model (a connection per call through `utils.sqlite.open_sqlite`, no shared connection or lock), owner-only file through `utils.secure_file`. | None. An adapted copy was written first and deleted before any commit; it was never pushed. | No | 2026-10-07 | 98718451 |
+| `Agent_Guru/reasoning/tools/mcp_client.py`, `mcp_schema.py`, `Agent_Guru/integration/mcp_tools.py` | Reference project: `mcp/client.py`, `mcp/transport.py`, `mcp/loader.py`, `tools/mcp_adapter.py` | Independent implementation. Ideas taken: drain the server's stderr, match replies by id and skip stray lines, close a server whose start failed, isolate servers from each other. Written for AGENT_GURU on asyncio with its policy engine, ActionStatus, audit log and turn record; see `REFERENCE_MCP_COMPARISON.md` for what differs. | None | No | 2026-10-07 | the 4.1 commit |
 
-No reference-project code is in the repository as of 98718451, so no
+No reference-project code is in the repository as of the 4.1 commit, so no
 `third_party/` license copy is shipped.

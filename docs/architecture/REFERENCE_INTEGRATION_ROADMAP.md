@@ -40,7 +40,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 
 | Batch | Items | Condition | State |
 |---|---|---|---|
-| 4.1 | TOOL-7 MCP client behind the policy engine | security review | planned |
+| 4.1 | TOOL-7 MCP client behind the policy engine | security review | done: stdio client, owner-allowed tools only with declared risk, policy action `external:mcp:<server>:<tool>`, schema-checked arguments, guarded output, ActionStatus results, audit and turn-record entries; `python -m Agent_Guru mcp list|call`. Security review and comparison in `REFERENCE_MCP_COMPARISON.md`. Voice use comes with 4.2 |
 | 4.2 | AGT-1, AGT-2, TRC-4 tool loop with loop guard, recorded in the turn | 1.4 | planned |
 | 4.3 | AGT-4, TOOL-6 multi-step research with sources, browser actions | 4.2, 3.1 | planned |
 | 4.4 | SCH-2, AGT-3, ARCH-2 scheduled and monitoring agents with approval, on an internal event bus | 2.2, 4.2 | planned |

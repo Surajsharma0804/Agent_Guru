@@ -27,6 +27,12 @@ def _run() -> None:
         from Agent_Guru.platform.features.documents import run as run_documents
 
         sys.exit(run_documents(sys.argv[2:]))
+    if sys.argv[1:2] == ["mcp"]:
+        # Lists or calls tools on external MCP servers, through the same
+        # policy and checks a voice turn would use.
+        from Agent_Guru.integration.mcp_tools import run as run_mcp
+
+        sys.exit(run_mcp(sys.argv[2:]))
     # Import main's async entry point and run it
     try:
         # Import from the top-level main.py
