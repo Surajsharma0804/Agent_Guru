@@ -132,6 +132,66 @@ async def test_an_empty_store_returns_nothing(manager):
     assert await _users(manager, known=[("a", "b")]) == []  # nosec B101
 
 
+# ---- names in the query ----
+# Scores below are the real all-MiniLM-L6-v2 ones from
+# scripts/memory_recall_eval.py, set here as fixed vectors.
+
+@pytest.fixture
+def named(monkeypatch):
+    vectors: dict[str, list[float]] = {}
+
+    async def embed(text: str) -> list[float]:
+        return vectors.get(text, QUERY)
+
+    monkeypatch.setattr(memory_manager, "_embed_text_async", embed)
+    mgr = MemoryManager(platform_override="test-platform")
+
+    async def remember(user: str, vector: list[float]) -> None:
+        vectors[f"{user} ok"] = vector
+        assert await mgr.store_interaction("GURU", user, "ok")  # nosec B101
+
+    async def ask(query: str) -> list[str]:
+        return [r["user_message"] for r in await mgr.search(query)]
+
+    mgr.remember, mgr.ask = remember, ask
+    return mgr
+
+
+async def test_a_memory_holding_the_name_asked_about_is_found_under_the_cutoff(named):
+    # Meaning alone scored "how is Bruno" 0.246 against the memory about him.
+    await named.remember("I have a golden retriever called Bruno", _at(0.246))
+    await named.remember("I started learning the guitar", _at(0.13, 2))
+    assert await named.ask("How is Bruno") == ["I have a golden retriever called Bruno"]  # nosec B101
+    assert await named.ask("how is bruno") == ["I have a golden retriever called Bruno"]  # nosec B101
+
+
+async def test_a_neighbour_without_the_name_asked_about_is_dropped(named):
+    # The locker code came back beside the train booking the number named.
+    await named.remember("my train PNR is 4521876390", _at(0.37))
+    await named.remember("the gym locker code is 7314", _at(0.326, 2))
+    assert await named.ask("Is 4521876390 confirmed") == ["my train PNR is 4521876390"]  # nosec B101
+
+
+async def test_names_of_things_never_mentioned_leave_the_cutoff_to_decide(named):
+    # No memory mentions the Himalayas; the allergy is still worth knowing.
+    await named.remember("I'm allergic to peanuts", _at(0.262))
+    await named.remember("I started learning the guitar", _at(0.10, 2))
+    assert await named.ask("Any snack ideas for my Himalaya hike") == ["I'm allergic to peanuts"]  # nosec B101
+
+
+async def test_a_name_matches_only_as_a_whole_word(named):
+    await named.remember("my sister Priya is getting married", _at(0.20))
+    assert await named.ask("Is Priyanka Chopra in a new film") == []  # nosec B101
+
+
+async def test_ordinary_words_and_short_numbers_are_not_names(named):
+    # "Tell" starts the stored sentence and the query; 800 is arithmetic.
+    await named.remember("Tell me a fun fact", _at(0.156))
+    await named.remember("the plumber charged 800 rupees", _at(0.10, 2))
+    assert await named.ask("Tell me about space") == []  # nosec B101
+    assert await named.ask("What is 800 times 3") == []  # nosec B101
+
+
 async def test_with_letter_frequency_embeddings_the_cutoffs_do_not_apply(monkeypatch):
     # Without sentence-transformers the stub puts any two texts at about
     # 0.75: the cutoffs would pass everything and drop every "repeat".

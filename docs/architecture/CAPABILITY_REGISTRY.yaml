@@ -103,7 +103,8 @@ capabilities:
     category: memory
     status: live
     gap_id: MEM-3
-    implementation: Agent_Guru/memory/memory_manager.py (search, RELEVANT_SIMILARITY 0.25, REDUNDANT_SIMILARITY 0.70)
+    implementation: Agent_Guru/memory/memory_manager.py (search, RELEVANT_SIMILARITY 0.25, REDUNDANT_SIMILARITY 0.70, names in the query via _named_words)
+    evaluation: scripts/memory_recall_eval.py
     owner: memory
     do_not_duplicate: The 0.25 cutoff is a user decision; do not tune it.
 

@@ -45,6 +45,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -158,6 +159,13 @@ REDUNDANT_SIMILARITY = 0.70
 #: query is therefore ranked as before, without either cutoff.
 _STUB_EMBEDDING_DIM = 26
 
+#: A word that names something: capitalized after the start of a sentence
+#: (Bruno, Kavitha, Legion), all capitals (PNR, RTX), or a number of 4 or
+#: more characters (4521876390, 7314). Shorter numbers are left out, since
+#: "what is 800 times 3" is arithmetic, not a question about a memory.
+_WORD = re.compile(r"[A-Za-z0-9]+")
+_SENTENCE_END = re.compile(r"[.!?]\s*$")
+
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
@@ -195,7 +203,7 @@ def _is_mobile(plat: str) -> bool:
 class _Interaction:
     """A single stored conversation turn."""
 
-    __slots__ = ("ai_message", "embedding", "personality", "timestamp", "user_message")
+    __slots__ = ("ai_message", "embedding", "names", "personality", "timestamp", "user_message")
 
     def __init__(
         self,
@@ -216,6 +224,7 @@ class _Interaction:
         self.embedding: list[float] = (
             embedding if embedding is not None else _embed_text(user_message + " " + ai_message)
         )
+        self.names = _named_words(user_message) | _named_words(ai_message)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -306,6 +315,29 @@ async def _embed_text_async(text: str) -> list[float]:
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _embed_text, text)
+
+
+def _named_words(text: str) -> frozenset[str]:
+    """Lower-cased words in *text* that name something (see _WORD's comment)."""
+    names = set()
+    for match in _WORD.finditer(text):
+        word = match.group()
+        if any(c.isdigit() for c in word):
+            if len(word) >= 4:
+                names.add(word.lower())
+            continue
+        # "I'll" splits into "I" and "ll", the possessive "Sunil's" into
+        # "Sunil" and "s"; the lower-case tails are skipped here too.
+        if word == "I" or not word[0].isupper():
+            continue
+        starts_sentence = match.start() == 0 or _SENTENCE_END.search(text, 0, match.start()) is not None
+        if (word.isupper() and len(word) >= 2) or not starts_sentence:
+            names.add(word.lower())
+    return frozenset(names)
+
+
+def _words(text: str) -> set[str]:
+    return {w.lower() for w in _WORD.findall(text)}
 
 
 def _vector_magnitude(v: list[float]) -> float:
@@ -695,7 +727,9 @@ class MemoryManager:
                 self._platform,
             )
             query_emb = await _embed_text_async(query)
-            return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
+            return self._semantic_search_in_memory(
+                query_emb, limit, personality, known, min_similarity, query=query
+            )
         except Exception:
             logger.exception("search failed")
             return []
@@ -979,7 +1013,9 @@ class MemoryManager:
         # docstring for why embedding the query with the cheap stub while
         # interactions carry real 384-dim embeddings made search a no-op.
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
+        return self._semantic_search_in_memory(
+            query_emb, limit, personality, known, min_similarity, query=query
+        )
 
     # ------------------------------------------------------------------
     # Android implementations (SharedPreferences + SQLite via adb - simulated)
@@ -1036,7 +1072,9 @@ class MemoryManager:
             limit,
         )
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
+        return self._semantic_search_in_memory(
+            query_emb, limit, personality, known, min_similarity, query=query
+        )
 
     # ------------------------------------------------------------------
     # iOS implementations (UserDefaults + Core Data via xcrun - simulated)
@@ -1093,7 +1131,9 @@ class MemoryManager:
             limit,
         )
         query_emb = await _embed_text_async(query)
-        return self._semantic_search_in_memory(query_emb, limit, personality, known, min_similarity)
+        return self._semantic_search_in_memory(
+            query_emb, limit, personality, known, min_similarity, query=query
+        )
 
     # ------------------------------------------------------------------
     # Shared semantic search (in-memory, stub embeddings)
@@ -1106,6 +1146,8 @@ class MemoryManager:
         personality: str | None,
         known: list[tuple[str, str]] = [],  # noqa: B006 - read only, never mutated
         min_similarity: float = RELEVANT_SIMILARITY,
+        *,
+        query: str = "",
     ) -> list[dict[str, Any]]:
         """Rank stored interactions by cosine similarity to a pre-embedded query.
 
@@ -1145,6 +1187,7 @@ class MemoryManager:
             personality: Optional personality filter.
             known: Turns already in the conversation (see search()).
             min_similarity: Lowest similarity to the query returned.
+            query: The query's text, for the names in it (see below).
 
         Returns:
             List of interaction dicts ranked by similarity (best first).
@@ -1196,14 +1239,41 @@ class MemoryManager:
         # top `limit` first and then dropping repeats would return fewer than
         # it could, or none when many stored copies of one known turn (the
         # same question asked often) fill the top places.
-        relevant = sorted(
-            (
-                (score, n, item)
-                for n, item in enumerate(candidates)
-                if (score := _cosine_similarity(query_emb, item.embedding, query_mag)) >= min_similarity
-            ),
-            key=lambda t: (-t[0], t[1]),
-        )
+        scored = [(_cosine_similarity(query_emb, item.embedding, query_mag), n, item) for n, item in enumerate(candidates)]
+
+        # Names and long numbers in the query, where a stored memory holds
+        # them. Meaning alone missed "how is Bruno" (0.246 against the
+        # memory about Bruno, under the cutoff) and let near neighbours in
+        # beside the memory a question named: "is 4521876390 confirmed"
+        # brought the gym locker code (0.326) with the train booking, and
+        # "can I borrow Sunil's drill" the plumber's bill (0.257). When a
+        # memory holds every name in the query, the query is about what the
+        # owner told it, so that memory is returned whatever its score, and
+        # one that mentions none of the names is not. With no such memory
+        # (the names are of things never mentioned, "who is the prime
+        # minister of India") the meaning cutoff alone decides, as before.
+        # A name is matched as a whole word only: "Priyanka" never matches
+        # a memory about Priya. Known names count in the query whatever
+        # their case, so typed "how is bruno" finds Bruno too.
+        named: frozenset[str] = frozenset()
+        if query:
+            known_names = frozenset().union(*(item.names for item in candidates))
+            named = _named_words(query) | (_words(query) & known_names)
+        holds_all = {n for _, n, item in scored if named and named <= item.names}
+        if holds_all:
+            relevant = sorted(
+                (
+                    (score, n, item)
+                    for score, n, item in scored
+                    if n in holds_all or (score >= min_similarity and named & item.names)
+                ),
+                key=lambda t: (t[1] not in holds_all, -t[0], t[1]),
+            )
+        else:
+            relevant = sorted(
+                ((score, n, item) for score, n, item in scored if score >= min_similarity),
+                key=lambda t: (-t[0], t[1]),
+            )
         results: list[dict[str, Any]] = []
         for _, _, item in relevant:
             if len(results) == limit:

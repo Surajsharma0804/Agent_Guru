@@ -33,7 +33,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 |---|---|---|---|
 | 3.1 | SEC-2 injection scan for text entering prompts from outside | none | done: web results, clipboard and screen text are scanned; old patterns flagged 4 of 8 ordinary sentences and missed 6 of 8 attacks, the new ones 0 and 0 |
 | 3.2 | MEM-1, MEM-2 durable facts extracted by the model, with provenance and quarantine | GPU cost of the extra model call measured; run when idle if it delays replies | done: gemma4 reads each conversational exchange after the reply (0.84-1.18 s on real runs, off the reply path) and keeps up to 50 facts; flagged facts are quarantined and never reach a prompt; AGENT_GURU_LEARN_FACTS turns it off. Open: a fact keeps no date or source turn |
-| 3.3 | MEM-3, MEM-4 keyword and meaning search fused | evaluation set from 1.4; the 0.25 cutoff stays | planned |
+| 3.3 | MEM-3, MEM-4 keyword and meaning search fused | evaluation set from 1.4; the 0.25 cutoff stays | done: names and long numbers in a question now steer memory search; `scripts/memory_recall_eval.py` went from 14 of 25 questions right (2 missed, 9 leaked) to 18 of 25 (0 missed, 7 leaked), search time unchanged at 1,000 memories. Reciprocal rank fusion was not taken: it always returns the top results, which would undo the 0.25 cutoff. The 7 leaks left are meaning matches with no name to go on ("prime minister of India" brings three memories at 0.26-0.29); only the cutoff decides those |
 | 3.4 | MEM-5 document ingestion into a knowledge store | 3.3 | planned |
 
 ## Phase 4: doing more
