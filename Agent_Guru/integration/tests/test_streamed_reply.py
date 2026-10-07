@@ -166,3 +166,31 @@ async def test_a_capped_answer_is_not_spoken_mid_sentence(plays, monkeypatch):
     assert speech.synthesised == [SENTENCES[0].strip()]  # nosec B101
     assert result.llm_response == SENTENCES[0].strip()  # nosec B101
     assert orch._chat_history[-1]["content"] == SENTENCES[0].strip()  # nosec B101
+
+
+async def test_a_spoken_answer_records_tokens_timings_and_first_text(plays, monkeypatch, tmp_path):
+    # A streamed answer used to leave no token counts, model timings or
+    # time-to-first-text anywhere, though every question is answered this way.
+    from Agent_Guru.integration.turn_trace import TurnTraceStore
+    from Agent_Guru.llm.models import TokenUsage
+
+    runtime = _Runtime(chunks=[StreamChunk(content=s) for s in SENTENCES] + [
+        StreamChunk(content="", finish_reason="stop", usage=TokenUsage(120, 40, 160, 0.0),
+                    timings={"prompt_s": 0.05, "decode_s": 0.8}),
+    ])
+    orch, _ = _orchestrator(monkeypatch, runtime)
+    orch.trace_store = TurnTraceStore(tmp_path / "turns.db")
+    result, _ = await _turn(orch)
+    stats = result.llm_stats
+    assert SENTENCE_S <= stats["first_text_s"] < 2 * SENTENCE_S  # nosec B101  the first sentence took 0.3 s to write
+    assert (stats["prompt_tokens"], stats["output_tokens"]) == (120, 40)  # nosec B101
+    assert stats["prompt_s"] == 0.05 and stats["tokens_per_s"] == pytest.approx(50.0)  # nosec B101
+    [turn] = orch.trace_store.recent()
+    answer = next(s for s in turn.stages if s.name == "answer_spoken")
+    assert answer.detail == stats  # nosec B101
+
+
+async def test_an_answer_without_model_counts_records_only_what_was_measured(plays, monkeypatch):
+    orch, _ = _orchestrator(monkeypatch, _Runtime())
+    result, _ = await _turn(orch)
+    assert set(result.llm_stats) == {"first_text_s"}  # nosec B101  no invented zeros

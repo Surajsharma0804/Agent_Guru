@@ -168,3 +168,51 @@ async def test_the_voice_adapter_reports_a_capped_streamed_reply(monkeypatch):
     assert "".join(c.content for c in chunks) == CAPPED
     assert [c.finish_reason for c in chunks] == [None, None, "length"]
     assert sent["keep_alive"] == -1
+
+
+async def test_the_last_streamed_chunk_carries_the_models_counts_and_timings():
+    """A streamed reply used to end without Ollama's token counts or timings, so a spoken answer left none behind."""
+    from Agent_Guru.llm.models import CompletionRequest, Message, OllamaConfig
+    from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
+
+    class FakeClient:
+        async def chat(self, **kwargs):
+            async def chunks():
+                yield {"message": {"content": "Rayleigh "}, "done": False}
+                yield {"message": {"content": "scattering."}, "done": False}
+                # Ollama reports durations in nanoseconds.
+                yield {"message": {"content": ""}, "done": True, "done_reason": "stop",
+                       "prompt_eval_count": 19, "eval_count": 27, "load_duration": 22_556_800,
+                       "prompt_eval_duration": 408_851_000, "eval_duration": 971_649_000,
+                       "total_duration": 1_828_152_100}
+
+            return chunks()
+
+    adapter = OllamaAdapter(OllamaConfig())
+    adapter._client = FakeClient()
+    request = CompletionRequest(model="gemma4", messages=[Message(role="user", content="why is the sky blue")])
+    chunks = [c async for c in adapter.stream(request)]
+    assert [c.usage for c in chunks[:2]] == [None, None] and chunks[0].timings is None  # nosec B101
+    usage = chunks[-1].usage
+    assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (19, 27, 46)  # nosec B101
+    assert chunks[-1].timings == pytest.approx(  # nosec B101
+        {"load_s": 0.0225568, "prompt_s": 0.408851, "decode_s": 0.971649, "model_total_s": 1.8281521},
+    )
+
+
+async def test_a_last_chunk_without_counts_reports_none_not_zeros():
+    from Agent_Guru.llm.models import CompletionRequest, Message, OllamaConfig
+    from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
+
+    class FakeClient:
+        async def chat(self, **kwargs):
+            async def chunks():
+                yield {"message": {"content": "Hi."}, "done": True, "done_reason": "stop"}
+
+            return chunks()
+
+    adapter = OllamaAdapter(OllamaConfig())
+    adapter._client = FakeClient()
+    request = CompletionRequest(model="gemma4", messages=[Message(role="user", content="hi")])
+    [last] = [c async for c in adapter.stream(request)]
+    assert last.usage is None and last.timings is None  # nosec B101

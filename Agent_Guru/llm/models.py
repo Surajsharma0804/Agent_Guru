@@ -72,6 +72,11 @@ class StreamChunk:
     content: str
     finish_reason: str | None = None
     function_call: dict[str, Any] | None = None
+    # Set on the last chunk only, and only when the provider reports them.
+    # A stream used to end without either, so the spoken answer, the one
+    # every question takes, left no token counts or model timings behind.
+    usage: TokenUsage | None = None
+    timings: dict[str, float] | None = None
 
 
 @dataclass

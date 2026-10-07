@@ -213,7 +213,35 @@ class OllamaAdapter(ProviderAdapter):
                 yield StreamChunk(
                     content=chunk["message"].get("content", ""),
                     finish_reason=(chunk.get("done_reason") or "stop") if done else None,
+                    usage=self._stream_usage(chunk) if done else None,
+                    timings=self._stream_timings(chunk) if done else None,
                 )
+
+    @staticmethod
+    def _stream_usage(chunk: Any) -> TokenUsage | None:
+        """Token counts from Ollama's last chunk, or None if it sent none.
+
+        prompt_eval_count is the whole prompt even when Ollama reused the
+        previous turn's cached prefix: measured, 1574 on a first question and
+        on the follow-up alike. Whether the cache was reused shows in the
+        prompt timing instead (0.56 s, then 0.11 s).
+        """
+        prompt = chunk.get("prompt_eval_count")
+        output = chunk.get("eval_count")
+        if prompt is None and output is None:
+            return None
+        prompt, output = prompt or 0, output or 0
+        return TokenUsage(
+            prompt_tokens=prompt, completion_tokens=output, total_tokens=prompt + output, estimated_cost=0.0,
+        )
+
+    @staticmethod
+    def _stream_timings(chunk: Any) -> dict[str, float] | None:
+        """Seconds Ollama spent loading, reading the prompt and writing, from its nanosecond durations."""
+        names = {"load_duration": "load_s", "prompt_eval_duration": "prompt_s",
+                 "eval_duration": "decode_s", "total_duration": "model_total_s"}
+        timings = {label: chunk[key] / 1e9 for key, label in names.items() if chunk.get(key)}
+        return timings or None
 
     async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
         """Generate embeddings using an Ollama embedding model."""

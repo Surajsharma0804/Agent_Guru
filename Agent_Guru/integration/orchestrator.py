@@ -293,6 +293,9 @@ class PipelineResult:
     # Nothing measured a stage before: only wake-to-first-speech, and only
     # on two shortcut paths, so "which stage was slow" had no answer.
     stage_timings: list[tuple[str, float, float]] = field(default_factory=list)
+    # What the model reported about a streamed answer: prompt tokens it
+    # processed, tokens it wrote, its timings, and when the first text came.
+    llm_stats: dict[str, float] = field(default_factory=dict)
 
 
 @contextlib.contextmanager
@@ -1123,6 +1126,7 @@ class IntegrationOrchestrator:
             "intent": {"intent": result.intent},
             "policy": {"allowed": result.policy_allowed},
             "action": {"status": status.value if status else None},
+            "answer_spoken": dict(result.llm_stats),
         }
         tts = result.tts_response
         speech_error = getattr(tts, "error", None)
@@ -1772,13 +1776,24 @@ class IntegrationOrchestrator:
         finish: dict[str, str] = {}
         parts: list[str] = []
 
+        stats = result.llm_stats
+
         async def chunks() -> Any:
+            asked = time.perf_counter()
             async for chunk in stream_fn(request):
                 if chunk.finish_reason:
                     finish["reason"] = chunk.finish_reason
                 if chunk.content:
+                    stats.setdefault("first_text_s", time.perf_counter() - asked)
                     parts.append(chunk.content)
                     yield chunk.content
+                usage = getattr(chunk, "usage", None)
+                if usage is not None:
+                    stats["prompt_tokens"] = usage.prompt_tokens
+                    stats["output_tokens"] = usage.completion_tokens
+                stats.update(getattr(chunk, "timings", None) or {})
+            if stats.get("output_tokens") and stats.get("decode_s"):
+                stats["tokens_per_s"] = stats["output_tokens"] / stats["decode_s"]
 
         def capped() -> bool:
             return finish.get("reason") == "length"
