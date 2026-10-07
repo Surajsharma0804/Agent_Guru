@@ -14,8 +14,8 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | Batch | Items | Beyond the reference | State |
 |---|---|---|---|
 | 1.1 | TRC-1, TRC-2 turn records with stage timings | records the verified action status and the voice stages (speech, first audio), which the reference has no notion of | done, 98718451 |
-| 1.2 | TEL-1, TEL-4 tokens, time to first token and decode speed in the answer stage | one store instead of two | next |
-| 1.3 | TRC-3, LRN-3 queries over turn records, rating a turn by voice | spoken "that was wrong" marks the turn | planned |
+| 1.2 | TEL-1, TEL-4 tokens, time to first token and decode speed in the answer stage | one store instead of two | done, bb2ef774 |
+| 1.3 | TRC-3, LRN-3 queries over turn records, rating a turn by voice | spoken "that was wrong" or "galat hai" marks the last answer; stage medians and p95 from the records | done |
 | 1.4 | EVAL-1, EVAL-2 evaluation runner and latency bench fed by real turns | benchmarks built from the owner's own turns, not public datasets only | planned |
 | 1.5 | CLI-1, CLI-2, INT-4, SEC-11 `doctor` and a command line: Ollama, model, GPU and VRAM, microphone, speaker, data folder, privacy checks | checks the audio devices a voice assistant depends on | planned |
 
@@ -56,6 +56,10 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | 5.4 | INT-1, INT-2, INT-3, INT-5, INT-6, AGT-6 more engines, model routing, local plus cloud combinations | hardware that fits a second model; cloud use only with owner's keys and consent | planned |
 | 5.5 | LRN-1, LRN-2, SKL-2, SKL-3 learning from turns (prompt tuning, fine-tuning) | enough turn records; the A100 plan | planned |
 | 5.6 | DSK-1, REC-1, WFL-1, TEL-2, TEL-3, SEC-6, SEC-7 remaining items | as listed in the matrix | planned |
+
+Found by the turn records (2026-10-07), to fix in its own batch: asked "what is
+two plus two" with no history, gemma4 answered with persona small talk
+("Yo! What's up, man?") instead of the answer, twice in a row.
 
 Outside this roadmap and pending from earlier work: the production policy
 still refuses app open and close although both are implemented and

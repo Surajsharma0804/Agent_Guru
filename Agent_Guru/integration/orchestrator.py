@@ -298,6 +298,35 @@ class PipelineResult:
     llm_stats: dict[str, float] = field(default_factory=dict)
 
 
+_RATING_INTENT = "feedback:rating"
+
+# Whole utterances only. "that's wrong, the capital is Delhi" is a
+# correction to act on, not a rating, so a sentence that merely contains
+# one of these is left to the rest of the turn.
+_RATED_WRONG = re.compile(
+    r"(?:(?:that|it|this)\s*(?:'s|was|is)\s*(?:a\s+)?(?:wrong|not right|incorrect)(?:\s+answer)?"
+    r"|(?:wrong|bad|incorrect) answer|you got (?:that|it) wrong"
+    r"|(?:ye|yeh|yah)?\s*galat(?: jawab)?(?: hai| tha)?)",
+)
+_RATED_RIGHT = re.compile(
+    r"(?:(?:that|it|this)\s*(?:'s|was|is)\s*(?:a\s+)?(?:right|correct|good)(?:\s+answer)?"
+    r"|(?:good|right|correct) answer|well done"
+    r"|(?:bilkul\s+)?sahi(?: jawab)?(?: hai| tha)?)",
+)
+
+
+def _spoken_rating(transcript: str) -> float | None:
+    """1.0 when the whole utterance says the last answer was right, 0.0 wrong, else None."""
+    text = re.sub(r"[^a-z' ]+", " ", transcript.lower())
+    text = re.sub(r"^\s*(?:hey\s+)?(?:guru|maya)\b", " ", text)
+    text = " ".join(text.split())
+    if _RATED_WRONG.fullmatch(text):
+        return 0.0
+    if _RATED_RIGHT.fullmatch(text):
+        return 1.0
+    return None
+
+
 @contextlib.contextmanager
 def _timed(result: PipelineResult, stage: str) -> Iterator[None]:
     """Record how long *stage* took on *result*, also when it raises or returns early."""
@@ -470,6 +499,8 @@ class IntegrationOrchestrator:
         # Given by main.py. None (tests, embedders) records nothing, so a
         # test turn is never written into the user's own trace database.
         self.trace_store = trace_store
+        # The last answer recorded, so "that was wrong" knows what it means.
+        self._last_turn_id: str | None = None
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -891,6 +922,15 @@ class IntegrationOrchestrator:
                     result.tts_response = await self._stage_tts(draft_reply, result.personality)
                 return result
 
+            rating = await self._rate_previous_answer(result.transcript, _pipeline_mode)
+            if rating is not None:
+                result.intent = _RATING_INTENT
+                result.action_result, result.action_status = rating.text, rating.status
+                result.stages_completed = 8
+                with _timed(result, "tts"):
+                    result.tts_response = await self._stage_tts(rating.text, result.personality)
+                return result
+
             # Reaction-rule early returns
             with _timed(result, "reaction_rules"):
                 early_result = await self._check_reaction_rules(
@@ -1101,10 +1141,40 @@ class IntegrationOrchestrator:
         try:
             turn = self._turn_record(result, started_at, turn_seconds)
             await asyncio.wait_for(asyncio.to_thread(store.record, turn), timeout=TRACE_WRITE_TIMEOUT_S)
+            if result.intent != _RATING_INTENT:
+                self._last_turn_id = turn.turn_id
         except TimeoutError:
             logger.warning("Recording this turn exceeded %.1fs - turn not recorded", TRACE_WRITE_TIMEOUT_S)
         except Exception:
             logger.warning("Could not record this turn", exc_info=True)
+
+    async def _rate_previous_answer(self, transcript: str, pipeline_mode: str) -> ActionOutcome | None:
+        """Mark the last recorded answer right or wrong when that is all the user said; None otherwise.
+
+        Before, there was no way to say an answer was wrong: "that was
+        wrong" went to the model as a new question. Handled ahead of the
+        policy check because it changes nothing outside the assistant's own
+        records, and ahead of reaction rules so a taught rule cannot swallow
+        it. Only the verified owner (pipeline_mode "full") can rate.
+        """
+        score = _spoken_rating(transcript or "")
+        if score is None or pipeline_mode != "full":
+            return None
+        store, turn_id = self.trace_store, self._last_turn_id
+        if store is None or turn_id is None:
+            return ActionOutcome("There's no earlier answer I can mark.", ActionStatus.FAILED)
+        try:
+            marked = await asyncio.wait_for(
+                asyncio.to_thread(store.rate, turn_id, score), timeout=TRACE_WRITE_TIMEOUT_S,
+            )
+        except Exception:
+            logger.warning("Could not rate turn %s", turn_id, exc_info=True)
+            marked = False
+        if not marked:
+            return ActionOutcome("Sorry, I couldn't mark that answer.", ActionStatus.FAILED)
+        if score == 0.0:
+            return ActionOutcome("Sorry about that. I've marked that answer as wrong.", ActionStatus.SUCCESS)
+        return ActionOutcome("Thanks, I've marked that answer as right.", ActionStatus.SUCCESS)
 
     @staticmethod
     def _turn_record(result: PipelineResult, started_at: float, turn_seconds: float) -> TurnRecord:

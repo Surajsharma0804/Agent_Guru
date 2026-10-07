@@ -148,3 +148,58 @@ async def test_nothing_heard_is_still_recorded(store):
     await _turn(_orchestrator(Controller(OK), trace_store=store), "")
     [turn] = store.recent()
     assert turn.heard == "" and [s.name for s in turn.stages] == ["stt"]  # nosec B101
+
+
+# ---- rating the last answer by voice ----
+
+async def test_saying_that_was_wrong_marks_the_last_answer(store):
+    orch = _orchestrator(Controller(OK), trace_store=store)
+    await _turn(orch, "minimize the window")
+    [answered] = store.recent()
+    result, spoken = await _turn(orch, "that was wrong")
+    assert spoken == "Sorry about that. I've marked that answer as wrong."  # nosec B101
+    assert result.action_status is ActionStatus.SUCCESS and result.intent == "feedback:rating"  # nosec B101
+    assert store.get(answered.turn_id).rating == 0.0  # nosec B101
+
+
+async def test_hinglish_praise_marks_it_right(store):
+    orch = _orchestrator(Controller(OK), trace_store=store)
+    await _turn(orch, "minimize the window")
+    [answered] = store.recent()
+    _, spoken = await _turn(orch, "bilkul sahi")
+    assert spoken == "Thanks, I've marked that answer as right." and store.get(answered.turn_id).rating == 1.0  # nosec B101
+
+
+async def test_a_rating_never_becomes_the_answer_the_next_rating_marks(store):
+    orch = _orchestrator(Controller(OK), trace_store=store)
+    await _turn(orch, "minimize the window")
+    [answered] = store.recent()
+    await _turn(orch, "that was right")
+    await _turn(orch, "that was wrong")
+    assert store.get(answered.turn_id).rating == 0.0  # nosec B101
+    ratings = [t.rating for t in store.recent() if t.intent == "feedback:rating"]
+    assert ratings == [None, None]  # nosec B101  the rating turns themselves are not rated
+
+
+async def test_with_nothing_to_mark_it_says_so(store):
+    result, spoken = await _turn(_orchestrator(Controller(OK), trace_store=store), "that was wrong")
+    assert spoken == "There's no earlier answer I can mark." and result.action_status is ActionStatus.FAILED  # nosec B101
+    result, spoken = await _turn(_orchestrator(Controller(OK)), "that was wrong")
+    assert spoken == "There's no earlier answer I can mark."  # nosec B101  no store, no record to mark
+
+
+async def test_a_correction_is_not_taken_for_a_rating(store):
+    orch = _orchestrator(Controller(OK), trace_store=store)
+    await _turn(orch, "minimize the window")
+    result, _ = await _turn(orch, "that's wrong, the capital is Delhi")
+    assert result.intent != "feedback:rating"  # nosec B101
+    assert all(t.rating is None for t in store.recent())  # nosec B101
+
+
+async def test_an_unverified_speaker_cannot_rate(store):
+    orch = _orchestrator(Controller(OK), trace_store=store)
+    await _turn(orch, "minimize the window")
+    orch._verify_speaker = lambda *a, **k: "restricted"
+    result, _ = await _turn(orch, "that was wrong")
+    assert result.intent != "feedback:rating"  # nosec B101
+    assert all(t.rating is None for t in store.recent())  # nosec B101

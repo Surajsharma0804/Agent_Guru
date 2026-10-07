@@ -177,6 +177,42 @@ class TurnTraceStore:
             ]
         return [t for t in (self.get(i) for i in ids) if t is not None]
 
+    def stage_summary(self, *, since: float | None = None) -> dict[str, dict[str, float]]:
+        """For each stage: how many turns ran it, and its median and 95th-percentile seconds.
+
+        Nearest-rank percentiles over the recorded values, so with few turns
+        the p95 is simply the slowest one, not an interpolated guess.
+        """
+        query = "SELECT s.name, s.seconds FROM turn_stages s JOIN turns t ON t.turn_id = s.turn_id"
+        values: list[Any] = []
+        if since is not None:
+            query += " WHERE t.started_at >= ?"
+            values.append(since)
+        by_stage: dict[str, list[float]] = {}
+        with open_sqlite(self.path) as conn:
+            for name, seconds in conn.execute(query, values):
+                by_stage.setdefault(name, []).append(seconds)
+        summary = {}
+        for name, seconds in by_stage.items():
+            seconds.sort()
+            summary[name] = {
+                "count": len(seconds),
+                "median_s": seconds[(len(seconds) - 1) // 2],
+                "p95_s": seconds[max(0, -(-len(seconds) * 95 // 100) - 1)],
+            }
+        return summary
+
+    def outcome_counts(self, *, since: float | None = None) -> dict[str, int]:
+        """How many turns ended in success, failure, or unknown ("unknown" for None)."""
+        query = "SELECT COALESCE(outcome, 'unknown'), COUNT(*) FROM turns"
+        values: list[Any] = []
+        if since is not None:
+            query += " WHERE started_at >= ?"
+            values.append(since)
+        query += " GROUP BY 1"
+        with open_sqlite(self.path) as conn:
+            return dict(conn.execute(query, values).fetchall())
+
     def rate(self, turn_id: str, score: float) -> bool:
         """Give a turn a quality score in [0, 1]; False if there is no such turn."""
         if not 0.0 <= score <= 1.0:

@@ -104,3 +104,18 @@ def test_the_file_is_restricted_to_its_owner(tmp_path, monkeypatch):
     monkeypatch.setattr("Agent_Guru.integration.turn_trace.restrict_file_permissions", restricted.append)
     TurnTraceStore(tmp_path / "turns.db")
     assert restricted == [tmp_path / "turns.db"]  # nosec B101
+
+
+def test_stage_summary_gives_count_median_and_p95_per_stage(store):
+    for i, seconds in enumerate([0.1, 0.2, 0.3, 0.4, 5.0]):
+        store.record(_turn(started_at=float(i), stages=[("stt", seconds), ("intent", 0.01)]))
+    summary = store.stage_summary()
+    assert summary["stt"] == {"count": 5, "median_s": 0.3, "p95_s": 5.0}  # nosec B101
+    assert summary["intent"]["count"] == 5  # nosec B101
+    assert store.stage_summary(since=3.0)["stt"] == {"count": 2, "median_s": 0.4, "p95_s": 5.0}  # nosec B101
+
+
+def test_outcome_counts_name_unknown_outcomes(store):
+    for outcome in ["success", "success", "failure", None]:
+        store.record(_turn(outcome=outcome))
+    assert store.outcome_counts() == {"success": 2, "failure": 1, "unknown": 1}  # nosec B101
