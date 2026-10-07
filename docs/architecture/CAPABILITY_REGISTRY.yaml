@@ -112,9 +112,9 @@ capabilities:
     category: memory
     status: live
     gap_id: MEM-1
-    implementation: Agent_Guru/platform/features/user_memory.py
+    implementation: Agent_Guru/platform/features/user_memory.py (fixed phrases, plus learn_facts_from_exchange after each answer)
     owner: platform
-    priority: P1 (model-based extraction planned)
+    do_not_duplicate: Learned facts live in user_memory.json under learned_facts; quarantined_facts never reach a prompt.
 
   - id: reminders
     name: Reminders and timers

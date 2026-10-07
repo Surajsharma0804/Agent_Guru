@@ -377,6 +377,7 @@ async def run() -> None:
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
     reminder_store = app_data_dir("reminders.json")
+    learn_facts = os.environ.get("AGENT_GURU_LEARN_FACTS", "1").strip().lower() not in {"0", "false", "no", "off"}
 
     # --- Wire through IntegrationOrchestrator ---
     orch = IntegrationOrchestrator(
@@ -395,6 +396,7 @@ async def run() -> None:
         trace_store=trace_store,
         audit_logger=audit_logger,
         reminder_store=reminder_store,
+        learn_facts=learn_facts,
     )
 
     # --- Concurrent startup of all subsystems ---

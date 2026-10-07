@@ -210,6 +210,33 @@ class UserMemory:
         with self._lock:
             return dict(self._facts)
 
+    def add_learned_facts(self, facts: list[str], quarantined: list[str] = ()) -> int:  # type: ignore[assignment]
+        """Keep facts the model picked out of conversation; returns how many were new.
+
+        A fact already known, in either list or as any other stored value,
+        is not added again (compared without case). Quarantined facts are
+        kept apart and never reach a prompt.
+        """
+        with self._lock:
+            known = {str(v).strip().lower() for v in self._facts.values() if not isinstance(v, list)}
+            learned = list(self._facts.get("learned_facts", []))
+            held = list(self._facts.get("quarantined_facts", []))
+            known |= {f.lower() for f in learned} | {f.lower() for f in held}
+            added = 0
+            for target, cap, new in ((learned, _MAX_LEARNED_FACTS, facts), (held, _MAX_QUARANTINED_FACTS, quarantined)):
+                for fact in new:
+                    text = fact.strip()
+                    if text and text.lower() not in known:
+                        target.append(text)
+                        known.add(text.lower())
+                        added += target is learned
+                del target[:-cap]
+            if learned == self._facts.get("learned_facts", []) and held == self._facts.get("quarantined_facts", []):
+                return 0
+            self._facts["learned_facts"], self._facts["quarantined_facts"] = learned, held
+            self._save_locked()
+            return added
+
     def get_summary(self, max_chars: int = 500) -> str:
         """Return a natural language summary of known user facts.
 
@@ -274,6 +301,13 @@ class UserMemory:
         for k, v in facts.items():
             if k not in _SUMMARY_SKIP_KEYS:
                 parts.append(f"They mentioned: {k} = {v}.")
+
+        # Learned from conversation. Last, so the explicit facts above win
+        # the max_chars budget; newest first within it.
+        learned = facts.get("learned_facts") or []
+        if learned:
+            recent = list(reversed(learned[-_LEARNED_FACTS_IN_SUMMARY:]))
+            parts.append("From earlier conversations: " + "; ".join(recent) + ".")
 
         summary = " ".join(parts)
         return summary[:max_chars]
@@ -369,7 +403,16 @@ _PINNED_KEYS = frozenset({
     "nickname", "name", "preferred_language", "location", "occupation",
     "age", "current_goal", "current_project", "hobbies", "interests",
     "friends", "family", "communication_style", "code_mixing",
+    "learned_facts", "quarantined_facts",
 })
+
+#: Facts the model picked out of conversation, newest last; the oldest go
+#: first once there are this many. Quarantined ones (flagged by the injection
+#: scanner) are kept for inspection only and never reach a prompt.
+_MAX_LEARNED_FACTS = 50
+_MAX_QUARANTINED_FACTS = 20
+#: How many learned facts the prompt summary carries, newest first.
+_LEARNED_FACTS_IN_SUMMARY = 8
 
 # Maximum number of custom (non-pinned) facts before LRU eviction
 _MAX_CUSTOM_FACTS = 100
@@ -380,6 +423,7 @@ _SUMMARY_SKIP_KEYS = frozenset({
     "location", "occupation", "age",
     "current_goal", "current_project", "hobbies", "interests",
     "friends", "family", "communication_style",
+    "learned_facts", "quarantined_facts",
     "__forget__",  # never actually stored (see set()'s guard) - belt & suspenders
 })
 
@@ -599,6 +643,75 @@ def _next_custom_fact_key() -> str:
         if m:
             max_n = max(max_n, int(m.group(1)))
     return f"custom_fact_{max_n + 1}"
+
+
+_LEARN_PROMPT = (
+    "Read one exchange between a user and their voice assistant. List the lasting facts it "
+    "reveals about the user: who they are, what they like or dislike, their plans, projects, "
+    "habits, health, people in their life. Leave out small talk, one-off requests, questions, "
+    "and anything about the assistant. Write each fact as a short phrase about the user "
+    '("training for a marathon in December"). Answer with only a JSON array of strings, '
+    "or [] when there is nothing lasting."
+)
+_MAX_FACTS_PER_TURN = 5
+_MAX_FACT_CHARS = 150
+
+
+def parse_learned_facts(reply: str) -> list[str]:
+    """The facts in a model's answer to _LEARN_PROMPT, cleaned and capped.
+
+    Small local models do not always answer with clean JSON: a JSON array
+    found anywhere in the reply is used, else the lines written as a list
+    ("- ...", "1. ..."). Prose is not taken: a reply like "Nothing lasting
+    here." would otherwise be stored as a fact about the owner. Questions
+    and lines too long to be a fact are dropped.
+    """
+    text = (reply or "").strip()
+    items: list[str] = []
+    match = re.search(r"\[.*\]", text, re.DOTALL)
+    if match:
+        try:
+            parsed = json.loads(match.group(0))
+            items = [str(x) for x in parsed] if isinstance(parsed, list) else []
+        except ValueError:
+            items = []
+    if not match or (not items and match.group(0).strip() != "[]"):
+        marker = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+")
+        items = [marker.sub("", line) for line in text.splitlines() if marker.match(line)]
+    facts: list[str] = []
+    for item in items:
+        fact = item.strip().strip("\"'").rstrip(".").strip()
+        if (fact and len(fact) <= _MAX_FACT_CHARS and not fact.endswith("?")
+                and fact.lower() not in {"[]", "none", "n/a", "null"} and fact not in facts):
+            facts.append(fact)
+    return facts[:_MAX_FACTS_PER_TURN]
+
+
+async def learn_facts_from_exchange(complete: Any, model: str, said: str, reply: str) -> tuple[list[str], list[str]]:
+    """Ask the model what lasting facts about the owner an exchange revealed; (kept, quarantined).
+
+    complete is LLMRuntime.complete. A fact the injection scanner flags is
+    quarantined: what the model read may have come from a web page or the
+    clipboard, not from the owner. Never raises; a failed call learns nothing.
+    """
+    from Agent_Guru.llm.models import CompletionRequest, Message
+    from Agent_Guru.llm.security import scan_for_injection
+
+    request = CompletionRequest(
+        model=model, temperature=0.0, max_tokens=120,
+        messages=[
+            Message(role="system", content=_LEARN_PROMPT),
+            Message(role="user", content=f"User: {said}\nAssistant: {reply}"),
+        ],
+    )
+    try:
+        response = await complete(request)
+    except Exception:
+        logger.debug("Learning facts from this exchange failed", exc_info=True)
+        return [], []
+    facts = parse_learned_facts(getattr(response, "content", "") or "")
+    kept = [f for f in facts if not scan_for_injection(f)]
+    return kept, [f for f in facts if f not in kept]
 
 
 def extract_user_fact(transcript: str) -> tuple[str, str] | None:

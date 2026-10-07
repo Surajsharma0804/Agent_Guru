@@ -486,6 +486,7 @@ class IntegrationOrchestrator:
         trace_store: TurnTraceStore | None = None,
         audit_logger: AuditLogger | None = None,
         reminder_store: Path | None = None,
+        learn_facts: bool = False,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -507,6 +508,12 @@ class IntegrationOrchestrator:
         # Where reminders are kept between runs; from main.py. None keeps
         # them in memory, as tests need.
         self._reminder_store = reminder_store
+        # Learn lasting facts about the owner from conversation, after each
+        # answer (owner's choice, 2026-10-07). On from main.py only, so tests
+        # never write into the owner's memory. Tasks are kept referenced so
+        # none is collected mid-flight.
+        self._learn_facts = learn_facts
+        self._learning_tasks: set[asyncio.Task[None]] = set()
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -1152,6 +1159,7 @@ class IntegrationOrchestrator:
                         "Storing this turn in memory exceeded %.1fs - turn not persisted",
                         MEMORY_WRITE_TIMEOUT_S,
                     )
+                self._learn_from_turn(result, tts_text, fact_reply, _pipeline_mode)
 
             # Audit log
             self._log_audit(result, outcome="success", error=None)
@@ -1185,6 +1193,44 @@ class IntegrationOrchestrator:
             logger.warning("Recording this turn exceeded %.1fs - turn not recorded", TRACE_WRITE_TIMEOUT_S)
         except Exception:
             logger.warning("Could not record this turn", exc_info=True)
+
+    def _learn_from_turn(
+        self, result: PipelineResult, reply: str, fact_reply: str | None, pipeline_mode: str,
+    ) -> None:
+        """Start learning lasting facts about the owner from this exchange, in the background.
+
+        Only facts were remembered that the owner stated in a fixed form ("my
+        name is", "remember that"); "I'm training for a marathon in December"
+        was forgotten. The model reads the exchange after the reply is spoken
+        (measured: 0.56 s on gemma4, and the next answer's first words 0.13 s
+        later when the owner speaks again at once). Commands, ratings, a turn
+        already handled as a stated fact, and an unverified speaker are left
+        out.
+        """
+        if not self._learn_facts or fact_reply is not None or pipeline_mode != "full":
+            return
+        if (result.intent or "").split(":", 1)[0] not in {"", "conversation", "information"}:
+            return
+        complete = getattr(self.llm_runtime, "complete", None)
+        if complete is None or not inspect.iscoroutinefunction(complete):
+            return
+        task = asyncio.create_task(self._learn(complete, result.transcript or "", reply))
+        self._learning_tasks.add(task)
+        task.add_done_callback(self._learning_tasks.discard)
+
+    async def _learn(self, complete: Any, said: str, reply: str) -> None:
+        from Agent_Guru.platform.features.user_memory import (
+            get_user_memory,
+            learn_facts_from_exchange,
+        )
+
+        kept, quarantined = await learn_facts_from_exchange(complete, _configured_ollama_model(), said, reply)
+        if quarantined:
+            logger.warning("Facts quarantined, never recalled: %s", quarantined)
+        if kept or quarantined:
+            added = await asyncio.to_thread(get_user_memory().add_learned_facts, kept, quarantined)
+            if added:
+                logger.info("Learned about the owner: %s", kept)
 
     async def _rate_previous_answer(self, transcript: str, pipeline_mode: str) -> ActionOutcome | None:
         """Mark the last recorded answer right or wrong when that is all the user said; None otherwise.

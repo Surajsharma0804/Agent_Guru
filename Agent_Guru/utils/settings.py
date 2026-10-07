@@ -62,6 +62,7 @@ KNOWN_SETTINGS: dict[str, str] = {
     "AGENT_GURU_MESSAGE_DRAFT_TTL": "seconds",
     "AGENT_GURU_MAX_RESTARTS": "count",
     "AGENT_GURU_TRACES": "flag",
+    "AGENT_GURU_LEARN_FACTS": "flag",
     "AGENT_GURU_NO_DOWNLOAD": "flag",
     "AGENT_GURU_BROWSER_CHANNEL": "text",
     "AGENT_GURU_LOG_DIR": "path",
