@@ -1,0 +1,177 @@
+# Where each AGENT_GURU capability lives.
+#
+# Read this before implementing anything: if a capability is listed, extend
+# its implementation instead of adding another. "status: live" means a voice
+# turn uses it; "loaded" means main.py starts it but no turn calls it;
+# "unwired" means nothing in production can reach it.
+# gap_id refers to docs/architecture/REFERENCE_GAP_MATRIX.md.
+
+capabilities:
+  - id: voice-turn
+    name: Voice turn pipeline
+    category: orchestration
+    status: live
+    implementation: Agent_Guru/integration/orchestrator.py (IntegrationOrchestrator.run_pipeline)
+    owner: integration
+    tests: [Agent_Guru/integration/tests]
+    do_not_duplicate: Every stage of a spoken command runs here; add stages here, not in a second pipeline.
+
+  - id: turn-records
+    name: Turn records with stage timings
+    category: observability
+    status: live
+    gap_id: TRC-1
+    implementation: Agent_Guru/integration/turn_trace.py (TurnTraceStore); written by IntegrationOrchestrator._record_trace; created in main.py _load_trace_store
+    owner: integration
+    reuse_source: none (design informed by a reference project, see THIRD_PARTY_PROVENANCE.md)
+    dependencies: [utils/sqlite.py, utils/secure_file.py, utils/path_utils.py]
+    security: owner-only turns.db; holds transcripts and replies; AGENT_GURU_TRACES=0 disables
+    performance: 1.1 ms median per write, off the event loop, bounded by AGENT_GURU_TRACE_WRITE_TIMEOUT
+    tests: [Agent_Guru/integration/tests/test_turn_trace_store.py, Agent_Guru/integration/tests/test_turn_traces.py]
+    do_not_duplicate: Per-turn metrics (LLM tokens, first-token time, tool timings) go into a stage's detail here, not into a separate telemetry store. platform/integration/tracing.py is unwired W3C span tracing for cross-service calls, a different job.
+
+  - id: stt
+    name: Speech to text and command capture
+    category: voice
+    status: live
+    implementation: Agent_Guru/speech/stt/whisper_stt.py; Agent_Guru/speech/audio/command_capture.py
+    owner: speech
+    do_not_duplicate: One STT path; language detection in speech/stt/language_detector.py.
+
+  - id: wake-word
+    name: Wake word
+    category: voice
+    status: live
+    implementation: Agent_Guru/speech/wake_word_manager.py; Agent_Guru/speech/audio/wake_word.py
+    owner: speech
+
+  - id: tts
+    name: Streamed speech output
+    category: voice
+    status: live
+    implementation: Agent_Guru/speech/tts/streaming.py; Agent_Guru/speech/tts/tts_engine.py (Kokoro); Agent_Guru/speech/filler_response.py
+    owner: speech
+
+  - id: intent
+    name: Intent recognition
+    category: understanding
+    status: live
+    implementation: Agent_Guru/platform/intent_recognizer.py
+    owner: platform
+    do_not_duplicate: reasoning/intent/* is loaded but not called per turn.
+
+  - id: policy
+    name: Authorization of actions
+    category: security
+    status: live
+    gap_id: SEC-1
+    implementation: Agent_Guru/policy/engine.py; defaults in Agent_Guru/policy/defaults.py; destructive confirmation in Agent_Guru/platform/features/confirmation.py
+    owner: policy
+    security: fail closed on timeout; production defaults allow messaging only
+    do_not_duplicate: No allow-lists in the orchestrator; policy decides.
+
+  - id: os-actions
+    name: OS control with verified results
+    category: actions
+    status: live
+    gap_id: OS-1
+    implementation: Agent_Guru/platform/os_controller.py; Agent_Guru/platform/controllers/*
+    owner: platform
+    tests: [Agent_Guru/integration/tests/test_app_verification.py, Agent_Guru/platform/controllers/tests]
+    do_not_duplicate: Report what is observed after an action (app_instances, app_awaiting_user), never only that a call returned.
+
+  - id: messaging
+    name: WhatsApp messaging with verified delivery
+    category: actions
+    status: live
+    gap_id: CHN-1
+    implementation: Agent_Guru/platform/controllers/messaging_controller.py; Agent_Guru/platform/controllers/whatsapp_view.py
+    owner: platform
+
+  - id: llm
+    name: Answer generation
+    category: inference
+    status: live
+    gap_id: INT-1
+    implementation: Agent_Guru/llm/llm_runtime.py; Agent_Guru/llm/providers/ollama_adapter.py; options in Agent_Guru/reasoning/llm/generation.py
+    owner: llm
+    performance: gemma4 on a 4 GB GPU; prompt layout tuned for prefix reuse
+    do_not_duplicate: reasoning/llm/providers/* and llm/model_router/* are not on the live path.
+
+  - id: conversation-memory
+    name: Conversation memory recall
+    category: memory
+    status: live
+    gap_id: MEM-3
+    implementation: Agent_Guru/memory/memory_manager.py (search, RELEVANT_SIMILARITY 0.25, REDUNDANT_SIMILARITY 0.70)
+    owner: memory
+    do_not_duplicate: The 0.25 cutoff is a user decision; do not tune it.
+
+  - id: user-facts
+    name: Facts about the user
+    category: memory
+    status: live
+    gap_id: MEM-1
+    implementation: Agent_Guru/platform/features/user_memory.py
+    owner: platform
+    priority: P1 (model-based extraction planned)
+
+  - id: reminders
+    name: Reminders and timers
+    category: automation
+    status: live
+    gap_id: SCH-1
+    implementation: Agent_Guru/platform/features/reminders.py
+    owner: platform
+    priority: P1 (not persisted across restarts)
+
+  - id: audit
+    name: Per-turn audit event
+    category: security
+    status: live
+    gap_id: SEC-4
+    implementation: Agent_Guru/security/audit/logger.py, created in IntegrationOrchestrator.__init__
+    owner: security
+    priority: P1 (in-memory store; lost on exit)
+
+  - id: vision
+    name: Vision (faces, screen, visual questions)
+    category: perception
+    status: live
+    gap_id: VIS-1
+    implementation: Agent_Guru/vision/engine.py; Agent_Guru/vision/vqa.py; Agent_Guru/platform/features/screen_reader.py
+    owner: vision
+
+  - id: emotion
+    name: Emotion and personality
+    category: personality
+    status: live
+    gap_id: EMO-1
+    implementation: Agent_Guru/emotion/detector.py; Agent_Guru/avatar/*
+    owner: emotion
+
+  - id: web-search
+    name: Web search answers
+    category: research
+    status: live
+    gap_id: AGT-4
+    implementation: Agent_Guru/platform/features/web_search.py
+    owner: platform
+
+  - id: skills
+    name: Skills
+    category: extensibility
+    status: loaded
+    gap_id: SKL-1
+    implementation: Agent_Guru/reasoning/tools/skills/*
+    owner: reasoning
+    do_not_duplicate: Agent_Guru/skills/* is a second, unwired skill system; merge into reasoning/tools/skills before extending either.
+
+  - id: tool-registry
+    name: Tool registry and selection
+    category: tools
+    status: loaded
+    gap_id: TOOL-1
+    implementation: Agent_Guru/reasoning/tools/registry.py; Agent_Guru/reasoning/tools/selector.py
+    owner: reasoning
+    do_not_duplicate: The live path dispatches actions in IntegrationOrchestrator._dispatch_action; a tool loop must reuse this registry.
