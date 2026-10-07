@@ -2219,10 +2219,17 @@ class IntegrationOrchestrator:
                 f"The user's recent mood: [{mood_summary}].",
             )
         elif _turn_count == 1:
+            # This used to tell the model to greet and ask what's up on every
+            # first turn, so a first question was answered only after a
+            # sentence of small talk: measured with gemma4, the answer began
+            # 128 characters in (median of 10), spoken before the user heard
+            # what they asked for.
             lines.append(
                 "SESSION START: This is the FIRST interaction of this session. "
-                "Greet the user warmly like a friend you haven't talked to in a bit. "
-                "Ask how they're doing or what's up. Be casual and genuine.",
+                "If the user is greeting you or just chatting, greet them warmly like a friend "
+                "you haven't talked to in a bit. If they asked something or want something done, "
+                "start your reply with the answer and do not open with a greeting; "
+                "a few friendly words after the answer are fine.",
             )
         if not lines:
             return ""

@@ -57,9 +57,10 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | 5.5 | LRN-1, LRN-2, SKL-2, SKL-3 learning from turns (prompt tuning, fine-tuning) | enough turn records; the A100 plan | planned |
 | 5.6 | DSK-1, REC-1, WFL-1, TEL-2, TEL-3, SEC-6, SEC-7 remaining items | as listed in the matrix | planned |
 
-Found by the turn records (2026-10-07), to fix in its own batch: asked "what is
-two plus two" with no history, gemma4 answered with persona small talk
-("Yo! What's up, man?") instead of the answer, twice in a row.
+Found by the turn records (2026-10-07) and fixed: the first-turn note told
+the model to greet and ask what's up whatever was said, so a first question
+was answered after a sentence of small talk (answer at character 128,
+median of 10 with gemma4); now 42, and greetings are still greeted.
 
 Outside this roadmap and pending from earlier work: the production policy
 still refuses app open and close although both are implemented and

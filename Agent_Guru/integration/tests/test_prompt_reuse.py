@@ -202,3 +202,15 @@ async def test_a_factual_follow_up_keeps_the_system_prompt(session):
     _, second = await session.turn("And roughly how many people live there?")
     assert second[0].content == first[0].content  # nosec B101
     assert "EMOTION DETECTED" not in second[0].content  # nosec B101
+
+
+async def test_a_first_question_is_answered_before_any_small_talk(session):
+    # The first-turn note told the model to greet and ask what's up whatever
+    # the user said. With gemma4 a first question's answer began 128
+    # characters into the reply (median of 10), after a sentence of small
+    # talk; with this wording, 42.
+    _, first = await session.turn("What is the capital of Japan?")
+    note = first[-1].content.rsplit("\n", 1)[0]
+    assert "Ask how they're doing" not in note  # nosec B101
+    assert "start your reply with the answer" in note  # nosec B101
+    assert "If the user is greeting you" in note  # nosec B101  a greeting still gets one back
