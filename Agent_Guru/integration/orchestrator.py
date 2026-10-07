@@ -983,22 +983,41 @@ class IntegrationOrchestrator:
                     result.intent = None
             result.stages_completed = 5
 
+            # Facts the owner states about themselves ("I live in Pune",
+            # "remember that ...") are read from what was said, before the
+            # policy check. They were read inside the action stage from the
+            # intent string: such sentences are a plain "conversation" with
+            # no text, so the word "conversation" was searched and nothing
+            # was ever stored, and the production policy (messaging only)
+            # never let that stage run anyway. Like rating an answer, this
+            # changes only the assistant's own records, for the verified
+            # owner only. Commands are left alone: "send a message to John
+            # saying my name is Ravi" is dictation, not a fact about the owner.
+            intent_type = (result.intent or "").split(":", 1)[0]
+            fact_reply = None
+            if intent_type in {"", "conversation", "information"}:
+                with _timed(result, "user_facts"):
+                    fact_reply = await self._handle_user_memory(result.transcript or "", _pipeline_mode, intent_type)
+            if fact_reply is not None:
+                result.action_result, result.action_status = fact_reply, ActionStatus.SUCCESS
+
             # Stage 6: Policy check
-            with _timed(result, "policy"):
-                try:
-                    result.policy_allowed = await asyncio.wait_for(
-                        self._stage_policy(result.intent), timeout=POLICY_TIMEOUT_S,
-                    )
-                except TimeoutError:
-                    # FAIL CLOSED. A policy check that did not complete has not
-                    # granted anything; treating "slow" as "allowed" would turn a
-                    # hung policy engine into an authorization bypass.
-                    logger.warning(
-                        "Policy stage exceeded %.1fs - denying the action (fail closed)",
-                        POLICY_TIMEOUT_S,
-                    )
-                    result.policy_allowed = False
-                    result.error = f"policy_timeout after {POLICY_TIMEOUT_S:.1f}s"
+            if fact_reply is None:
+                with _timed(result, "policy"):
+                    try:
+                        result.policy_allowed = await asyncio.wait_for(
+                            self._stage_policy(result.intent), timeout=POLICY_TIMEOUT_S,
+                        )
+                    except TimeoutError:
+                        # FAIL CLOSED. A policy check that did not complete has not
+                        # granted anything; treating "slow" as "allowed" would turn a
+                        # hung policy engine into an authorization bypass.
+                        logger.warning(
+                            "Policy stage exceeded %.1fs - denying the action (fail closed)",
+                            POLICY_TIMEOUT_S,
+                        )
+                        result.policy_allowed = False
+                        result.error = f"policy_timeout after {POLICY_TIMEOUT_S:.1f}s"
             result.stages_completed = 6
 
             # Stage 7: Action execution.
@@ -1010,7 +1029,9 @@ class IntegrationOrchestrator:
             # which is worse than waiting. Individual tools are responsible for
             # bounding their own work (see reasoning/tools/system/_command.py,
             # which caps every subprocess it runs).
-            if result.policy_allowed:
+            if fact_reply is not None:
+                pass  # acknowledged above; there is no action to authorize
+            elif result.policy_allowed:
                 with _timed(result, "action"):
                     outcome = await self._stage_action(
                         result.intent, pipeline_mode=result.pipeline_mode,
@@ -2907,11 +2928,6 @@ class IntegrationOrchestrator:
         )
         if is_screen_read_command(raw_text):
             return await answer_screen_question(raw_text, self.platform_controller)
-
-        # User memory extraction
-        result = await self._handle_user_memory(raw_text, pipeline_mode, intent_type)
-        if result is not None:
-            return result
 
         # Presentation generation (e.g. "make a presentation from notes.txt")
         result = await self._handle_presentation_request(raw_text)
