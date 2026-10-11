@@ -117,6 +117,16 @@ capabilities:
     owner: integration
     do_not_duplicate: Every MCP call goes through MCPToolbox.call; the tool loop (4.2) must use it, not the connection directly.
 
+  - id: research
+    name: Research with cited sources
+    category: tools
+    status: live
+    gap_id: AGT-4
+    implementation: Agent_Guru/integration/research.py (ResearchTools, check_answer); Agent_Guru/platform/features/web_search.py (search_sources); Agent_Guru/platform/features/web_fetch.py (fetch_page)
+    owner: integration
+    evaluation: scripts/research_eval.py
+    do_not_duplicate: Research tools are an in-process server in MCPToolbox; every URL fetch goes through web_fetch.fetch_page and its destination checks.
+
   - id: tool-loop
     name: Answers that use tools
     category: tools

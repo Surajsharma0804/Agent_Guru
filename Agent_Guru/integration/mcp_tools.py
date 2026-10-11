@@ -128,6 +128,47 @@ class ServerConfig:
     max_message_bytes: int = DEFAULT_MAX_MESSAGE_BYTES
     enabled: bool = True
     tools: dict[str, ToolRule] = field(default_factory=dict)
+    #: Tools served inside this process instead of by a program (the
+    #: assistant's own research tools): an object with tool_list() and
+    #: async call(name, arguments) -> (text, is_error). When set, command
+    #: is not run, and the tools pass the same checks as any server's.
+    local: Any = None
+
+
+class LocalConnection:
+    """MCPConnection's interface for tools served inside this process.
+
+    Answers tools/list and tools/call from the provider directly, so a
+    local tool is listed, allowed, checked, guarded and audited exactly as
+    a tool on an MCP server is: it differs only in where it runs.
+    """
+
+    def __init__(self, name: str, provider: Any) -> None:
+        self.name = name
+        self._provider = provider
+        self.running = False
+        self.stderr_tail: list[str] = []
+        self.pid = None
+
+    async def start(self, timeout: float) -> dict[str, Any]:
+        self.running = True
+        return {"serverInfo": {"name": self.name, "version": "local"}}
+
+    async def request(self, method: str, params: dict[str, Any] | None, *, timeout: float) -> Any:
+        if not self.running:
+            raise ServerUnavailable(f"{self.name} is not running")
+        if method == "tools/list":
+            return {"tools": self._provider.tool_list()}
+        if method == "tools/call":
+            params = params or {}
+            text, is_error = await asyncio.wait_for(
+                self._provider.call(params.get("name"), params.get("arguments") or {}), timeout,
+            )
+            return {"content": [{"type": "text", "text": text}], "isError": bool(is_error)}
+        raise RemoteError(-32601, f"{method} is not supported")
+
+    async def close(self) -> None:
+        self.running = False
 
 
 def _seconds(value: Any, default: float, where: str) -> float:
@@ -390,7 +431,7 @@ class _Server:
             if self.connection is not None:
                 await self.connection.close()
             config = self.config
-            connection = MCPConnection(
+            connection: Any = LocalConnection(config.name, config.local) if config.local is not None else MCPConnection(
                 config.name, config.command, config.args,
                 env=config.env, max_message_bytes=config.max_message_bytes,
             )

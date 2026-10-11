@@ -156,6 +156,16 @@ CORRECTION = (
     "called, so nothing was done. Call the tool that does it, or tell the owner you can't."
 )
 
+#: A reply saying it looked something up ("According to Wikipedia",
+#: "I looked it up"): with no tool called in the turn, nothing was looked
+#: up, and the facts after it are the model's own.
+_CLAIMED_LOOKUP = re.compile(
+    r"\baccording to (?:wikipedia|my (?:search|sources|research)|the (?:search|web|sources?|internet))\b"
+    r"|\bI (?:just )?(?:searched|looked (?:it )?up|checked (?:online|the web)|found (?:online|on the web))\b"
+    r"|\bmy (?:search|research) (?:shows|says|found)\b",
+    re.IGNORECASE,
+)
+
 #: Given to the model when it promised to look something up and did not.
 LOOKUP_CORRECTION = (
     "Correction from the assistant's own checks: your last reply said you would look something up, but no "
@@ -175,8 +185,8 @@ def claims_action(text: str) -> bool:
 
 
 def promises_lookup(text: str) -> bool:
-    """True if *text* says the assistant is about to look something up."""
-    return bool(_PROMISED_LOOKUP.search(text))
+    """True if *text* says the assistant is about to look something up, or that it already did."""
+    return bool(_PROMISED_LOOKUP.search(text) or _CLAIMED_LOOKUP.search(text))
 
 
 @dataclass(slots=True)
@@ -297,6 +307,13 @@ class ToolLoop:
         self._output_chars = 0
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
 
+    def note_check(self, checked: Any) -> None:
+        """Record what holding the answer to its sources removed or could not match."""
+        self._stage("sources_check", time.time(), {
+            "cited": [s.id for s in checked.cited], "unknown_ids": checked.unknown_ids,
+            "removed_urls": checked.removed_urls[:5], "unmatched": len(checked.unmatched),
+        }, seconds=0.0)
+
     def record_into(self, stages: list[StageTiming] | None) -> None:
         """Record later steps and calls into *stages* (a confirmed call belongs to the turn that confirmed it)."""
         self._stages = stages
@@ -331,6 +348,22 @@ class ToolLoop:
             or self._tool_seconds >= b.max_tool_seconds
             or self._output_chars >= b.max_output_chars
         )
+
+    def offers(self, name: str) -> bool:
+        return name in self._tools
+
+    async def prefetch(self, messages: list[Message], call: ToolCall) -> None:
+        """Run *call* before the model's first step, as if the model had asked for it.
+
+        For lookups the turn needs whatever the model would decide: it goes
+        through the same checks, budget and records as a call the model
+        makes, and the model then answers from its result.
+        """
+        if call.name not in self._tools:
+            return
+        messages.append(Message(role="assistant", content="", tool_calls=[call]))
+        messages.append(Message(role="tool", name=call.name, content=await self._run_call(call)))
+        self._stage("tool_prefetch", time.time(), {"name": call.name}, seconds=0.0)
 
     async def run(
         self,

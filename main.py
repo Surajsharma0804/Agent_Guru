@@ -413,6 +413,20 @@ async def run() -> None:
     trace_store = _load_trace_store()
     audit_logger = _load_audit_logger()
     document_store = _load_document_store()
+    # The assistant's own research tools (web, documents, memory), served
+    # in process through the same toolbox and policy as MCP servers. Off
+    # with AGENT_GURU_RESEARCH=0.
+    if os.environ.get("AGENT_GURU_RESEARCH", "1").strip().lower() not in {"0", "false", "no", "off"}:
+        try:
+            from Agent_Guru.integration.mcp_tools import install_mcp_policies
+            from Agent_Guru.integration.research import ResearchTools, research_server
+
+            research = research_server()
+            research.local = ResearchTools(documents=document_store, memory=memory)
+            mcp_servers = [*mcp_servers, research]
+            install_mcp_policies(policy, [research])
+        except Exception as e:
+            logger.warning("Research tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.

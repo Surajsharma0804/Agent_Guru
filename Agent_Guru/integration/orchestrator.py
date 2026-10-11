@@ -304,6 +304,9 @@ class PipelineResult:
     awaiting_reply: bool = False
     action_status: ActionStatus | None = None
     # (stage name, wall-clock start, seconds) in the order the stages ran.
+    # Sources the turn's research tools returned, as cited in the answer:
+    # id, kind, title, url and how much of each was read.
+    sources: list[dict[str, Any]] = field(default_factory=list)
     # Nothing measured a stage before: only wake-to-first-speech, and only
     # on two shortcut paths, so "which stage was slow" had no answer.
     stage_timings: list[tuple[str, float, float]] = field(default_factory=list)
@@ -1372,6 +1375,7 @@ class IntegrationOrchestrator:
                 "first_audio_s": getattr(tts, "first_audio_s", None),
                 "audio_seconds": getattr(tts, "audio_seconds", None),
                 "speech_error": speech_error if isinstance(speech_error, str) else None,
+                "sources": result.sources,
             },
         )
 
@@ -1885,8 +1889,14 @@ class IntegrationOrchestrator:
         language_code: str,
         personality: Personality | None,
         intent: str | None,
+        *,
+        web_context: bool = True,
     ) -> tuple[Any, bool] | None:
         """The LLM request for this turn and whether it rewrites the clipboard; None if nothing to ask.
+
+        web_context=False leaves out the web search snippet: a tool turn that
+        researches the question gets the same results as numbered sources
+        instead.
 
         Shared by the whole answer (_llm_complete) and the answer spoken as it
         is written (_speak_llm_reply), so both ask the model the same thing.
@@ -1902,9 +1912,9 @@ class IntegrationOrchestrator:
         emotion_hint = self._detect_emotion(transcript)
 
         # Web search enrichment
-        web_context = await self._fetch_web_context(transcript, intent)
-        if web_context:
-            prompt = prompt + web_context
+        web_snippet = await self._fetch_web_context(transcript, intent) if web_context else ""
+        if web_snippet:
+            prompt = prompt + web_snippet
         document_context = await self._fetch_document_context(transcript, intent)
         if document_context:
             prompt = prompt + document_context
@@ -4105,9 +4115,20 @@ class IntegrationOrchestrator:
         if not tools:
             self._start_tools()  # a server that stopped is started again for a later turn
             return False, None
+        # A question the intent rules say needs live data (an office holder,
+        # a price, the news) is researched before the model's first step:
+        # gemma4 offered the research tools answered "who is the current
+        # prime minister" from memory in every run, without a source. The
+        # search runs through the loop like a call the model made.
+        from Agent_Guru.llm.models import ToolCall
+
+        research_call = ToolCall(name="guru__web_research", arguments={"query": (result.transcript or "")[:300]})
+        prefetch = self._intent_needs_web(result.intent, result.transcript or "") and any(
+            f"{t.server}__{t.name}" == research_call.name for t in tools
+        )
         built = await self._build_llm_request(
             result.transcript or "", result.memory_context, result.detected_language,
-            result.personality, result.intent,
+            result.personality, result.intent, web_context=not prefetch,
         )
         if built is None:
             return False, None
@@ -4121,7 +4142,7 @@ class IntegrationOrchestrator:
         messages = list(request.messages)
         messages[0] = dataclasses.replace(messages[0], content=f"{messages[0].content}\n\n{tool_loop.TOOL_GUIDANCE}")
         self._fit_tool_prompt(messages, loop)
-        return await self._run_tool_loop(result, request, loop, messages, None)
+        return await self._run_tool_loop(result, request, loop, messages, None, prefetch=research_call if prefetch else None)
 
     def _fit_tool_prompt(self, messages: list[Any], loop: ToolLoop) -> None:
         """Drop the oldest history until the prompt, the tools and their output fit the context window.
@@ -4142,11 +4163,17 @@ class IntegrationOrchestrator:
 
     async def _run_tool_loop(
         self, result: PipelineResult, request: Any, loop: ToolLoop, messages: list[Any], pending: Any,
+        *, prefetch: Any = None,
     ) -> tuple[bool, Any]:
         """Run (or, with *pending*, resume) the tool loop and put its answer in *result*."""
+        from Agent_Guru.integration import research
+
         spoken: list[Any] = []
         step = self._tool_model_step(result, request, spoken, loop)
+        register, token = research.begin_turn()
         try:
+            if prefetch is not None:
+                await loop.prefetch(messages, prefetch)
             if pending is None:
                 outcome = await loop.run(messages, step)
             else:
@@ -4158,6 +4185,23 @@ class IntegrationOrchestrator:
             outcome = loop.outcome
             outcome.stop_reason = "error"
             outcome.answer = "Sorry, I couldn't finish that."
+        finally:
+            research.end_turn(token)
+        checked = None
+        if register.sources and outcome.model_answer and outcome.answer:
+            # Held to what the turn's tools actually returned: unknown ids
+            # and URLs removed, unmatched numbers noted, sources listed.
+            checked = research.check_answer(outcome.answer, register)
+            outcome.answer = checked.text if not spoken else checked.spoken
+            result.sources = [
+                {"id": s.id, "kind": s.kind, "title": s.title, "url": s.url, "read": s.read} for s in checked.cited
+            ]
+            if checked.unknown_ids or checked.removed_urls or checked.unmatched:
+                logger.warning(
+                    "Answer held to its sources: unknown ids %s, URLs removed %s, unmatched sentences %d",
+                    checked.unknown_ids, checked.removed_urls, len(checked.unmatched),
+                )
+                loop.note_check(checked)
         if outcome.pending is not None:
             self._tool_pending = {
                 "pending": outcome.pending, "loop": loop, "messages": messages, "request": request,
@@ -4184,8 +4228,10 @@ class IntegrationOrchestrator:
         result.llm_response = " ".join(t for t in (answer, extra) if t)
         tts = spoken[-1]
         # What the model did not say itself as it wrote: the loop's own
-        # answer (NOT_DONE, an error) and the notes on unconfirmed changes.
-        unsaid = " ".join(t for t in ("" if outcome.model_answer else answer, extra) if t)
+        # answer (NOT_DONE, an error), the notes on unconfirmed changes, and
+        # the sources check's note when a detail did not match.
+        mismatch = " I couldn't match every detail of that to my sources." if checked and checked.unmatched else ""
+        unsaid = " ".join(t for t in ("" if outcome.model_answer else answer, extra + mismatch) if t)
         if unsaid:
             tts = await self._stage_tts(unsaid, result.personality) or tts
         return True, tts
@@ -4198,6 +4244,7 @@ class IntegrationOrchestrator:
         not spoken (the loop then corrects the model), and the rest of the
         step is read but not spoken, so its tool calls are still seen.
         """
+        from Agent_Guru.integration.research import strip_citations
         from Agent_Guru.integration.tool_loop import ModelStep
         from Agent_Guru.speech.tts.streaming import stream_sentences
 
@@ -4227,7 +4274,10 @@ class IntegrationOrchestrator:
                     if withheld or loop.claims_unbacked(sentence):
                         withheld = True
                         continue
-                    yield sentence + " "
+                    # Source ids and URLs are for the screen, not for speech.
+                    said = strip_citations(sentence).strip()
+                    if said:
+                        yield said + " "
 
             played = await self._speak_streaming(tts_fn, checked(), result.personality, text_timeout_s=LLM_TIMEOUT_S)
             if getattr(played, "spoken", 0):
