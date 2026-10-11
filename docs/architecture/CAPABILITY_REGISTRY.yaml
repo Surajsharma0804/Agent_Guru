@@ -117,6 +117,15 @@ capabilities:
     owner: integration
     do_not_duplicate: Every MCP call goes through MCPToolbox.call; the tool loop (4.2) must use it, not the connection directly.
 
+  - id: scheduled-tasks
+    name: Scheduled checks and actions
+    category: automation
+    status: live
+    gap_id: SCH-2
+    implementation: Agent_Guru/platform/features/reminders.py (ReminderManager checks and actions); Agent_Guru/integration/task_tools.py (list, schedule, cancel through the tool loop)
+    owner: platform
+    do_not_duplicate: One scheduler - reminders, checks and actions share ReminderManager and its store; tool calls go through MCPToolbox.call.
+
   - id: research
     name: Research with cited sources
     category: tools

@@ -112,6 +112,8 @@ class EventType(str, Enum):
     POLICY_ALLOWED = "policy_allowed"
     #: A call to a tool on an external (MCP) server, allowed or not.
     EXTERNAL_TOOL_CALL = "external_tool_call"
+    #: One run of a scheduled check or action, or what became of it.
+    SCHEDULED_TASK_RUN = "scheduled_task_run"
 
 
 @dataclass

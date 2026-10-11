@@ -3212,7 +3212,31 @@ class IntegrationOrchestrator:
                     except Exception as _e:
                         logger.exception("Reminder TTS failed")
                 self._reminder_mgr.set_speak_callback(_speak_reminder)
+            # Checks and actions call tools the one way any tool is called,
+            # so the policy is asked again at the moment each one runs.
+            self._reminder_mgr.set_tool_runner(self._run_scheduled_tool)
+            self._reminder_mgr.set_audit(self._audit_scheduled_run)
         return self._reminder_mgr
+
+    async def _run_scheduled_tool(self, server: str, tool: str, arguments: dict[str, Any]) -> Any:
+        """A scheduled check's or action's tool call, through MCPToolbox.call."""
+        if self._toolbox is None:
+            from Agent_Guru.integration.mcp_tools import ToolCallResult
+
+            return ToolCallResult(server=server, tool=tool, status=ActionStatus.FAILED, category="unavailable",
+                                  error="no tools are configured")
+        return await self._toolbox.call(server, tool, arguments)
+
+    def _audit_scheduled_run(self, task_id: str, status: str, details: dict[str, Any]) -> None:
+        self._audit_logger.log_event(
+            event_type=EventType.SCHEDULED_TASK_RUN, actor_id="scheduler", target_id=task_id,
+            outcome=status, details=details,
+        )
+
+    def close_scheduler(self) -> None:
+        """Stop scheduled tasks and release the store's lock; called by main.py at shutdown."""
+        if self._reminder_mgr is not None:
+            self._reminder_mgr.close()
 
     async def _handle_user_memory(
         self, raw_text: str, pipeline_mode: str, intent_type: str = "",

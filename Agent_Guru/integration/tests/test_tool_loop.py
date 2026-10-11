@@ -353,6 +353,8 @@ def test_claims_of_a_change_are_recognised_in_english_and_hinglish(text, claim):
 @pytest.mark.parametrize(("text", "promise"), [
     ("Let me check the weather for London for you.", True),
     ("Lemme look that up", True),
+    ("I'm gonna schedule a check for the weather in Delhi every 60 minutes.", True),
+    ("I can add that if you want", False),
     ("I can check if you tell me the city", False),
     ("You should check your email", False),
 ])

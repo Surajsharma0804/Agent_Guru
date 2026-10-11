@@ -161,10 +161,14 @@ class LocalConnection:
             return {"tools": self._provider.tool_list()}
         if method == "tools/call":
             params = params or {}
-            text, is_error = await asyncio.wait_for(
+            answer = await asyncio.wait_for(
                 self._provider.call(params.get("name"), params.get("arguments") or {}), timeout,
             )
-            return {"content": [{"type": "text", "text": text}], "isError": bool(is_error)}
+            text, is_error = answer[0], answer[1]
+            # A third value, True, says the provider read back the change it
+            # made (the scheduler finding the task it just stored).
+            verified = len(answer) > 2 and answer[2] is True
+            return {"content": [{"type": "text", "text": text}], "isError": bool(is_error), "verified": verified}
         raise RemoteError(-32601, f"{method} is not supported")
 
     async def close(self) -> None:
@@ -689,7 +693,11 @@ class MCPToolbox:
         if isinstance(raw, dict) and raw.get("isError") is True:
             result.status, result.category = ActionStatus.FAILED, "tool_error"
             result.error = guarded[:300] or "the tool reported an error"
-        elif changes_things:
+        elif changes_things and not (
+            entry.config.local is not None and isinstance(raw, dict) and raw.get("verified") is True
+        ):
+            # A server's word is not proof; only an in-process tool that read
+            # back its own change (see LocalConnection) is taken as done.
             result.status = ActionStatus.UNVERIFIED
         else:
             result.status = ActionStatus.SUCCESS
@@ -731,6 +739,29 @@ class MCPToolbox:
             )
         except Exception:
             logger.exception("Audit log of MCP call %s failed", result.request_id)
+
+    async def precheck(self, server: str, tool: str, arguments: Any) -> list[str]:
+        """Problems an in-process tool finds with a call before it is made; [] for MCP servers.
+
+        Runs nothing. The tool loop asks before reading a call back to the
+        owner, so a call that could only fail is not offered for a yes.
+        """
+        entry = self._servers.get(server)
+        check = getattr(getattr(entry, "config", None), "local", None)
+        check = getattr(check, "precheck", None)
+        if check is None:
+            return []
+        try:
+            return list(await check(tool, arguments))
+        except Exception as exc:
+            return [f"{type(exc).__name__}: {exc}"[:200]]
+
+    def missing_target(self, server: str, tool: str, arguments: Any) -> str | None:
+        """For an in-process tool that runs another tool: that tool's offered name when its arguments are missing."""
+        entry = self._servers.get(server)
+        provider = getattr(getattr(entry, "config", None), "local", None)
+        ask = getattr(provider, "missing_target", None)
+        return ask(tool, arguments) if ask is not None else None
 
     async def close(self) -> None:
         """End every server this toolbox started."""

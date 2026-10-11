@@ -30,6 +30,7 @@ is written) and the text turn (collected) run this same loop.
 
 from __future__ import annotations
 
+import contextvars
 import copy
 import json
 import logging
@@ -49,6 +50,13 @@ if TYPE_CHECKING:
     from Agent_Guru.integration.mcp_tools import ExternalTool, MCPToolbox
 
 logger = logging.getLogger(__name__)
+
+
+#: The calls this turn's loop has run, as (server, tool, arguments, status):
+#: what a tool such as schedule_check can repeat ("the call you just made").
+CALLS_THIS_TURN: contextvars.ContextVar[list[tuple[str, str, Any, ActionStatus]] | None] = contextvars.ContextVar(
+    "agent_guru_calls_this_turn", default=None,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +153,14 @@ _CLAIMED_ACTION = re.compile(
 #: evaluation turns that way, the answer never coming.
 _PROMISED_LOOKUP = re.compile(
     r"\b(?:let me|lemme|i'?ll|i will|i'?m (?:gonna|going to)|gonna)\s+"
-    r"(?:just\s+|quickly\s+)?(?:check|look|find|search|pull|see if|get)\b"
+    r"(?:just\s+|quickly\s+|go ahead and\s+)?"
+    # Doing something counts as well as looking it up: gemma4 answered
+    # "keep an eye on the Delhi weather every hour" with "I'm gonna schedule
+    # a check ... every 60 minutes" and scheduled nothing.
+    r"(?:check|look|find|search|pull|see if|get|schedule|set (?:up|it up|that up)|add|create|remind|save|book"
+    # And retrying after a refused call: told "city is required", gemma4
+    # answered "I'll fix it. Let me try that again" and called nothing.
+    r"|try (?:that |it |this )?again|retry|fix (?:it|that|this))\b"
     r"|\bhold on\b|\bone sec\b|\bchecking (?:that|the|it|your)\b",
     re.IGNORECASE,
 )
@@ -168,8 +183,15 @@ _CLAIMED_LOOKUP = re.compile(
 
 #: Given to the model when it promised to look something up and did not.
 LOOKUP_CORRECTION = (
-    "Correction from the assistant's own checks: your last reply said you would look something up, but no "
-    "tool was called. Call the tool now if one of the listed tools can answer, or answer without it."
+    "Correction from the assistant's own checks: your last reply said you would look something up or do "
+    "something, but no tool was called. Call the tool now if one of the listed tools can do it, or tell the "
+    "owner plainly what you can and cannot do."
+)
+
+#: Given to the model when its only call was refused for its arguments.
+ARGUMENT_CORRECTION = (
+    "Correction from the assistant's own checks: your tool call was refused before it ran ({error}). "
+    "Call it again with the arguments corrected, or tell the owner plainly what you need from them."
 )
 
 #: Given to the model when tools ran but it wrote no answer.
@@ -303,6 +325,7 @@ class ToolLoop:
         for tool in tools[: self.budget.max_tools]:
             self._tools[f"{tool.server}__{tool.name}"] = tool
         self._seen: dict[str, ToolCallResult] = {}
+        self.made: list[tuple[str, str, Any, ActionStatus]] = []
         self._tool_seconds = 0.0
         self._output_chars = 0
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
@@ -361,6 +384,7 @@ class ToolLoop:
         """
         if call.name not in self._tools:
             return
+        CALLS_THIS_TURN.set(self.made)
         messages.append(Message(role="assistant", content="", tool_calls=[call]))
         messages.append(Message(role="tool", name=call.name, content=await self._run_call(call)))
         self._stage("tool_prefetch", time.time(), {"name": call.name}, seconds=0.0)
@@ -371,6 +395,7 @@ class ToolLoop:
         model_step: Callable[[list[Message], list[FunctionDefinition] | None], Awaitable[ModelStep]],
     ) -> ToolLoopOutcome:
         """Ask the model, run what it asks for, until it answers or the budget ends; CancelledError propagates."""
+        CALLS_THIS_TURN.set(self.made)
         outcome = self.outcome
         functions = self.functions()
         while True:
@@ -396,11 +421,27 @@ class ToolLoop:
                 outcome.answer, outcome.model_answer, outcome.stop_reason = NOT_DONE, False, "unbacked_claim"
                 return self._finish()
             if not step.tool_calls and not last and not outcome.corrected:
-                if not outcome.calls and promises_lookup(step.text):
+                # Nothing has run yet, or only calls that were refused: a
+                # promise to do it is still unkept.
+                ran_ok = any(c.status in {ActionStatus.SUCCESS, ActionStatus.UNVERIFIED} for c in outcome.calls)
+                if not ran_ok and promises_lookup(step.text):
                     outcome.corrected = True
                     messages.append(Message(role="assistant", content=step.text))
                     messages.append(Message(role="system", content=LOOKUP_CORRECTION))
                     self._stage("tool_lookup_corrected", started, {"step": outcome.steps}, seconds=0.0)
+                    continue
+                refused = [c for c in outcome.calls if c.category == "bad_arguments"]
+                # A reply that asks the owner for what is missing ("Which
+                # city?") is the right answer, not a retry to force.
+                if not ran_ok and refused and not step.text.strip().endswith("?"):
+                    # One more step to correct the arguments, whatever the
+                    # reply said: told "city is required", gemma4 corrected
+                    # the call when given the step (1 of 1) and otherwise
+                    # answered "I'll fix it" and stopped (5 of 6).
+                    outcome.corrected = True
+                    messages.append(Message(role="assistant", content=step.text))
+                    messages.append(Message(role="system", content=ARGUMENT_CORRECTION.format(error=refused[-1].error)))
+                    self._stage("tool_arguments_corrected", started, {"step": outcome.steps}, seconds=0.0)
                     continue
                 if outcome.calls and not step.text.strip():
                     # Tools ran and the model wrote nothing: its reply fell
@@ -422,7 +463,25 @@ class ToolLoop:
             ran: list[ToolCall] = []
             asked = Message(role="assistant", content=step.text, tool_calls=ran)
             messages.append(asked)
-            for call in step.tool_calls:
+            for original in step.tool_calls:
+                call = original
+                problems = self._argument_problems(call) or await self._precheck(call)
+                if problems:
+                    call, problems = await self._fill_target(call, problems, messages, model_step)
+                if problems:
+                    # Checked before the owner is asked: a call that cannot
+                    # run was read back for a yes ("Should I run
+                    # schedule_check with {"arguments": {}}?") and would only
+                    # have failed after it. The model gets the problem and
+                    # can correct the call.
+                    ran.append(call)
+                    refused = ToolCallResult(
+                        server=self._tools[call.name].server, tool=self._tools[call.name].name,
+                        status=ActionStatus.FAILED, category="bad_arguments", error="; ".join(problems[:5]),
+                    )
+                    self.outcome.calls.append(refused)
+                    messages.append(Message(role="tool", name=call.name, content=self._tool_message(refused, call.name)))
+                    continue
                 pending = self._needs_confirmation(call)
                 if pending is not None:
                     # The calls after this one are not run; the message keeps
@@ -452,6 +511,54 @@ class ToolLoop:
         messages.append(Message(role="assistant", content="", tool_calls=[call]))
         messages.append(Message(role="tool", name=call.name, content=await self._run_call(call, confirmed=True)))
         return await self.run(messages, model_step)
+
+    async def _fill_target(
+        self, call: ToolCall, problems: list[str], messages: list[Message],
+        model_step: Callable[[list[Message], list[FunctionDefinition] | None], Awaitable[ModelStep]],
+    ) -> tuple[ToolCall, list[str]]:
+        """Fill in the arguments of the tool a scheduling call names, with one focused model step.
+
+        gemma4 named the tool to repeat ("eval__get_weather") but left out
+        its arguments in 6 of 6 runs, and did not correct the call when told
+        "city is required"; offered only that tool and asked to call it, it
+        gave {"city": "Delhi"}. The step is one of the turn's steps, and its
+        call is not run: only its arguments are taken, and checked again.
+        """
+        tool = self._tools.get(call.name)
+        if tool is None or not isinstance(call.arguments, dict) or self.outcome.steps >= self.budget.max_steps:
+            return call, problems
+        target = self._toolbox.missing_target(tool.server, tool.name, call.arguments)
+        if target not in self._tools:
+            return call, problems
+        definition = next(f for f in self.functions() if f.name == target)
+        ask = [*messages, Message(role="system", content=(
+            f"To schedule it, call {target} now with the arguments the owner's request gives. Only that call."))]
+        self.outcome.steps += 1
+        step = await model_step(ask, [definition])
+        found = next((c for c in step.tool_calls if c.name == target and isinstance(c.arguments, dict)), None)
+        self._stage("tool_arguments_filled", time.time(), {"target": target, "filled": found is not None}, seconds=0.0)
+        if found is None:
+            return call, problems
+        filled = ToolCall(name=call.name, arguments={**call.arguments, **found.arguments, "tool": target})
+        return filled, self._argument_problems(filled) or await self._precheck(filled)
+
+    async def _precheck(self, call: ToolCall) -> list[str]:
+        tool = self._tools.get(call.name)
+        if tool is None or tool.risk is ToolRisk.READ_ONLY:
+            return []
+        return await self._toolbox.precheck(tool.server, tool.name, call.arguments)
+
+    def _argument_problems(self, call: ToolCall) -> list[str]:
+        """What is wrong with an offered tool's arguments, by its schema; [] if nothing or not offered."""
+        from Agent_Guru.reasoning.tools.mcp_schema import validate
+
+        tool = self._tools.get(call.name)
+        if tool is None:
+            return []
+        if not isinstance(call.arguments, dict):
+            return ["arguments must be an object"]
+        schema = {**tool.input_schema, "additionalProperties": tool.input_schema.get("additionalProperties", False)}
+        return validate(call.arguments, schema)
 
     def _needs_confirmation(self, call: ToolCall) -> PendingCall | None:
         tool = self._tools.get(call.name)
@@ -512,6 +619,7 @@ class ToolLoop:
             self.outcome.calls.append(refused)
             return self._tool_message(refused, call.name)
         result = await self._toolbox.call(tool.server, tool.name, call.arguments, stages=self._stages)
+        self.made.append((tool.server, tool.name, call.arguments, result.status))
         self._seen[key] = result
         self.outcome.calls.append(result)
         self._tool_seconds += result.seconds

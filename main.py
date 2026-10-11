@@ -427,6 +427,20 @@ async def run() -> None:
             install_mcp_policies(policy, [research])
         except Exception as e:
             logger.warning("Research tools unavailable (%s)", e)
+    # Scheduling checks and actions from a conversation; the scheduler is
+    # the reminder manager. Bound to the orchestrator once it exists.
+    task_tools = None
+    try:
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+        from Agent_Guru.integration.task_tools import TaskTools, tasks_server
+
+        task_tools = TaskTools()
+        tasks = tasks_server()
+        tasks.local = task_tools
+        mcp_servers = [*mcp_servers, tasks]
+        install_mcp_policies(policy, [tasks])
+    except Exception as e:
+        logger.warning("Task tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
@@ -454,6 +468,8 @@ async def run() -> None:
         document_store=document_store,
         mcp_servers=mcp_servers,
     )
+    if task_tools is not None:
+        task_tools.bind(orch)
 
     # --- Concurrent startup of all subsystems ---
     logger.info("Starting all subsystems concurrently...")
@@ -712,6 +728,11 @@ async def run() -> None:
         await orch.close_tools()
     except Exception as e:
         logger.warning("Closing MCP servers failed: %s", e)
+    # Scheduled tasks stop and the store's lock is let go, for the next start.
+    try:
+        orch.close_scheduler()
+    except Exception as e:
+        logger.warning("Stopping scheduled tasks failed: %s", e)
 
     # Guard against IntegrationOrchestrator versions without sleep()
     if hasattr(orch, "sleep") and callable(orch.sleep):
