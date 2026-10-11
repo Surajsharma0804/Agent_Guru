@@ -96,9 +96,33 @@ could not.
 - Live: `@modelcontextprotocol/server-everything@2026.8.31` through npx,
   in a scratch data folder. Not a dependency of AGENT_GURU.
 
-## Not in this batch
+## The tool loop (batch 4.2)
 
-- Voice turns using MCP tools (4.2). The assistant does not load the MCP
-  code until then.
+The reference project's agents (`agents/native_react.py`) run a model,
+execute whatever tools it names through a tool executor, and stop on a
+step limit; a loop guard (`agents/loop_guard.py`) catches repeats.
+AGENT_GURU's loop (`integration/tool_loop.py`) differs where it matters for
+an assistant that speaks and acts for its owner:
+
+- The model sees only tools that could run now, described as external and
+  with their descriptions passed through the injection guard.
+- Every call goes through MCPToolbox.call; a tool not offered is refused.
+- A tool that changes things runs only after the owner says yes on the
+  next turn; nothing in a tool's output can confirm it.
+- The same call never runs twice in a turn; a change that timed out stays
+  UNVERIFIED and is not retried.
+- A reply that claims a change no tool made, in English or Hinglish, or
+  promises a lookup without making one, is corrected once and otherwise
+  replaced with a plain statement that nothing was done.
+- The turn's status never reads better than its worst call, and a change
+  the server reported done is still said to be unconfirmed.
+
+Measured with `scripts/tool_loop_eval.py` (11 cases, gemma4): 27 of 33
+tool choices right over 3 runs; in the 6 misses (two dependent tools in a
+row) nothing was invented. Five other local models were tried for the
+loop; qwen3-vl:4b-instruct chose as well but gave the same made-up flight
+time in 3 of 3 runs, and was not taken.
+
+## Not in this batch
 - HTTP transports, MCP resources and prompts, and the server side (exposing
   AGENT_GURU's own tools over MCP).

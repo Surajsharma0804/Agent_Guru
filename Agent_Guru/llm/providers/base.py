@@ -61,3 +61,7 @@ class ProviderAdapter(ABC):
 
         """
         ...
+
+    async def supports_tool_calling(self, model: str) -> bool:
+        """Whether *model* takes tools and answers with structured tool calls. False unless an adapter knows better."""
+        return False

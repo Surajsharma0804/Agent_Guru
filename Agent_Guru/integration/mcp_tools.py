@@ -486,6 +486,23 @@ class MCPToolbox:
         """Only the tools that can be called now: the list a model may be shown."""
         return [t for t in await self.discover() if t.available]
 
+    async def available_now(self) -> list[ExternalTool]:
+        """The callable tools of servers already running, without starting any.
+
+        For a voice turn, which must not wait for a server to start; the
+        policy is still asked for each tool, so the list follows the policy
+        as it is now.
+        """
+        found: list[ExternalTool] = []
+        for entry in self._servers.values():
+            if entry.connection is None or not entry.connection.running or entry.tools is None:
+                continue
+            for raw in entry.tools.values():
+                tool = await self._describe(entry, raw)
+                if tool.available:
+                    found.append(tool)
+        return found
+
     async def _describe(self, entry: _Server, raw: dict[str, Any]) -> ExternalTool:
         name = raw["name"]
         rule = entry.config.tools.get(name, ToolRule())

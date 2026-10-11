@@ -314,6 +314,13 @@ class LLMRuntime:
             success=True,
         )
 
+    async def supports_tool_calling(self, model: str) -> bool:
+        """Whether *model*'s provider takes tools for it and answers with structured calls."""
+        try:
+            return await self.adapters[self._get_provider(model)].supports_tool_calling(model)
+        except Exception:
+            return False
+
     async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
         """Generate embeddings for text.
 

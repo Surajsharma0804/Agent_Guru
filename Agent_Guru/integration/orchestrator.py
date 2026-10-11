@@ -38,6 +38,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
+import dataclasses
 import datetime as _dt
 import inspect
 import logging
@@ -62,6 +64,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from Agent_Guru.integration.gpu_pool import GPUResourcePool
+    from Agent_Guru.integration.mcp_tools import MCPToolbox, ServerConfig
+    from Agent_Guru.integration.tool_loop import ToolLoop
     from Agent_Guru.platform.features.documents import DocumentStore
 
 logger = logging.getLogger(__name__)
@@ -102,6 +106,14 @@ class WakeWordEvent:
 
     wake_word: str
     audio: bytes = field(default_factory=bytes)
+    #: A typed turn: the text stands in for the transcript, and nothing is
+    #: spoken. See IntegrationOrchestrator.run_text_turn().
+    text: str | None = None
+
+
+#: True while a typed turn runs. Set per task, so a voice turn running at the
+#: same time is not silenced by it.
+_TEXT_TURN: contextvars.ContextVar[bool] = contextvars.ContextVar("agent_guru_text_turn", default=False)
 
 
 @dataclass
@@ -295,6 +307,9 @@ class PipelineResult:
     # Nothing measured a stage before: only wake-to-first-speech, and only
     # on two shortcut paths, so "which stage was slow" had no answer.
     stage_timings: list[tuple[str, float, float]] = field(default_factory=list)
+    # Each tool loop step and tool call, with what it did; the turn record
+    # keeps them among the stages, in time order.
+    tool_stages: list[StageTiming] = field(default_factory=list)
     # What the model reported about a streamed answer: prompt tokens it
     # processed, tokens it wrote, its timings, and when the first text came.
     llm_stats: dict[str, float] = field(default_factory=dict)
@@ -489,6 +504,7 @@ class IntegrationOrchestrator:
         reminder_store: Path | None = None,
         learn_facts: bool = False,
         document_store: DocumentStore | None = None,
+        mcp_servers: list[ServerConfig] | None = None,
     ) -> None:
         self.speech_engine = speech_engine
         self.vision_engine = vision_engine
@@ -519,6 +535,14 @@ class IntegrationOrchestrator:
         # The owner's documents, searched for passages that answer a
         # question; from main.py. None (tests) searches nothing.
         self._documents = document_store
+        # Tools on MCP servers the owner configured; from main.py. With none
+        # configured nothing about MCP is loaded or started, and no turn is
+        # offered tools.
+        self._mcp_servers = list(mcp_servers or [])
+        self._toolbox: MCPToolbox | None = None
+        self._tools_starting: asyncio.Task[Any] | None = None
+        # A call that changes things, waiting for the owner's yes.
+        self._tool_pending: dict[str, Any] | None = None
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -604,6 +628,7 @@ class IntegrationOrchestrator:
         Total startup time ≤ max(individual init times) + scheduling overhead.
         """
         logger.info("IntegrationOrchestrator.startup() - concurrent init begin")
+        self._start_tools()
 
         # Distribute GPU configs to subsystems that accept them
         whisper_cfg = self.gpu_pool.allocate("whisper")
@@ -880,22 +905,37 @@ class IntegrationOrchestrator:
 
         from Agent_Guru.platform.features.user_memory import get_user_memory as _get_um
 
+        typed = wake_event.text is not None
+        token = _TEXT_TURN.set(typed)
         # The filler plays while the turn is worked on. It was awaited before
         # STT, so every turn waited for the whole clip (0.58 to 0.84 s
         # measured) before transcription started, although main.py has
         # already recorded the command by the time the pipeline runs.
         # Playback holds the process-wide PortAudio lock, so the reply still
-        # cannot start until the filler has finished.
-        filler = asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
+        # cannot start until the filler has finished. A typed turn has none.
+        filler = None if typed else asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
         started_at = _time.time()
         try:
             turn = await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
             await self._record_trace(turn, started_at, _time.perf_counter() - _wake_timestamp)
             return turn
         finally:
+            _TEXT_TURN.reset(token)
             # Never left running unobserved; it is usually long finished.
-            with contextlib.suppress(asyncio.CancelledError):
-                await filler
+            if filler is not None:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await filler
+
+    async def run_text_turn(self, text: str, personality: Personality = Personality.GURU) -> PipelineResult:
+        """One typed turn through the same stages as a spoken one, without speech in or out.
+
+        The text is taken as the transcript and the reply is left in the
+        result (llm_response or action_result) instead of being spoken.
+        Everything else is the voice turn's: memory, documents, intent,
+        policy, actions, tools, records.
+        """
+        wake_word = "Hey Maya" if personality == Personality.MAYA else "Hey Guru"
+        return await self.run_pipeline(WakeWordEvent(wake_word=wake_word, text=text))
 
     async def _run_turn(
         self, wake_event: WakeWordEvent, result: PipelineResult, _wake_timestamp: float, _get_um: Any,
@@ -909,10 +949,13 @@ class IntegrationOrchestrator:
             # existing "nothing was said" path below already handles.
             with _timed(result, "stt"):
                 try:
-                    result.transcript, result.detected_language = await asyncio.wait_for(
-                        self._stage_stt(wake_event.audio, result.personality),
-                        timeout=STT_TIMEOUT_S,
-                    )
+                    if wake_event.text is not None:
+                        result.transcript, result.detected_language = wake_event.text.strip(), ""
+                    else:
+                        result.transcript, result.detected_language = await asyncio.wait_for(
+                            self._stage_stt(wake_event.audio, result.personality),
+                            timeout=STT_TIMEOUT_S,
+                        )
                 except TimeoutError:
                     logger.warning(
                         "STT stage exceeded %.1fs - treating the utterance as unheard",
@@ -929,8 +972,11 @@ class IntegrationOrchestrator:
             # Re-check personality from transcript
             self._correct_personality_from_transcript(result)
 
-            # Speaker verification (opt-in)
-            _pipeline_mode = self._verify_speaker(wake_event, result)
+            # Speaker verification (opt-in). A typed turn has no voice to
+            # check; it comes from code running in this process, as the
+            # owner's own (see run_text_turn).
+            if wake_event.text is None:
+                _pipeline_mode = self._verify_speaker(wake_event, result)
 
             # The answer to a question the previous turn asked about a
             # message ("What would you like me to send John?"). Before, there
@@ -949,6 +995,11 @@ class IntegrationOrchestrator:
                 result.stages_completed = 8
                 with _timed(result, "tts"):
                     result.tts_response = await self._stage_tts(draft_reply, result.personality)
+                return result
+
+            with _timed(result, "tool_confirmation"):
+                confirmed = await self._continue_tool_confirmation(result, _pipeline_mode)
+            if confirmed:
                 return result
 
             rating = await self._rate_previous_answer(result.transcript, _pipeline_mode)
@@ -1079,7 +1130,12 @@ class IntegrationOrchestrator:
             # while it is written.
             needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
             llm_done, streamed_tts = False, None
-            if needs_llm and not result.action_result:
+            if needs_llm and not result.action_result and self._mcp_servers:
+                # Tools are offered only when the owner configured some; the
+                # answer is then written by the tool loop, spoken as it goes.
+                with _timed(result, "answer_tools"):
+                    llm_done, streamed_tts = await self._answer_with_tools(result, _pipeline_mode)
+            if needs_llm and not result.action_result and not llm_done:
                 # Written and spoken together: this stage includes the speech.
                 with _timed(result, "answer_spoken"):
                     llm_done, streamed_tts = await self._speak_llm_reply(result)
@@ -1102,8 +1158,9 @@ class IntegrationOrchestrator:
             elif not needs_llm:
                 result.llm_response = None
 
-            # A draft started by this turn's action is waiting for an answer.
-            result.awaiting_reply = self._message_draft is not None
+            # A draft started by this turn's action, or a tool call this
+            # turn's answer asked about, is waiting for an answer.
+            result.awaiting_reply = self._message_draft is not None or self._tool_pending is not None
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
@@ -1299,10 +1356,13 @@ class IntegrationOrchestrator:
             action_status=status.value if status else None,
             outcome=outcome,
             model=_configured_ollama_model() if answered else "",
-            stages=[
-                StageTiming(name=name, started_at=wall, seconds=seconds, detail=details_by_stage.get(name, {}))
-                for name, wall, seconds in result.stage_timings
-            ],
+            stages=sorted(
+                [
+                    StageTiming(name=name, started_at=wall, seconds=seconds, detail=details_by_stage.get(name, {}))
+                    for name, wall, seconds in result.stage_timings
+                ] + list(result.tool_stages),
+                key=lambda stage: stage.started_at,
+            ),
             details={
                 "policy_allowed": result.policy_allowed,
                 "pipeline_mode": result.pipeline_mode,
@@ -3992,6 +4052,231 @@ class IntegrationOrchestrator:
 
         return audio_array, sample_rate
 
+    # ------------------------------------------------------------------
+    # Tools on MCP servers (integration/tool_loop.py)
+    # ------------------------------------------------------------------
+
+    def _start_tools(self) -> None:
+        """Start the configured MCP servers in the background, if any are configured and none is starting.
+
+        In the background so the turn that first needs a tool does not wait
+        for a server to start (3.1 s for the official test server through
+        npx), and so a server that fails to start only takes its own tools
+        away.
+        """
+        if not self._mcp_servers or (self._tools_starting is not None and not self._tools_starting.done()):
+            return
+        if self._toolbox is None:
+            from Agent_Guru.integration.mcp_tools import MCPToolbox
+
+            self._toolbox = MCPToolbox(
+                self._mcp_servers, policy_check=self._stage_policy, audit_logger=self._audit_logger,
+            )
+        self._tools_starting = asyncio.create_task(self._toolbox.discover(), name="mcp-start")
+
+    async def close_tools(self) -> None:
+        """End every MCP server this assistant started; called by main.py at shutdown."""
+        if self._tools_starting is not None and not self._tools_starting.done():
+            self._tools_starting.cancel()
+            with contextlib.suppress(BaseException):
+                await self._tools_starting
+        if self._toolbox is not None:
+            await self._toolbox.close()
+
+    async def _answer_with_tools(self, result: PipelineResult, pipeline_mode: str) -> tuple[bool, Any]:
+        """Answer this turn through the tool loop; (False, None) when no tool is offered.
+
+        Offered only to the verified owner, for conversation and questions
+        (a command has its own handler), with a model Ollama reports as
+        taking tools, and only the tools that could run right now. Anything
+        else answers as before, unchanged.
+        """
+        if self._toolbox is None or pipeline_mode != "full":
+            return False, None
+        if (result.intent or "").split(":", 1)[0] not in {"", "conversation", "information"}:
+            return False, None
+        llm = self.llm_runtime
+        supports = getattr(llm, "supports_tool_calling", None)
+        if supports is None or getattr(llm, "complete", None) is None or getattr(llm, "infer", None) is not None:
+            return False, None
+        if not await supports(_configured_ollama_model()):
+            return False, None
+        tools = await self._toolbox.available_now()
+        if not tools:
+            self._start_tools()  # a server that stopped is started again for a later turn
+            return False, None
+        built = await self._build_llm_request(
+            result.transcript or "", result.memory_context, result.detected_language,
+            result.personality, result.intent,
+        )
+        if built is None:
+            return False, None
+        request, _ = built
+        # Read from the module at call time, so an evaluation can try
+        # another guidance or temperature without a restart.
+        from Agent_Guru.integration import tool_loop
+
+        request = dataclasses.replace(request, temperature=tool_loop.TOOL_TEMPERATURE)
+        loop = tool_loop.ToolLoop(self._toolbox, tools, stages=result.tool_stages)
+        messages = list(request.messages)
+        messages[0] = dataclasses.replace(messages[0], content=f"{messages[0].content}\n\n{tool_loop.TOOL_GUIDANCE}")
+        self._fit_tool_prompt(messages, loop)
+        return await self._run_tool_loop(result, request, loop, messages, None)
+
+    def _fit_tool_prompt(self, messages: list[Any], loop: ToolLoop) -> None:
+        """Drop the oldest history until the prompt, the tools and their output fit the context window.
+
+        A spoken prompt holds up to 2,900 tokens of history; with tool
+        definitions and up to 1,500 tokens of tool output it could pass the
+        6,144-token window, and Ollama then drops the start of the prompt,
+        which is the system prompt.
+        """
+        import json as _json
+
+        from Agent_Guru.reasoning.llm.generation import context_window, spoken_reply_tokens
+
+        tool_tokens = len(_json.dumps([dataclasses.asdict(f) for f in loop.functions()])) // 4
+        reserve = tool_tokens + loop.budget.max_output_chars // 4 + spoken_reply_tokens() + 300
+        while len(messages) > 2 and sum(len(m.content) for m in messages) // 4 + reserve > context_window():
+            messages.pop(1)
+
+    async def _run_tool_loop(
+        self, result: PipelineResult, request: Any, loop: ToolLoop, messages: list[Any], pending: Any,
+    ) -> tuple[bool, Any]:
+        """Run (or, with *pending*, resume) the tool loop and put its answer in *result*."""
+        spoken: list[Any] = []
+        step = self._tool_model_step(result, request, spoken, loop)
+        try:
+            if pending is None:
+                outcome = await loop.run(messages, step)
+            else:
+                outcome = await loop.resume(pending, messages, step)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Tool loop failed")
+            outcome = loop.outcome
+            outcome.stop_reason = "error"
+            outcome.answer = "Sorry, I couldn't finish that."
+        if outcome.pending is not None:
+            self._tool_pending = {
+                "pending": outcome.pending, "loop": loop, "messages": messages, "request": request,
+                "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S,
+            }
+            result.awaiting_reply = True
+        if outcome.calls:
+            result.action_status = outcome.status
+        answer = (outcome.answer or "").strip()
+        extra = " ".join(outcome.notes)
+        if outcome.pending is not None or not spoken:
+            # Nothing was spoken while it was written (a typed turn, the
+            # confirmation question, or text that never streamed): the
+            # whole reply is said by the TTS stage.
+            if not answer and not extra and not outcome.calls:
+                return False, None
+            result.llm_response = " ".join(t for t in (answer, extra) if t) or _STATUS_REPLIES[result.action_status]
+            return True, None
+        if not answer and not outcome.calls:
+            # Nothing written and nothing run (a step that wrote only
+            # thinking, say): the usual answer path answers instead of a
+            # status sentence that would not fit a question.
+            return False, None
+        result.llm_response = " ".join(t for t in (answer, extra) if t)
+        tts = spoken[-1]
+        # What the model did not say itself as it wrote: the loop's own
+        # answer (NOT_DONE, an error) and the notes on unconfirmed changes.
+        unsaid = " ".join(t for t in ("" if outcome.model_answer else answer, extra) if t)
+        if unsaid:
+            tts = await self._stage_tts(unsaid, result.personality) or tts
+        return True, tts
+
+    def _tool_model_step(self, result: PipelineResult, request: Any, spoken: list[Any], loop: ToolLoop) -> Any:
+        """One model step for the tool loop: spoken as it is written on a voice turn, collected on a typed one.
+
+        Spoken sentence by sentence, each checked first: a sentence saying
+        something was done while no tool has changed anything this turn is
+        not spoken (the loop then corrects the model), and the rest of the
+        step is read but not spoken, so its tool calls are still seen.
+        """
+        from Agent_Guru.integration.tool_loop import ModelStep
+        from Agent_Guru.speech.tts.streaming import stream_sentences
+
+        llm = self.llm_runtime
+
+        async def step(messages: list[Any], functions: list[Any] | None) -> ModelStep:
+            ask = dataclasses.replace(request, messages=list(messages), functions=functions)
+            tts_fn = self._streamable_tts_fn()
+            if tts_fn is None or getattr(llm, "stream", None) is None:
+                response = await asyncio.wait_for(llm.complete(ask), timeout=LLM_TIMEOUT_S)
+                return ModelStep(text=response.content or "", tool_calls=list(response.tool_calls or []))
+            calls: list[Any] = []
+            parts: list[str] = []
+            withheld = False
+
+            async def chunks() -> Any:
+                async for chunk in llm.stream(ask):
+                    if chunk.tool_calls:
+                        calls.extend(chunk.tool_calls)
+                    if chunk.content:
+                        parts.append(chunk.content)
+                        yield chunk.content
+
+            async def checked() -> Any:
+                nonlocal withheld
+                async for sentence in stream_sentences(chunks()):
+                    if withheld or loop.claims_unbacked(sentence):
+                        withheld = True
+                        continue
+                    yield sentence + " "
+
+            played = await self._speak_streaming(tts_fn, checked(), result.personality, text_timeout_s=LLM_TIMEOUT_S)
+            if getattr(played, "spoken", 0):
+                spoken.append(played)
+            return ModelStep(text="".join(parts), tool_calls=calls, withheld=withheld)
+
+        return step
+
+    async def _continue_tool_confirmation(self, result: PipelineResult, pipeline_mode: str) -> bool:
+        """Take this turn as the owner's answer to "Should I run ...?"; True when it was.
+
+        Only the owner's own next words confirm: a yes runs exactly the call
+        that was read back, through the same checks as any call, and the
+        loop goes on with the budget it had. Anything else cancels it, as a
+        message draft is cancelled, and nothing runs. A restricted speaker
+        cannot confirm.
+        """
+        waiting = self._tool_pending
+        if waiting is None:
+            return False
+        self._tool_pending = None
+        if time.monotonic() > waiting["expires"]:
+            logger.info("Tool confirmation for %s expired unanswered", waiting["pending"].name)
+            return False
+        from Agent_Guru.platform.features.confirmation import _parse_confirmation
+
+        pending = waiting["pending"]
+        result.intent = "external:tool_confirmation"
+        if pipeline_mode != "full" or _parse_confirmation(result.transcript or "") is not True:
+            reply = f"Okay, I won't run {pending.tool}."
+            result.action_result, result.action_status = reply, ActionStatus.CANCELLED
+        else:
+            loop = waiting["loop"]
+            loop.record_into(result.tool_stages)  # this turn's record, not the asking turn's
+            _, tts = await self._run_tool_loop(result, waiting["request"], loop, waiting["messages"], pending)
+            if tts is not None:
+                result.tts_response = tts
+                result.stages_completed = 8
+                self._chat_history.append({"role": "user", "content": result.transcript or "", "emotion": "neutral"})
+                self._chat_history.append({"role": "assistant", "content": result.llm_response or ""})
+                return True
+        result.stages_completed = 8
+        reply = result.action_result or result.llm_response or ""
+        self._chat_history.append({"role": "user", "content": result.transcript or "", "emotion": "neutral"})
+        self._chat_history.append({"role": "assistant", "content": reply})
+        with _timed(result, "tts"):
+            result.tts_response = await self._stage_tts(reply, result.personality)
+        return True
+
     async def _stage_tts(self, text: str, personality: Personality) -> Any:
         """Stage 8: speak the reply, streamed sentence by sentence when possible.
 
@@ -4012,6 +4297,8 @@ class IntegrationOrchestrator:
         """
         if not text or not text.strip():
             return text
+        if _TEXT_TURN.get():
+            return None  # a typed turn is answered in writing
         stream_fn = self._streamable_tts_fn()
         if stream_fn is not None:
             try:
@@ -4028,7 +4315,9 @@ class IntegrationOrchestrator:
         )
 
     def _streamable_tts_fn(self) -> Any:
-        """The array-returning synchronous synthesiser, or None if there is none."""
+        """The array-returning synchronous synthesiser, or None if there is none (or the turn is typed)."""
+        if _TEXT_TURN.get():
+            return None
         fn = self._tts_fn if self._tts_fn_type == "array" else None
         if fn is None and self._tts_fn is None:
             tts_eng = getattr(self.speech_engine, "tts_engine", None)

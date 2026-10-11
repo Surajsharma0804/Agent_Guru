@@ -41,7 +41,7 @@ IDs refer to `REFERENCE_GAP_MATRIX.md`.
 | Batch | Items | Condition | State |
 |---|---|---|---|
 | 4.1 | TOOL-7 MCP client behind the policy engine | security review | done: stdio client, owner-allowed tools only with declared risk, policy action `external:mcp:<server>:<tool>`, schema-checked arguments, guarded output, ActionStatus results, audit and turn-record entries; `python -m Agent_Guru mcp list|call`. Security review and comparison in `REFERENCE_MCP_COMPARISON.md`. Voice use comes with 4.2 |
-| 4.2 | AGT-1, AGT-2, TRC-4 tool loop with loop guard, recorded in the turn | 1.4 | planned |
+| 4.2 | AGT-1, AGT-2, TRC-4 tool loop with loop guard, recorded in the turn | 1.4 | done: one loop for typed and spoken turns (`integration/tool_loop.py`), only callable MCP tools shown, every call through MCPToolbox.call, a change asks the owner first, budgets (4 calls, 4 steps, 40 s, 6,000 characters), repeats refused, claimed or promised actions without a tool corrected. `scripts/tool_loop_eval.py` on gemma4: 27 of 33 tool choices right over 3 runs, no fact invented in the misses. Open: two dependent tools in a row (booking, then flight) was not chained in any run |
 | 4.3 | AGT-4, TOOL-6 multi-step research with sources, browser actions | 4.2, 3.1 | planned |
 | 4.4 | SCH-2, AGT-3, ARCH-2 scheduled and monitoring agents with approval, on an internal event bus | 2.2, 4.2 | planned |
 | 4.5 | SBX-1, AGT-5 sandbox, then code-running agents | policy rule and spoken confirmation | planned |

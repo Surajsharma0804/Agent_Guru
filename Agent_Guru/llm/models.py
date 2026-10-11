@@ -40,10 +40,21 @@ class ModelProvider(Enum):
 class Message:
     """Chat message in unified format."""
 
-    role: str  # "system", "user", "assistant", "function"
+    role: str  # "system", "user", "assistant", "function", "tool"
     content: str
-    name: str | None = None  # For function messages
+    name: str | None = None  # For function messages; the tool's name on a "tool" message
     function_call: dict[str, Any] | None = None
+    #: The tools an assistant message asked for, sent back with it so the
+    #: model sees which result answers which call.
+    tool_calls: list[ToolCall] | None = None
+
+
+@dataclass
+class ToolCall:
+    """One tool the model asked to run, with the arguments it wrote (untrusted)."""
+
+    name: str
+    arguments: dict[str, Any]
 
 
 @dataclass
@@ -77,6 +88,8 @@ class StreamChunk:
     # every question takes, left no token counts or model timings behind.
     usage: TokenUsage | None = None
     timings: dict[str, float] | None = None
+    #: Tools the model asked to run, on the chunk that carried them.
+    tool_calls: list[ToolCall] | None = None
 
 
 @dataclass
@@ -107,6 +120,7 @@ class CompletionResponse:
     timestamp: datetime
     function_call: dict[str, Any] | None = None
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    tool_calls: list[ToolCall] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

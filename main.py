@@ -177,7 +177,29 @@ def _load_security():
         return _stub("security")
 
 
-def _load_policy():
+def _load_mcp_servers():
+    """The MCP servers configured in settings.toml, or [] when there are none or the table is wrong.
+
+    A wrong [mcp] table is reported and MCP left off for this run, rather
+    than stopping the assistant; `python -m Agent_Guru mcp list` says what
+    is wrong.
+    """
+    try:
+        from Agent_Guru.utils.path_utils import app_data_dir
+        from Agent_Guru.utils.settings import read_settings_section
+
+        settings = app_data_dir("settings.toml")
+        if not read_settings_section(settings, "mcp"):
+            return []  # nothing configured: the MCP code is not even loaded
+        from Agent_Guru.integration.mcp_tools import load_servers
+
+        return [s for s in load_servers(settings, dict(os.environ)) if s.enabled]
+    except Exception as e:
+        logger.warning("MCP servers not used (%s)", e)
+        return []
+
+
+def _load_policy(mcp_servers=()):
     try:
         from Agent_Guru.policy import PolicyEngine
         from Agent_Guru.policy.defaults import install_default_policies
@@ -186,6 +208,11 @@ def _load_policy():
         # none: every voice command was denied and answered "Done.".
         engine = PolicyEngine()
         install_default_policies(engine)
+        if mcp_servers:
+            from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+            # Exactly the tools the owner allowed, with a declared risk.
+            install_mcp_policies(engine, list(mcp_servers))
         return engine
     except Exception as e:
         logger.warning("PolicyEngine unavailable (%s) - policy disabled", e)
@@ -378,7 +405,8 @@ async def run() -> None:
     memory     = _load_memory()
     reasoning  = _load_reasoning()
     security   = _load_security()
-    policy     = _load_policy()
+    mcp_servers = _load_mcp_servers()
+    policy     = _load_policy(mcp_servers)
     avatar     = _load_avatar()
     deployment = _load_deployment()
     gpu_pool   = _load_gpu_pool()
@@ -410,6 +438,7 @@ async def run() -> None:
         reminder_store=reminder_store,
         learn_facts=learn_facts,
         document_store=document_store,
+        mcp_servers=mcp_servers,
     )
 
     # --- Concurrent startup of all subsystems ---
@@ -663,6 +692,12 @@ async def run() -> None:
     # --- Shutdown ---
     logger.info("Shutting down Agent Guru...")
     await wake_manager.stop_listening()
+
+    # MCP servers are child processes; each is ended with what it started.
+    try:
+        await orch.close_tools()
+    except Exception as e:
+        logger.warning("Closing MCP servers failed: %s", e)
 
     # Guard against IntegrationOrchestrator versions without sleep()
     if hasattr(orch, "sleep") and callable(orch.sleep):

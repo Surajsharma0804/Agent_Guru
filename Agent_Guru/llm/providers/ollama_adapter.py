@@ -1,7 +1,8 @@
 """Ollama provider adapter for local LLM inference.
 
 Supports GPU-accelerated local models via the Ollama runtime.
-Function calling is not natively supported and raises an error.
+Tool calling is passed through for models whose Ollama capabilities list
+"tools"; a request with tools for any other model raises.
 
 GPU Performance:
     - Local LLM: <400ms for 512 tokens with GPU acceleration
@@ -29,6 +30,7 @@ from Agent_Guru.llm.models import (
     ProviderNotSupportedError,
     StreamChunk,
     TokenUsage,
+    ToolCall,
 )
 from Agent_Guru.llm.providers.base import ProviderAdapter
 from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK, context_fits, ollama_options
@@ -45,8 +47,8 @@ class OllamaAdapter(ProviderAdapter):
     - Embeddings
     - GPU acceleration via Ollama's CUDA support
 
-    Does NOT support:
-    - Function calling (raises ProviderNotSupportedError)
+    - Tool calling, for models Ollama reports as taking tools
+      (supports_tool_calling); other models raise ProviderNotSupportedError
 
     Example:
         >>> config = OllamaConfig(host="http://localhost:11434")
@@ -59,6 +61,7 @@ class OllamaAdapter(ProviderAdapter):
         self.config = config
         self._client: Any | None = None
         self._logger = logging.getLogger(__name__)
+        self._tool_models: dict[str, bool] = {}
 
         # P2-61/62/63: Production Ollama optimization via env vars.
         # KEEP_ALIVE=-1 pins model in VRAM permanently - eliminates cold-start.
@@ -81,19 +84,69 @@ class OllamaAdapter(ProviderAdapter):
             self._client = ollama.AsyncClient(host=self.config.host)
         return self._client
 
+    async def supports_tool_calling(self, model: str) -> bool:
+        """Whether Ollama lists "tools" among *model*'s capabilities; asked once per model.
+
+        Asked of Ollama rather than decided by model name: gemma4 lists it
+        and, tried, answered a weather question with a structured call and
+        "17 times 23" without one. A model that does not list it is not
+        given tools.
+        """
+        if model not in self._tool_models:
+            try:
+                shown = await asyncio.wait_for(self._get_client().show(model), timeout=self.config.timeout_s)
+                capabilities = getattr(shown, "capabilities", None) or []
+                self._tool_models[model] = "tools" in capabilities
+            except Exception:
+                self._logger.debug("Could not read %s's capabilities", model, exc_info=True)
+                return False
+        return self._tool_models[model]
+
+    async def _tools_for(self, request: CompletionRequest) -> list[dict[str, Any]] | None:
+        if not request.functions:
+            return None
+        if not await self.supports_tool_calling(request.model):
+            msg = f"{request.model} does not take tools in Ollama (no 'tools' capability)."
+            raise ProviderNotSupportedError(msg)
+        return [
+            {"type": "function", "function": {"name": f.name, "description": f.description, "parameters": f.parameters}}
+            for f in request.functions
+        ]
+
+    @staticmethod
+    def _messages(request: CompletionRequest) -> list[dict[str, Any]]:
+        out = []
+        for m in request.messages:
+            message: dict[str, Any] = {"role": m.role, "content": m.content}
+            if m.tool_calls:
+                message["tool_calls"] = [{"function": {"name": c.name, "arguments": c.arguments}} for c in m.tool_calls]
+            if m.role == "tool" and m.name:
+                message["tool_name"] = m.name
+            out.append(message)
+        return out
+
+    @staticmethod
+    def _tool_calls(message: Any) -> list[ToolCall]:
+        """The tool calls in an Ollama message, whether it came as a dict or the client's objects."""
+        raw = message.get("tool_calls") if isinstance(message, dict) else getattr(message, "tool_calls", None)
+        calls = []
+        for call in raw or []:
+            function = call.get("function") if isinstance(call, dict) else getattr(call, "function", None)
+            if function is None:
+                continue
+            name = function.get("name") if isinstance(function, dict) else getattr(function, "name", None)
+            arguments = function.get("arguments") if isinstance(function, dict) else getattr(function, "arguments", None)
+            if isinstance(name, str):
+                # Arguments that are not an object are passed on as they
+                # came; the tool loop refuses them.
+                calls.append(ToolCall(name=name, arguments=dict(arguments) if hasattr(arguments, "items") else arguments))
+        return calls
+
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         """Execute a non-streaming chat completion via Ollama."""
-        if request.functions:
-            msg = (
-                "Function calling is not supported for Ollama models. "
-                "Use OpenAI or Anthropic for function calling."
-            )
-            raise ProviderNotSupportedError(
-                msg,
-            )
-
+        tools = await self._tools_for(request)
         client = self._get_client()
-        messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        messages = self._messages(request)
 
         # Options come from the shared generation policy, the same ones every
         # other Ollama client sends. This adapter had its own copy: num_ctx
@@ -145,6 +198,7 @@ class OllamaAdapter(ProviderAdapter):
                 options=options,
                 think=OLLAMA_THINK,
                 keep_alive=-1,  # P2-61: keep model loaded permanently
+                **({"tools": tools} if tools else {}),
             ),
             timeout=self.config.timeout_s,
         )
@@ -170,16 +224,14 @@ class OllamaAdapter(ProviderAdapter):
             function_call=None,
             latency_ms=latency_ms,
             timestamp=datetime.now(tz=UTC),
+            tool_calls=self._tool_calls(response["message"]),
         )
 
     async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
         """Execute a streaming chat completion via Ollama."""
-        if request.functions:
-            msg = "Function calling is not supported for Ollama models."
-            raise ProviderNotSupportedError(msg)
-
+        tools = await self._tools_for(request)
         client = self._get_client()
-        messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        messages = self._messages(request)
 
         options = self._options(request)
 
@@ -200,6 +252,7 @@ class OllamaAdapter(ProviderAdapter):
                 # As complete() does. Without it Ollama unloads the model
                 # after its idle timeout and the next turn waits for a reload.
                 keep_alive=-1,
+                **({"tools": tools} if tools else {}),
             ),
             timeout=self.config.timeout_s,
         )
@@ -211,10 +264,11 @@ class OllamaAdapter(ProviderAdapter):
                 # "stop", so a capped reply looked finished.
                 done = chunk.get("done")
                 yield StreamChunk(
-                    content=chunk["message"].get("content", ""),
+                    content=chunk["message"].get("content", "") or "",
                     finish_reason=(chunk.get("done_reason") or "stop") if done else None,
                     usage=self._stream_usage(chunk) if done else None,
                     timings=self._stream_timings(chunk) if done else None,
+                    tool_calls=self._tool_calls(chunk["message"]) or None,
                 )
 
     @staticmethod

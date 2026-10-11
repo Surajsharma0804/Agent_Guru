@@ -117,6 +117,16 @@ capabilities:
     owner: integration
     do_not_duplicate: Every MCP call goes through MCPToolbox.call; the tool loop (4.2) must use it, not the connection directly.
 
+  - id: tool-loop
+    name: Answers that use tools
+    category: tools
+    status: live
+    gap_id: AGT-1
+    implementation: Agent_Guru/integration/tool_loop.py (ToolLoop); IntegrationOrchestrator._answer_with_tools and run_text_turn
+    owner: integration
+    evaluation: scripts/tool_loop_eval.py
+    do_not_duplicate: Every tool call goes through MCPToolbox.call; typed and spoken turns share this loop.
+
   - id: documents
     name: Answers from the owner's documents
     category: memory
