@@ -508,9 +508,16 @@ jobs:
           restore-keys: hf-${{ runner.os }}-
 
       # Collection is checked on its own so that an import error is reported
-      # as an import error, not buried among test failures.
+      # as an import error, not buried among test failures. -qq prints one
+      # node ID per line (pytest.ini's -v cancels a single -q); the list is
+      # what the run is checked against below. shell: bash for pipefail, so
+      # a collection error still fails the step through tee, on Windows too.
       - name: Collect the test suite
-        run: pytest --collect-only -q
+        shell: bash
+        run: pytest --collect-only -qq | tee collected-${{ matrix.os }}-${{ matrix.python-version }}.txt
+
+      - name: Check the guard that tests ran
+        run: python -m pytest --noconftest -p no:cacheprovider -o addopts="" -q scripts/tests/test_test_run_guard.py
 
       - name: Run the test suite
         run: >
@@ -519,6 +526,20 @@ jobs:
           --cov=Agent_Guru
           --cov-report=xml:coverage-${{ matrix.os }}-${{ matrix.python-version }}.xml
           --cov-report=term-missing:skip-covered
+
+      # From 2026-10-05 to 2026-10-12 no run reached a test (install could not
+      # resolve on 3.11/3.12, two collection errors on 3.13), and nothing said
+      # so in a way anyone read. This fails the job unless the run reported
+      # every test the collection step listed, and writes the counts per
+      # package to the run summary. always(): it also explains a run that
+      # never started.
+      - name: Check that every collected test ran
+        if: always()
+        shell: bash
+        run: >
+          python scripts/test_run_guard.py
+          collected-${{ matrix.os }}-${{ matrix.python-version }}.txt
+          junit-${{ matrix.os }}-${{ matrix.python-version }}.xml
 
       # Kept deliberately: the hand-written functional script the previous CI
       # ran. pytest replaces nothing here, it adds to it.
@@ -533,6 +554,7 @@ jobs:
           name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
             junit-*.xml
+            collected-*.txt
             coverage-*.xml
             pip-freeze-*.txt
           retention-days: 30
