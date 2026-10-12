@@ -1109,7 +1109,11 @@ class TestLearningPropertiesWithFailureInjection:
         import tempfile
         fd, path = tempfile.mkstemp(suffix=f"_{uuid.uuid4().hex}.db")
         os.close(fd)
-        
+        # Bound before the try: when the constructor raised (Smart App Control
+        # blocked scikit-learn), the finally's engine.close() raised
+        # UnboundLocalError and hid the real ImportError behind a test failure.
+        engine = None
+
         try:
             engine = SelfImprovementEngine(
                 storage_path=path,
@@ -1168,7 +1172,8 @@ class TestLearningPropertiesWithFailureInjection:
                 assert best_count > len(selections) * 0.7, \
                     f"Best strategy {best_strategy_id} selected only {best_count}/{len(selections)} times (expected >{len(selections)*0.7:.0f})"  # nosec B101
         finally:
-            engine.close()
+            if engine is not None:
+                engine.close()
             import time
             time.sleep(0.1)
             if os.path.exists(path):
@@ -1327,3 +1332,21 @@ class TestLearningPropertiesWithFailureInjection:
             # Variance should be reasonable (not too high)
             assert variance < 10000, \
                 f"Learning not converging, variance too high: {variance}"  # nosec B101
+
+
+def test_failed_constructor_releases_the_database(monkeypatch):
+    """A constructor that fails after opening its pool must close it.
+
+    It did not: when Smart App Control blocked scikit-learn, the
+    ConflictResolver import failed after the pool had opened two
+    connections, and the database stayed locked until the process ended.
+    """
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    monkeypatch.setitem(__import__("sys").modules, "Agent_Guru.self_improvement.conflict_resolution", None)
+    with pytest.raises(ImportError) as failure:
+        SelfImprovementEngine(storage_path=path)
+    # Keep the exception alive, as pytest does, so its traceback holds the
+    # half-built engine; only an explicit close can release the file.
+    assert failure.value is not None  # nosec B101
+    os.unlink(path)  # PermissionError (WinError 32) while a connection is open
