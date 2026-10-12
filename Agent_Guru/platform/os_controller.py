@@ -107,7 +107,13 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
     """
     try:
         mod = __import__(module_path, fromlist=list(class_names))
-    except ImportError:
+    # Not only ImportError: pyautogui imports mouseinfo, which reads
+    # os.environ['DISPLAY'] at import time and raises KeyError on a Linux
+    # machine with no display. Catching ImportError alone let that escape,
+    # so OSController itself failed to import and took every controller
+    # down with it; on CI that was 2 collection errors that stopped the
+    # Python 3.13 run before any test ran.
+    except Exception:
         logger.warning(
             "Controller module unavailable (%s) - %s will be disabled, other "
             "controllers are unaffected",
