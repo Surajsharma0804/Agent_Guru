@@ -32,6 +32,7 @@ import io
 import logging
 import os
 import re
+import sys
 import threading
 import urllib.request
 import wave
@@ -491,6 +492,37 @@ class KokoroTTSEngine:
 # Pyttsx3 fallback engine
 # ---------------------------------------------------------------------------
 
+def _espeak_data_for_loaded_library(platform: str | None = None, maps: str | None = None) -> str | None:
+    """espeakng-loader's data directory, when pyttsx3 is about to use its eSpeak library; else None.
+
+    On Linux pyttsx3 speaks through eSpeak NG: it dlopens libespeak-ng.so.1
+    and calls espeak_Initialize with no data path and no
+    espeakINITIALIZE_DONT_EXIT. When Kokoro has run, its phonemizer has
+    already loaded espeakng-loader's copy of that library, so dlopen returns
+    it, and that copy looks for its data under the path it was built at
+    (D:/a/espeakng-loader/... or the Linux equivalent). It does not find
+    it, and eSpeak NG calls exit(1): the whole process ends with no
+    traceback. That ended every CI test run at 95 % and would end the
+    assistant whenever Kokoro failed and it fell back to pyttsx3.
+
+    Only when that copy is already mapped into this process: a system eSpeak
+    NG with its own data must not be pointed at another version's data.
+    """
+    platform = platform or sys.platform
+    if not platform.startswith("linux") or os.environ.get("ESPEAK_DATA_PATH"):
+        return None
+    try:
+        import espeakng_loader
+
+        library = os.path.realpath(espeakng_loader.get_library_path())
+        if maps is None:
+            with open("/proc/self/maps", encoding="utf-8", errors="replace") as fh:
+                maps = fh.read()
+    except (ImportError, OSError):
+        return None
+    return espeakng_loader.get_data_path() if library in maps else None
+
+
 class _Pyttsx3Engine:
     """Lightweight pyttsx3 fallback. Used only when Kokoro is unavailable."""
 
@@ -505,6 +537,9 @@ class _Pyttsx3Engine:
         try:
             import pyttsx3
 
+            data = _espeak_data_for_loaded_library()
+            if data:
+                os.environ["ESPEAK_DATA_PATH"] = data
             engine = pyttsx3.init()
             voices: list[Any] = engine.getProperty("voices") or []
 
