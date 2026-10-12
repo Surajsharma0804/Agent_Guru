@@ -157,7 +157,7 @@ fonttools==4.63.0
 fqdn==1.5.1
 freeze-core==0.6.1
 frozenlist==1.8.0
-fsspec==2026.2.0
+fsspec==2026.6.0
 gevent==26.7.0
 geventhttpclient==2.3.9
 gitdb==4.0.12
