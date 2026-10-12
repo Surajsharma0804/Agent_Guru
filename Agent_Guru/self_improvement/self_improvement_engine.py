@@ -134,29 +134,38 @@ class SelfImprovementEngine:
         # Initialize connection pool
         self.pool = ConnectionPool(storage_path, min_size=2, max_size=10)
 
-        # Initialize components
-        self.failure_analyzer = FailureAnalyzer(self.pool)
-        self.strategy_optimizer = StrategyOptimizer(self.pool)
-        self.prompt_evolution = PromptEvolutionSystem(self.pool)
-        self.performance_tracker = PerformanceTracker(self.pool)
-        self.meta_learner = MetaLearner(storage_path)
+        # A failure from here on used to leave the pool's two connections
+        # open: the caller never gets the engine, so nothing calls close().
+        # When Smart App Control blocked scikit-learn, the ConflictResolver
+        # import failed this way and every database stayed locked on Windows
+        # until the process ended (18 extra teardown errors in one test run).
+        try:
+            # Initialize components
+            self.failure_analyzer = FailureAnalyzer(self.pool)
+            self.strategy_optimizer = StrategyOptimizer(self.pool)
+            self.prompt_evolution = PromptEvolutionSystem(self.pool)
+            self.performance_tracker = PerformanceTracker(self.pool)
+            self.meta_learner = MetaLearner(storage_path)
 
-        # Conflict resolution
-        from Agent_Guru.self_improvement.conflict_resolution import ConflictResolver
-        self.conflict_resolver = ConflictResolver(self.pool)
+            # Conflict resolution
+            from Agent_Guru.self_improvement.conflict_resolution import ConflictResolver
+            self.conflict_resolver = ConflictResolver(self.pool)
 
-        # Git integration (optional)
-        self.git_integration = None
-        if enable_git_commits and git_repo_path:
-            # Import only if needed
-            from Agent_Guru.self_improvement.git_integration import GitIntegration
+            # Git integration (optional)
+            self.git_integration = None
+            if enable_git_commits and git_repo_path:
+                # Import only if needed
+                from Agent_Guru.self_improvement.git_integration import GitIntegration
 
-            self.git_integration = GitIntegration(git_repo_path)
+                self.git_integration = GitIntegration(git_repo_path)
 
-        # P2-53: Lock protects _task_sequence from concurrent mutation
-        self._lock = threading.Lock()
-        # Task sequence counter
-        self._task_sequence = self._get_current_task_sequence()
+            # P2-53: Lock protects _task_sequence from concurrent mutation
+            self._lock = threading.Lock()
+            # Task sequence counter
+            self._task_sequence = self._get_current_task_sequence()
+        except BaseException:
+            self.pool.close_all()
+            raise
 
     def _get_current_task_sequence(self) -> int:
         """Get current task sequence number.
