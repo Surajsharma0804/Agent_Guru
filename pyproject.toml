@@ -248,9 +248,11 @@ dev = [
 # wheel without CUDA, and dbus-python needs Linux system headers.
 test = [
     "agent-guru[dev]",
-    # Core runtime the suite touches
-    "numpy>=1.24.0,<2.0.0; python_version < '3.13'",
-    "numpy>=2.0.0; python_version >= '3.13'",
+    # Core runtime the suite touches. numpy 2: kokoro-onnx 0.5.0, the voice,
+    # requires numpy>=2.0.2. This used to cap numpy below 2.0 on Python 3.11
+    # and 3.12, so `pip install -e ".[test]"` could not resolve there and no
+    # CI run from 2026-10-05 on reached a single test.
+    "numpy>=2.0.2",
     "scipy>=1.11.0",
     # self_improvement/meta_learner.py and conflict_resolution.py import it at
     # module scope and their tests import those modules. It arrives only as a
