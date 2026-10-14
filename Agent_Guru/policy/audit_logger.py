@@ -18,6 +18,7 @@ import hmac
 import json
 import logging
 import sqlite3
+import threading
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -74,6 +75,7 @@ class AuditLogger:
         self.db_path = db_path
         self.retention_days = retention_days
         self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_lock = threading.RLock()
         if db_path == ":memory:":
             self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)  # persistent; closed when object is GC'd
             self._persistent_conn.row_factory = sqlite3.Row
@@ -107,12 +109,18 @@ class AuditLogger:
     @contextmanager
     def _conn(self) -> Generator[sqlite3.Connection, None, None]:
         if self._persistent_conn is not None:
-            try:
-                yield self._persistent_conn
-                self._persistent_conn.commit()
-            except Exception as e:
-                self._persistent_conn.rollback()
-                raise
+            # One thread at a time on the shared in-memory connection (see
+            # PolicyStorage._conn): unguarded, concurrent policy checks failed
+            # about 260 of 2,000 audit writes ("bad parameter or other API
+            # misuse", "cannot commit - no transaction is active", duplicate
+            # ids), and CI saw MCP calls denied when they collided.
+            with self._persistent_lock:
+                try:
+                    yield self._persistent_conn
+                    self._persistent_conn.commit()
+                except Exception as e:
+                    self._persistent_conn.rollback()
+                    raise
         else:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
