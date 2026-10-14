@@ -8,6 +8,14 @@ patterns to verify that dampening, rate limiting, and stability checks work.
 **Validates: Requirements 9.7 (Rate Limiting and Stability)**
 
 Coverage Target: >80%
+
+Every StrategyOptimizer here gets random.Random(1234). Unseeded, its
+exploration draws differed per run: test_rapid_alternating_every_event
+failed on CI (Python 3.13, stability score 0.14 against > 0.3) and passed
+on the next six local runs. Measured over seeds 1 to 200 it fails for 2
+(seeds 90 and 132), so the assertion holds for 99 % of draws and the seed
+removes the 1 % tail rather than a real regression. The thresholds are
+unchanged.
 """
 
 import os
@@ -64,6 +72,7 @@ def strategy_optimizer(connection_pool, stability_monitor):
     """Create StrategyOptimizer with stability monitoring."""
     return StrategyOptimizer(
         connection_pool,
+        rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
         epsilon=0.1,
         stability_monitor=stability_monitor,
         enable_dampening=True,
@@ -111,6 +120,7 @@ class TestRapidAlternatingFeedback:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.1,
             stability_monitor=monitor,
             enable_dampening=True,
@@ -242,6 +252,7 @@ class TestRapidAlternatingFeedback:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.05,  # Low exploration
             stability_monitor=monitor,
             enable_dampening=True,
@@ -313,6 +324,7 @@ class TestExtremeFeedbackSwings:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.1,
             stability_monitor=monitor,
             enable_dampening=True,
@@ -442,6 +454,7 @@ class TestMultipleCompetingStrategies:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.1,
             stability_monitor=monitor,
             enable_dampening=True,
@@ -648,6 +661,7 @@ class TestRecoveryFromAdversarialInput:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.1,
             stability_monitor=monitor,
             enable_dampening=True,
@@ -716,6 +730,7 @@ class TestRecoveryFromAdversarialInput:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.1,
             stability_monitor=monitor,
             enable_dampening=True,
@@ -805,6 +820,7 @@ class TestCombinedAdversarialScenarios:
 
         optimizer = StrategyOptimizer(
             connection_pool,
+            rng=random.Random(1234),  # nosec B311 - fixed seed, see module note
             epsilon=0.05,  # Low exploration
             stability_monitor=monitor,
             enable_dampening=True,
