@@ -17,7 +17,9 @@ well formed or on time:
   process is put in a job object that kills its whole tree when closed:
   `npx` starts a cmd.exe that starts node, and ending only cmd.exe would
   leave node running. The job also ends the tree if this process dies
-  without closing it.
+  without closing it. On Linux and macOS the server starts in a session
+  of its own and close() kills that process group; a process that leaves
+  the group on purpose (setsid) is beyond its reach.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import sys
 from collections import deque
 from typing import Any
@@ -82,6 +85,12 @@ class _KillTree:
 
     def __init__(self, pid: int) -> None:
         self._job = None
+        # Until 2026-10-14 this did nothing outside Windows, so close() ended
+        # only the server and left everything it started running: CI on
+        # Linux, the first run to reach the test, found the server's child
+        # still alive after close. The server is started with
+        # start_new_session, so its pid is also its process group id.
+        self._group: int | None = pid if sys.platform != "win32" else None
         if sys.platform != "win32":
             return
         try:
@@ -103,6 +112,12 @@ class _KillTree:
             logger.debug("Could not put MCP server %d in a job object", pid, exc_info=True)
 
     def kill(self) -> None:
+        if self._group is not None:
+            # Also after the server exited by itself: the group lives on
+            # while any process in it does.
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(self._group, signal.SIGKILL)
+            self._group = None
         if self._job is not None:
             import win32job
 
@@ -166,6 +181,7 @@ class MCPConnection:
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
                 limit=self._max_message_bytes,
+                start_new_session=sys.platform != "win32",
             )
         except OSError as exc:
             msg = f"could not start {self._command}: {exc}"
