@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -91,6 +92,7 @@ class PolicyStorage:
         # For in-memory databases, keep a persistent connection so the
         # schema and data survive across multiple _conn() calls.
         self._persistent_conn: sqlite3.Connection | None = None
+        self._persistent_lock = threading.RLock()
         if db_path == ":memory:":
             self._persistent_conn = sqlite3.connect(
                 ":memory:",
@@ -110,13 +112,20 @@ class PolicyStorage:
     @contextmanager
     def _conn(self) -> Generator[sqlite3.Connection, None, None]:
         if self._persistent_conn is not None:
-            # Yield the shared in-memory connection without closing it
-            try:
-                yield self._persistent_conn
-                self._persistent_conn.commit()
-            except Exception:
-                self._persistent_conn.rollback()
-                raise
+            # Yield the shared in-memory connection without closing it, one
+            # thread at a time. The orchestrator evaluates policy on
+            # thread-pool threads, and check_same_thread=False only switches
+            # off sqlite3's own guard: 16 threads evaluating at once raised
+            # in about 250 of 2,000 evaluations (JSONDecodeError, "bad
+            # parameter or other API misuse", a SystemError from the C
+            # layer), and each one became a deny.
+            with self._persistent_lock:
+                try:
+                    yield self._persistent_conn
+                    self._persistent_conn.commit()
+                except Exception:
+                    self._persistent_conn.rollback()
+                    raise
         else:
             # open_sqlite() commits, rolls back on error, and closes.
             # `with sqlite3.connect(...)` did the first two but never closed,
