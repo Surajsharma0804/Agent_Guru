@@ -52,11 +52,11 @@ orjson>=3.9.0
 tqdm>=4.65.0
 rich>=13.0.0
 psutil>=5.9.0
-gitpython>=3.1.60  # <3.1.60: config_writer() round trip injects config directives, GHSA-284h-m62q-gf8w
+gitpython>=3.1.62  # <3.1.60: config_writer() round trip injects config directives, GHSA-284h-m62q-gf8w; <3.1.62: submodule path escapes the repository, GHSA-59cr-6r3x-644w
 
 # --- Security ---
 cryptography>=41.0.0
-pyjwt>=2.14.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9)
+pyjwt>=2.15.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9); <2.15.0: deeply nested payload escapes as RecursionError when decoded unverified (GHSA-42vr-xj54-vc7v)
 defusedxml>=0.7.1
 
 # --- Packaging (needed to build the wheel) ---
