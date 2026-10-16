@@ -19,7 +19,10 @@
 # from a crafted file (GHSA-53q9-r3pm-6pq6, critical), and vision/training
 # relies on that call being safe. pip keeps an installed torch that meets
 # the floor, so a floor of 2.1 left existing environments on the bug.
-torch>=2.6.0
+# torch >= 2.13.0: torch.jit.script corrupts memory in <=2.12.1
+# (GHSA-rrmf-rvhw-rf47); nothing here calls it, but the floor is what moves
+# an existing environment off it.
+torch>=2.13.0
 torchvision>=0.21.0
 torchaudio>=2.6.0
 
@@ -35,17 +38,17 @@ insightface>=0.7.3
 pillow>=10.0.0
 
 # Scientific Computing
-numpy>=1.24.0,<2.0.0; python_version < '3.13'
-numpy>=2.0.0; python_version >= '3.13'
+# numpy 2: kokoro-onnx 0.5.0, the voice, requires numpy>=2.0.2. A cap below
+# 2.0 on Python 3.11 and 3.12 made this file unresolvable there.
+numpy>=2.0.2
 scikit-learn>=1.3.0
-scipy>=1.11.0,<1.14.0
+scipy>=1.11.0
 pandas>=2.0.0
 
 # Audio Processing
 librosa>=0.10.0
 soundfile>=0.12.0
 pyaudio>=0.2.13
-webrtcvad>=2.0.10
 noisereduce>=3.0.0
 vosk>=0.3.45  # FREE offline speech recognition for wake word detection
 
@@ -123,7 +126,7 @@ gputil>=1.4.0
 
 # Security
 cryptography>=41.0.0
-pyjwt>=2.14.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9)
+pyjwt>=2.15.0  # earlier: key-confusion bypasses (GHSA-ffc3-869f-jxw9); <2.15.0: deeply nested payload escapes as RecursionError when decoded unverified (GHSA-42vr-xj54-vc7v)
 defusedxml>=0.7.1
 packaging>=23.0
 
@@ -132,7 +135,7 @@ sqlalchemy>=2.0.0
 aiosqlite>=0.19.0
 
 # Git Integration (for self-improvement versioning)
-gitpython>=3.1.60  # <3.1.60: config_writer() round trip injects config directives, GHSA-284h-m62q-gf8w
+gitpython>=3.1.62  # <3.1.60: config_writer() round trip injects config directives, GHSA-284h-m62q-gf8w; <3.1.62: submodule path escapes the repository, GHSA-59cr-6r3x-644w
 
 # HTTP & Networking
 httpx>=0.24.0
