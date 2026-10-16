@@ -17,7 +17,7 @@ anthropic>=0.8.0
 
 # ML/AI
 transformers>=4.36.0
-torch>=2.6.0  # <2.6: torch.load(weights_only=True) runs code, GHSA-53q9-r3pm-6pq6
+torch>=2.13.0  # <2.6: torch.load(weights_only=True) runs code, GHSA-53q9-r3pm-6pq6; <=2.12.1: torch.jit.script memory corruption, GHSA-rrmf-rvhw-rf47
 spacy>=3.7.0
 onnxruntime>=1.16.0
 
