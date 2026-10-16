@@ -86,8 +86,11 @@ class LLMRuntime:
         self.performance_monitor = performance_monitor
         self.error_handler = error_handler
 
+        from Agent_Guru.llm.providers.openai_compatible import OpenAICompatibleAdapter
+
         self.adapters: dict[ModelProvider, ProviderAdapter] = {
             ModelProvider.OLLAMA: OllamaAdapter(config.ollama_config),
+            ModelProvider.OPENAI_COMPATIBLE: OpenAICompatibleAdapter(),
         }
 
     @classmethod
@@ -348,29 +351,38 @@ class LLMRuntime:
     def _get_provider(model: str) -> ModelProvider:
         """Determine provider from model name.
 
-        All models route to Ollama. Recognized cloud prefixes raise
-        ProviderNotSupportedError to give a clear error message.
+        Ollama unless the model is "engine:<name>" (the owner's local engine
+        at AGENT_GURU_ENGINE_URL) or a cloud model the owner allowed
+        (AGENT_GURU_ALLOW_CLOUD and the provider's key): those go to the
+        OpenAI-compatible adapter. Other cloud names are refused, as before.
         """
+        from Agent_Guru.llm.providers.openai_compatible import endpoint_for
+
+        if endpoint_for(model) is not None:
+            return ModelProvider.OPENAI_COMPATIBLE
+        if model.startswith("engine:"):
+            msg = f"Model '{model}' needs AGENT_GURU_ENGINE_URL, the address of the engine that serves it."
+            raise ProviderNotSupportedError(msg)
         if model.startswith(("gpt-", "text-embedding", "o1-", "o3-")):
             msg = (
-                f"Model '{model}' is an OpenAI cloud model and is not supported. "
-                "Use a local Ollama model instead."
+                f"Model '{model}' is an OpenAI cloud model; it is used only with "
+                "AGENT_GURU_ALLOW_CLOUD set and its API key. Use a local Ollama model instead."
             )
             raise ProviderNotSupportedError(
                 msg,
             )
         if model.startswith("claude-"):
             msg = (
-                f"Model '{model}' is an Anthropic cloud model and is not supported. "
-                "Use a local Ollama model instead."
+                f"Model '{model}' is an Anthropic cloud model; it is used only with "
+                "AGENT_GURU_ALLOW_CLOUD set and its API key. Use a local Ollama model instead."
             )
             raise ProviderNotSupportedError(
                 msg,
             )
         if model.startswith("gemini-"):
             msg = (
-                f"Model '{model}' is a Google cloud model and is not supported. "
-                "Use a local Ollama model instead."
+                f"Model '{model}' is a Google cloud model; it is used only with "
+                "AGENT_GURU_ALLOW_CLOUD set and its API key. Use a local Ollama model instead."
             )
             raise ProviderNotSupportedError(
                 msg,

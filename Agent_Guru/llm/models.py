@@ -29,6 +29,8 @@ class ModelProvider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
+    #: llama.cpp, vLLM, LM Studio, SGLang, or a cloud API in the OpenAI shape
+    OPENAI_COMPATIBLE = "openai_compatible"
 
 
 # ---------------------------------------------------------------------------
