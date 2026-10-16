@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+# setuptools <83: sdist MANIFEST.in exclusions miss Unicode-normalised names
+# (GHSA-h35f-9h28-mq5c), so an excluded file could ship in a release.
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -44,7 +46,7 @@ dependencies = [
     # from a crafted file (GHSA-53q9-r3pm-6pq6, critical). vision/training
     # loads user-supplied checkpoints with that call and relies on it being
     # safe, and pip keeps any installed torch that meets the floor.
-    "torch>=2.6.0",
+    "torch>=2.13.0",
     # spacy is not a base dependency. Its only user,
     # reasoning/intent/ner_extractor.py, imports it inside a try block and
     # also needs a trained model under reasoning/models/ner_model that is not
@@ -272,14 +274,19 @@ test = [
     # 2.14.0: earlier releases accept public keys and empty keys as HMAC
     # secrets (GHSA-ffc3-869f-jxw9, critical, and five high advisories).
     # reasoning/api/auth.py verifies tokens with it.
-    "pyjwt>=2.14.0",
+    # <2.15.0: a deeply nested payload decoded without verification raises
+    # RecursionError instead of a PyJWT error (GHSA-42vr-xj54-vc7v). auth.py
+    # verifies first, so it is not reached today; the floor keeps it that way.
+    "pyjwt>=2.15.0",
     "redis>=5.0.0",
     "celery>=5.3.0",
     "fastapi>=0.104.0",
     # <3.1.60: config_writer() rewrites dormant values as live directives such
     # as core.hooksPath (GHSA-284h-m62q-gf8w, critical); git_integration.py
     # calls it on every TOKEN-auth push.
-    "GitPython>=3.1.60",
+    # <3.1.62: a .gitmodules path can point a submodule update outside the
+    # repository (GHSA-59cr-6r3x-644w).
+    "GitPython>=3.1.62",
     "structlog>=23.2.0",
     "prometheus-client>=0.19.0",
     "opentelemetry-api>=1.21.0",
@@ -289,7 +296,7 @@ test = [
     "openai>=1.6.0",
     "anthropic>=0.8.0",
     # ML / speech / vision stack the tests exercise for real
-    "torch>=2.6.0",
+    "torch>=2.13.0",
     "transformers>=4.36.0",
     "sentence-transformers>=5.6.0",
     "pytorch-lightning>=2.0.0",
@@ -338,7 +345,7 @@ test = [
 # CUDA, which would make this extra uninstallable on a stock machine.
 training = [
     "agent-guru[test]",
-    "torch>=2.6.0",
+    "torch>=2.13.0",
     "torchvision>=0.21.0",
     "torchaudio>=2.6.0",
     "pytorch-lightning>=2.1.0",
