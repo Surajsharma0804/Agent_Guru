@@ -28,6 +28,8 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "api": ("Agent_Guru.integration.local_api", "run", "the local HTTP API: its state, or the owner's key"),
     "telegram": ("Agent_Guru.platform.channels.inbound", "run", "the Telegram bot: its state, or who has written to it"),
     "connect": ("Agent_Guru.connectors.oauth", "run", "sign in to Google or Microsoft for mail, calendar and contacts"),
+    "learn": ("Agent_Guru.self_improvement.prompt_tuning", "run", "tune the prompt from mistakes, roll back, or export training data"),
+    "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
 }
 
 
