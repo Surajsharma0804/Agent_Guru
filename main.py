@@ -441,6 +441,18 @@ async def run() -> None:
         install_mcp_policies(policy, [tasks])
     except Exception as e:
         logger.warning("Task tools unavailable (%s)", e)
+    # The owner's mail, calendar, contacts and files (connectors/tools.py);
+    # each tool is offered only when its account or source is set up.
+    try:
+        from Agent_Guru.connectors.tools import ConnectorTools, connectors_server
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+        connectors = connectors_server()
+        connectors.local = ConnectorTools()
+        mcp_servers = [*mcp_servers, connectors]
+        install_mcp_policies(policy, [connectors])
+    except Exception as e:
+        logger.warning("Connector tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
