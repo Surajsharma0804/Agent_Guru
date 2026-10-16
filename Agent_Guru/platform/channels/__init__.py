@@ -129,7 +129,9 @@ class EmailChannel(Channel):
     name = "email"
 
     def _config(self) -> dict[str, str]:
-        return {k: os.environ.get(f"SMTP_{k}", "").strip() for k in ("HOST", "PORT", "USER", "PASSWORD", "FROM")}
+        # Named in full, not built from a prefix, so each setting can be found where it is read.
+        names = {"HOST": "SMTP_HOST", "PORT": "SMTP_PORT", "USER": "SMTP_USER", "PASSWORD": "SMTP_PASSWORD", "FROM": "SMTP_FROM"}
+        return {k: os.environ.get(v, "").strip() for k, v in names.items()}
 
     def configured(self) -> bool:
         c = self._config()
