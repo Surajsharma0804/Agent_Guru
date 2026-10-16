@@ -36,7 +36,7 @@ from typing import Any
 
 #: The candidate under evaluation; set only by tune() while it measures.
 OVERRIDE_ENV = "AGENT_GURU_GUIDANCE_OVERRIDE"
-_MAX_GUIDANCE = 600
+_MAX_GUIDANCE = 1200
 _cache: tuple[float, str] = (-1.0, "")
 
 
@@ -147,20 +147,62 @@ def gate(baseline: dict[str, Any], candidate: dict[str, Any]) -> tuple[bool, str
     return True, f"passed {candidate['passed']} of {candidate['judged']} against {baseline['passed']}"
 
 
-async def tune() -> dict[str, Any]:
-    """One round: propose from mistakes, measure against the current guidance, adopt or reject."""
+def _demonstrations(k: int = 3) -> str:
+    """The owner's best-rated short exchanges as examples, personal details masked (few-shot, as DSPy picks them)."""
+    from Agent_Guru.integration.turn_trace import TurnTraceStore
+    from Agent_Guru.self_improvement.turn_dataset import mask
+    from Agent_Guru.utils.path_utils import app_data_dir
+
+    path = app_data_dir("turns.db", create=False)
+    if not path.exists():
+        return ""
+    good = [t for t in TurnTraceStore(path).recent(limit=2000)
+            if t.rating is not None and t.rating >= 0.5 and t.heard and t.said and len(t.said) < 300]
+    seen: set[str] = set()
+    picked = []
+    for t in good:
+        key = t.heard.strip().lower()
+        if key not in seen:
+            seen.add(key)
+            picked.append(f"Example - owner: {mask(t.heard.strip())} / you: {mask(t.said.strip())}")
+        if len(picked) >= k:
+            break
+    return "\n".join(picked)
+
+
+async def tune(strategy: str = "both") -> dict[str, Any]:
+    """One round: build candidates, measure each against the current guidance, adopt the best that passes the gate.
+
+    "rules": rules the model writes from the turns marked wrong (reflective,
+    as GEPA does). "examples": the owner's best-rated exchanges as
+    demonstrations (as DSPy's few-shot selection does). "both": each, and
+    the better one that passes.
+    """
     state = _load()
     current = current_guidance()
+    candidates: list[tuple[str, str]] = []
+    if strategy in ("rules", "both"):
+        mistakes = _mistakes()
+        if mistakes:
+            rules = await _propose(mistakes, current)
+            if rules:
+                candidates.append(("rules", rules))
+    if strategy in ("examples", "both"):
+        shots = _demonstrations()
+        if shots:
+            candidates.append(("examples", shots))
+    if not candidates:
+        return {"adopted": False, "reason": "nothing to learn from yet: mark answers right or wrong by voice first"}
     baseline = await _evaluate(current)
-    examples = _mistakes()
-    if not examples:
-        return {"adopted": False, "reason": "no turns are marked wrong yet; say 'that was wrong' after a bad answer"}
-    candidate_text = await _propose(examples, current)
-    if not candidate_text:
-        return {"adopted": False, "reason": "the model proposed nothing"}
-    combined = (current + "\n" + candidate_text).strip()[:_MAX_GUIDANCE]
-    candidate = await _evaluate(combined)
-    ok, why = gate(baseline, candidate)
+    best: tuple[bool, str, str, dict[str, Any], str] | None = None
+    for kind, text in candidates:
+        combined = (current + "\n" + text).strip()[:_MAX_GUIDANCE]
+        scored = await _evaluate(combined)
+        passes, reason = gate(baseline, scored)
+        if best is None or (passes and (not best[0] or scored["passed"] > best[3]["passed"])):
+            best = (passes, reason, combined, scored, kind)
+    ok, why, combined, candidate, kind = best
+    why = f"{kind}: {why}"
     version = {"id": len(state["versions"]) + 1, "text": combined, "created_at": time.time(), "adopted": ok,
                "reason": why, "baseline": {k: baseline[k] for k in ("passed", "judged", "median_turn_s")},
                "score": {k: candidate[k] for k in ("passed", "judged", "median_turn_s")},
@@ -188,6 +230,8 @@ def run(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="python -m Agent_Guru learn", description="Learn from the owner's turns.")
     parser.add_argument("action", choices=["tune", "show", "rollback", "export"])
     parser.add_argument("--out", default="", help="export: the JSONL file to write")
+    parser.add_argument("--strategy", choices=["rules", "examples", "both"], default="both",
+                        help="tune: rules from mistakes, examples from good answers, or both")
     args = parser.parse_args(argv)
     if args.action == "export":
         from Agent_Guru.self_improvement.turn_dataset import export
@@ -204,7 +248,7 @@ def run(argv: list[str]) -> int:
         for v in state["versions"]:
             print(f"v{v['id']} {'adopted' if v['adopted'] else 'rejected'}: {v['reason']}")  # noqa: T201
         return 0
-    result = asyncio.run(tune())
+    result = asyncio.run(tune(args.strategy))
     print(("Adopted" if result["adopted"] else "Not adopted") + f": {result['reason']}")  # noqa: T201
     if result.get("guidance") and result["adopted"]:
         print(result["guidance"])  # noqa: T201
