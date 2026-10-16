@@ -481,6 +481,16 @@ async def run() -> None:
             api_task = asyncio.create_task(local_api.serve(orch, api_stop))
     except Exception as e:
         logger.warning("Local API unavailable (%s)", e)
+    # Messages from the owner's Telegram chats, as typed turns; off unless
+    # AGENT_GURU_TELEGRAM_INBOUND is set. Shares api_stop for shutdown.
+    telegram_task = None
+    try:
+        from Agent_Guru.platform.channels import inbound
+
+        if inbound.enabled():
+            telegram_task = asyncio.create_task(inbound.poll(orch, api_stop))
+    except Exception as e:
+        logger.warning("Telegram inbound unavailable (%s)", e)
 
     # --- Concurrent startup of all subsystems ---
     logger.info("Starting all subsystems concurrently...")
@@ -734,12 +744,16 @@ async def run() -> None:
     logger.info("Shutting down Agent Guru...")
     await wake_manager.stop_listening()
 
-    if api_task is not None:
-        api_stop.set()
+    api_stop.set()
+    for task in (api_task, telegram_task):
+        if task is None:
+            continue
         try:
-            await asyncio.wait_for(api_task, 5)
+            await asyncio.wait_for(task, 5)
+        except TimeoutError:
+            task.cancel()
         except Exception as e:
-            logger.warning("Stopping the local API failed: %s", e)
+            logger.warning("Stopping the local API or Telegram failed: %s", e)
     # MCP servers are child processes; each is ended with what it started.
     try:
         await orch.close_tools()

@@ -66,6 +66,7 @@ KNOWN_SETTINGS: dict[str, str] = {
     "AGENT_GURU_RESEARCH": "flag",
     "AGENT_GURU_API": "flag",
     "AGENT_GURU_API_PORT": "count",
+    "AGENT_GURU_TELEGRAM_INBOUND": "flag",
     "AGENT_GURU_NO_DOWNLOAD": "flag",
     "AGENT_GURU_BROWSER_CHANNEL": "text",
     "AGENT_GURU_LOG_DIR": "path",

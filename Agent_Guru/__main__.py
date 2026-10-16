@@ -26,6 +26,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "models": ("Agent_Guru.llm.model_catalog", "run", "the models installed in Ollama and whether they fit the GPU"),
     "recipes": ("Agent_Guru.utils.recipes", "run", "list, show or apply a named set of settings"),
     "api": ("Agent_Guru.integration.local_api", "run", "the local HTTP API: its state, or the owner's key"),
+    "telegram": ("Agent_Guru.platform.channels.inbound", "run", "the Telegram bot: its state, or who has written to it"),
 }
 
 
