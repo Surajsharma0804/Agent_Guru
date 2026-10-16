@@ -187,6 +187,14 @@ class DocumentStore:
         from Agent_Guru.platform.features.presentation import PresentationError, read_source_text
 
         source = await asyncio.to_thread(lambda: Path(path).expanduser().resolve())
+        # A document's passages are read back into prompts and answers; a key
+        # or credential file added by mistake would be recited on request.
+        from Agent_Guru.security.file_policy import sensitive_reason
+
+        reason = sensitive_reason(source)
+        if reason:
+            msg = f"{source.name} is not added: it holds {reason}"
+            raise DocumentError(msg)
         size = await asyncio.to_thread(lambda: source.stat().st_size if source.is_file() else None)
         if size is None:
             msg = f"There is no file at {source}"

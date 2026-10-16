@@ -245,7 +245,14 @@ class FileOperationsController:
         # Use safe_path to enforce base directory containment (raises PermissionError
         # for any path - including those with '..' or absolute escapes - that resolves
         # outside self.base_dir).
-        return safe_path(path, self.base_dir)
+        resolved = safe_path(path, self.base_dir)
+        # Inside the base directory nothing told an SSH key from a shopping
+        # list; keys, credentials and the assistant's own secrets are refused
+        # here for every operation (SensitivePathError is a PermissionError).
+        from Agent_Guru.security.file_policy import check_path
+
+        check_path(resolved)
+        return resolved
 
     def _check_permissions(self, path: Path, operation: str) -> None:
         """Check if current user has permissions for operation.

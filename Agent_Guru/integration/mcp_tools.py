@@ -318,7 +318,7 @@ class ToolCallResult:
     output: str = ""
     error: str = ""
     #: "", or what went wrong: not_found, not_allowed, unknown_risk,
-    #: hint_conflict, denied_by_policy, bad_schema, bad_arguments,
+    #: hint_conflict, denied_by_policy, bad_schema, bad_arguments, sensitive_path,
     #: unavailable, tool_error, protocol_error, too_large, timeout,
     #: cancelled.
     category: str = ""
@@ -630,6 +630,15 @@ class MCPToolbox:
                 problems.append(f"arguments are over {MAX_ARGUMENT_BYTES} bytes")
             if problems:
                 result.status, result.category, result.error = ActionStatus.FAILED, "bad_arguments", "; ".join(problems[:5])
+                return result
+            # A tool given the path of a key or credential file could read it
+            # out or send it on; the owner never needs that through a tool.
+            from Agent_Guru.security.file_policy import sensitive_paths_in
+
+            secret = sensitive_paths_in(arguments)
+            if secret:
+                result.category = "sensitive_path"
+                result.error = f"{secret[0][0]} holds {secret[0][1]}; tools may not touch it"
                 return result
             await self._run(connection, entry, tool=tool, arguments=arguments, risk=risk, result=result)
             return result
