@@ -7,6 +7,11 @@
 # that call, and treat it as the safe way to do it, so on 2.2.2 a
 # checkpoint someone hands you is a program. These are the versions
 # requirements-lock.txt already runs, so this adds no new combination.
-torch==2.11.0
-torchvision==0.26.0
+#
+# Moved to 2.14.1 / 0.29.1 on 2026-10-14 with the regenerated lock: torch
+# <=2.12.1 has a memory-corruption bug in torch.jit.script (GHSA-rrmf-rvhw-rf47).
+# torchaudio stays at 2.11.0, the newest this index publishes; it does not
+# pin a torch version, and the suite and the voice run with this pair.
+torch==2.14.1
+torchvision==0.29.1
 torchaudio==2.11.0
