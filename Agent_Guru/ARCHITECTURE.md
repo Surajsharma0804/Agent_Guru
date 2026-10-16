@@ -403,7 +403,6 @@ policy/engine.py (PolicyEngine)
 | `sounddevice` | latest | Microphone capture + playback |
 | `soundfile` | >=0.12.0 | Audio file I/O |
 | `vosk` | >=0.3.45 | Wake word detection (offline) |
-| `webrtcvad` | >=2.0.10 | Voice activity detection |
 | `noisereduce` | >=3.0.0 | Noise reduction |
 | `librosa` | >=0.10.0 | Audio analysis |
 | `pyaudio` | >=0.2.13 | Alternative audio I/O |
