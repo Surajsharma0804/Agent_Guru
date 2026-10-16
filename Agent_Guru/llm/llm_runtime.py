@@ -122,7 +122,62 @@ class LLMRuntime:
     # Core API
     # ------------------------------------------------------------------
 
+    def _fallback_for(self, request: CompletionRequest) -> CompletionRequest | None:
+        """The same request for AGENT_GURU_FALLBACK_MODEL, or None when there is none to try.
+
+        Answers went to one engine: with Ollama stopped or its model failing,
+        every turn ended in an error although a second engine (another local
+        one, or a cloud model the owner allowed) could have answered. One
+        retry on the fallback, never a chain, and never for a request the
+        context window refused, which the fallback would refuse as well.
+        """
+        import dataclasses
+        import os
+
+        fallback = os.environ.get("AGENT_GURU_FALLBACK_MODEL", "").strip()
+        if not fallback or fallback == request.model or request.metadata.get("fallback_of"):
+            return None
+        try:
+            self._get_provider(fallback)
+        except ProviderNotSupportedError:
+            return None
+        return dataclasses.replace(request, model=fallback, metadata={**request.metadata, "fallback_of": request.model})
+
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
+        """A completion from request.model, or from AGENT_GURU_FALLBACK_MODEL when that fails."""
+        try:
+            return await self._complete(request)
+        except ContextWindowExceededError:
+            raise
+        except Exception as exc:
+            other = self._fallback_for(request)
+            if other is None:
+                raise
+            logger.warning("%s failed (%s); answering with %s", request.model, type(exc).__name__, other.model)
+            return await self._complete(other)
+
+    async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
+        """Chunks from request.model; from AGENT_GURU_FALLBACK_MODEL only when the first failed before any chunk.
+
+        Once text has been sent it has been heard, so a stream that fails
+        part-way is not restarted on another model.
+        """
+        sent = False
+        try:
+            async for chunk in self._stream(request):
+                sent = True
+                yield chunk
+        except ContextWindowExceededError:
+            raise
+        except Exception as exc:
+            other = None if sent else self._fallback_for(request)
+            if other is None:
+                raise
+            logger.warning("%s failed (%s); answering with %s", request.model, type(exc).__name__, other.model)
+            async for chunk in self._stream(other):
+                yield chunk
+
+    async def _complete(self, request: CompletionRequest) -> CompletionResponse:
         """Execute a non-streaming completion request.
 
         Injects session context, validates token budget, executes with
@@ -235,7 +290,7 @@ class LLMRuntime:
 
         return response
 
-    async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
+    async def _stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
         """Execute a streaming completion request.
 
         Yields StreamChunk objects incrementally. Updates context and

@@ -84,6 +84,7 @@ KNOWN_SETTINGS: dict[str, str] = {
     "AGENT_GURU_ENGINE_REASONING": "text",
     "AGENT_GURU_ALLOW_CLOUD": "flag",
     "AGENT_GURU_CLOUD_MODEL": "text",
+    "AGENT_GURU_FALLBACK_MODEL": "text",
     "AGENT_GURU_NO_DOWNLOAD": "flag",
     "AGENT_GURU_BROWSER_CHANNEL": "text",
     "AGENT_GURU_LOG_DIR": "path",
