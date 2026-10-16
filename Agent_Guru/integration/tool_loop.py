@@ -231,6 +231,9 @@ class PendingCall:
     tool: str
     arguments: Any
     question: str
+    #: Where parts of the arguments came from when not the owner's words
+    #: ("research/fetch_page"), empty when they are all the owner's.
+    tainted_from: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -281,6 +284,11 @@ _DESCRIPTIVE = ("description", "title")
 _DROPPED = ("examples", "default", "$comment", "$schema")
 
 
+def _owner_words(messages: list[Message]) -> str:
+    """Everything the owner said in *messages*: the text a call's arguments may come from."""
+    return " ".join(m.content or "" for m in messages if m.role == "user")
+
+
 def _guarded(text: str, limit: int, source: str) -> str:
     from Agent_Guru.llm.security import guard_external_text
 
@@ -326,6 +334,10 @@ class ToolLoop:
             self._tools[f"{tool.server}__{tool.name}"] = tool
         self._seen: dict[str, ToolCallResult] = {}
         self.made: list[tuple[str, str, Any, ActionStatus]] = []
+        from Agent_Guru.security.taint import TaintTracker
+
+        self._taint = TaintTracker()
+        self._owner_text = ""
         self._tool_seconds = 0.0
         self._output_chars = 0
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
@@ -385,6 +397,7 @@ class ToolLoop:
         if call.name not in self._tools:
             return
         CALLS_THIS_TURN.set(self.made)
+        self._owner_text = _owner_words(messages)
         messages.append(Message(role="assistant", content="", tool_calls=[call]))
         messages.append(Message(role="tool", name=call.name, content=await self._run_call(call)))
         self._stage("tool_prefetch", time.time(), {"name": call.name}, seconds=0.0)
@@ -396,6 +409,7 @@ class ToolLoop:
     ) -> ToolLoopOutcome:
         """Ask the model, run what it asks for, until it answers or the budget ends; CancelledError propagates."""
         CALLS_THIS_TURN.set(self.made)
+        self._owner_text = _owner_words(messages)
         outcome = self.outcome
         functions = self.functions()
         while True:
@@ -565,9 +579,19 @@ class ToolLoop:
         if tool is None or tool.risk is ToolRisk.READ_ONLY or self._key(call) in self._seen:
             return None
         shown = json.dumps(call.arguments, ensure_ascii=False)[:200] if isinstance(call.arguments, dict) else ""
+        question = f"Should I run {tool.name} on {tool.server}" + (f" with {shown}" if shown and shown != "{}" else "") + "?"
+        # Text the model copied from a tool's output is named, so the owner
+        # knows "x@example.net" came from a page and not from them.
+        taints = self._taint.find(call.arguments, self._owner_text)
+        if taints:
+            sources = sorted({t.source for t in taints})
+            question += " Careful: " + "; ".join(f'"{t.excerpt}" came from {t.source}' for t in taints[:2]) + ", not from you."
+            self._stage("tool_tainted", time.time(), {"name": call.name, "from": sources}, seconds=0.0)
+        else:
+            sources = []
         return PendingCall(
             name=call.name, server=tool.server, tool=tool.name, arguments=call.arguments,
-            question=f"Should I run {tool.name} on {tool.server}" + (f" with {shown}" if shown and shown != "{}" else "") + "? Say yes to go ahead.",
+            question=question + " Say yes to go ahead.", tainted_from=sources,
         )
 
     @staticmethod
@@ -619,6 +643,7 @@ class ToolLoop:
             self.outcome.calls.append(refused)
             return self._tool_message(refused, call.name)
         result = await self._toolbox.call(tool.server, tool.name, call.arguments, stages=self._stages)
+        self._taint.record(f"{tool.server}/{tool.name}", result.output)
         self.made.append((tool.server, tool.name, call.arguments, result.status))
         self._seen[key] = result
         self.outcome.calls.append(result)
