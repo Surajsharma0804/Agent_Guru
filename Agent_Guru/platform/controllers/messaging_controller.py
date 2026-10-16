@@ -397,6 +397,21 @@ class MessagingController:
             self._platform,
         )
 
+        # A channel the owner configured (TELEGRAM_BOT_TOKEN, SLACK_BOT_TOKEN,
+        # SMTP_*) delivers for real and says "sent" only when the service
+        # confirmed it; desktop Telegram, Slack and email were only ever
+        # prefilled, so the message waited for someone at the keyboard.
+        from Agent_Guru.platform.channels import channel_for
+
+        channel = channel_for(app_norm)
+        if channel is not None and channel.accepts(contact):
+            delivery = await channel.send(contact, message)
+            if delivery.sent:
+                logger.info("send_message: %s delivered it (id %s)", app_norm, delivery.message_id or "-")
+                return "sent"
+            logger.warning("send_message: %s did not deliver it: %s", app_norm, delivery.error)
+            return None
+
         try:
             if _is_mobile(self._platform):
                 if self._platform == "android":
