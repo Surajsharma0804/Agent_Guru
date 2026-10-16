@@ -114,6 +114,9 @@ class WakeWordEvent:
 #: True while a typed turn runs. Set per task, so a voice turn running at the
 #: same time is not silenced by it.
 _TEXT_TURN: contextvars.ContextVar[bool] = contextvars.ContextVar("agent_guru_text_turn", default=False)
+#: The model that wrote this turn's answer when routing chose another than
+#: OLLAMA_MODEL; reset at the start of each turn, read by the turn record.
+_ROUTED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("agent_guru_routed_model", default="")
 
 
 @dataclass
@@ -319,6 +322,9 @@ class PipelineResult:
     # GPU counters when the turn started (platform/hardware/nvml.py); the
     # turn record keeps what the turn cost the GPU, {} without an NVIDIA GPU.
     gpu_before: dict[str, float] = field(default_factory=dict)
+    # The model that wrote the answer when routing chose another than
+    # OLLAMA_MODEL (llm/model_router/turn_routing.py); "" when it did not.
+    routed_model: str = ""
 
 
 _RATING_INTENT = "feedback:rating"
@@ -537,6 +543,9 @@ class IntegrationOrchestrator:
         from Agent_Guru.integration.events import EventBus
 
         self.events = EventBus()
+        # Chooses the model for each answer when AGENT_GURU_ROUTER = "auto";
+        # built in startup(), None until then and when routing is off.
+        self._turn_router: Any = None
         # Learn lasting facts about the owner from conversation, after each
         # answer (owner's choice, 2026-10-07). On from main.py only, so tests
         # never write into the owner's memory. Tasks are kept referenced so
@@ -643,6 +652,15 @@ class IntegrationOrchestrator:
         from Agent_Guru.platform.hardware import nvml
 
         nvml.warm()
+        from Agent_Guru.llm.model_router import turn_routing
+
+        if turn_routing.enabled():
+            router = turn_routing.TurnRouter()
+            try:
+                if await asyncio.to_thread(router.build, self.trace_store):
+                    self._turn_router = router
+            except Exception:
+                logger.warning("Model routing unavailable", exc_info=True)
         logger.info("IntegrationOrchestrator.startup() - concurrent init begin")
         self._start_tools()
 
@@ -939,6 +957,7 @@ class IntegrationOrchestrator:
 
         if nvml.ready():
             result.gpu_before = nvml.read()
+        _ROUTED_MODEL.set("")
         try:
             turn = await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
             if turn is not result:
@@ -1277,7 +1296,10 @@ class IntegrationOrchestrator:
                 gpu = nvml.turn_detail(result.gpu_before, await asyncio.to_thread(nvml.read), turn_seconds)
                 if gpu:
                     result.tool_stages.append(StageTiming(name="gpu", started_at=started_at, seconds=turn_seconds, detail=gpu))
+            result.routed_model = result.routed_model or _ROUTED_MODEL.get()
             turn = self._turn_record(result, started_at, turn_seconds)
+            if self._turn_router is not None and turn.outcome in ("success", "failure"):
+                self._turn_router.record(turn.model, turn.heard, turn.outcome == "success", turn_seconds * 1000)
             self.events.publish(
                 "turn.finished", turn_id=turn.turn_id, heard=turn.heard, said=turn.said,
                 intent=turn.intent, status=turn.action_status, seconds=round(turn_seconds, 2),
@@ -1391,7 +1413,7 @@ class IntegrationOrchestrator:
             intent=result.intent,
             action_status=status.value if status else None,
             outcome=outcome,
-            model=_configured_ollama_model() if answered else "",
+            model=(result.routed_model or _configured_ollama_model()) if answered else "",
             stages=sorted(
                 [
                     StageTiming(name=name, started_at=wall, seconds=seconds, detail=details_by_stage.get(name, {}))
@@ -1954,6 +1976,12 @@ class IntegrationOrchestrator:
 
         # Resolve model and build system prompt
         ollama_model = _configured_ollama_model()
+        if self._turn_router is not None:
+            routed, why = await self._turn_router.choose(transcript, ollama_model)
+            if routed != ollama_model:
+                logger.info("Answer routed to %s (%s)", routed, why)
+                ollama_model = routed
+                _ROUTED_MODEL.set(routed)
         system_prompt = self._build_system_prompt(
             personality, emotion_hint, language_code, ollama_model,
             transcript=transcript,
