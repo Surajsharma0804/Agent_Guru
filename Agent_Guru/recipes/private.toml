@@ -1,0 +1,4 @@
+description = "Nothing leaves the machine: no web research, no model downloads, no learning from turns"
+AGENT_GURU_RESEARCH = false
+AGENT_GURU_NO_DOWNLOAD = true
+AGENT_GURU_LEARN_FACTS = false

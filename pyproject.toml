@@ -368,6 +368,10 @@ training = [
 [tool.setuptools.packages.find]
 include = ["Agent_Guru*"]
 
+# Built-in recipes (utils/recipes.py) are data files, not modules.
+[tool.setuptools.package-data]
+"Agent_Guru" = ["recipes/*.toml"]
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]

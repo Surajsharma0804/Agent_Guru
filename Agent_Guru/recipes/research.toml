@@ -1,0 +1,3 @@
+description = "Answers that need live information search the web and cite their sources"
+AGENT_GURU_RESEARCH = true
+AGENT_GURU_NO_DOWNLOAD = false

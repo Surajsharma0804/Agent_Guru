@@ -15,24 +15,32 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 
+#: Commands that do one job instead of starting the assistant: name ->
+#: (module, function, what it does). Each function takes the remaining
+#: arguments and returns an exit code; its module is imported only when
+#: the command is used, so a plain launch does not pay for them.
+COMMANDS: dict[str, tuple[str, str, str]] = {
+    "doctor": ("Agent_Guru.platform.error_handling.doctor", "run", "check the machine"),
+    "documents": ("Agent_Guru.platform.features.documents", "run", "add, remove or list documents to answer from"),
+    "mcp": ("Agent_Guru.integration.mcp_tools", "run", "list or call tools on MCP servers, through the policy"),
+    "models": ("Agent_Guru.llm.model_catalog", "run", "the models installed in Ollama and whether they fit the GPU"),
+    "recipes": ("Agent_Guru.utils.recipes", "run", "list, show or apply a named set of settings"),
+}
+
+
 def _run() -> None:
     """Entry point for PyInstaller / console_scripts."""
-    if sys.argv[1:2] == ["doctor"]:
-        # Checks the machine instead of starting the assistant.
-        from Agent_Guru.platform.error_handling.doctor import run
+    name = sys.argv[1] if len(sys.argv) > 1 else ""
+    if name in COMMANDS:
+        import importlib
 
-        sys.exit(run(sys.argv[2:]))
-    if sys.argv[1:2] == ["documents"]:
-        # Adds, removes or lists the documents the assistant answers from.
-        from Agent_Guru.platform.features.documents import run as run_documents
-
-        sys.exit(run_documents(sys.argv[2:]))
-    if sys.argv[1:2] == ["mcp"]:
-        # Lists or calls tools on external MCP servers, through the same
-        # policy and checks a voice turn would use.
-        from Agent_Guru.integration.mcp_tools import run as run_mcp
-
-        sys.exit(run_mcp(sys.argv[2:]))
+        module, function, _ = COMMANDS[name]
+        sys.exit(getattr(importlib.import_module(module), function)(sys.argv[2:]))
+    if name in ("help", "--help", "-h"):
+        print("python -m Agent_Guru [command]\n\nWith no command, starts the assistant. Commands:")
+        for command, (_, _, what) in COMMANDS.items():
+            print(f"  {command:12} {what}")
+        sys.exit(0)
     # Import main's async entry point and run it
     try:
         # Import from the top-level main.py

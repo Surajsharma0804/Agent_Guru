@@ -1,0 +1,4 @@
+description = "The tested setup: gemma4, 4k context, turn records on"
+OLLAMA_MODEL = "gemma4"
+AGENT_GURU_NUM_CTX = 4096
+AGENT_GURU_TRACES = true

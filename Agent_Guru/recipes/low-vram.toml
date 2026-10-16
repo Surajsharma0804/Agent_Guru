@@ -1,0 +1,3 @@
+description = "Smaller model that fits a 4 GB GPU beside speech: faster replies, less depth"
+OLLAMA_MODEL = "gemma4:e2b"
+AGENT_GURU_NUM_CTX = 4096
