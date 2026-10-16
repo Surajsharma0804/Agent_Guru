@@ -236,6 +236,46 @@ def create_app(orchestrator: Any) -> Any:
 
         return StreamingResponse(events(), media_type="text/event-stream")
 
+    # ---- the dashboard's views: read only, the owner's key required ----
+
+    @app.get("/v1/status")
+    async def status_view(_user: dict = Depends(get_current_user)) -> dict[str, Any]:  # noqa: B008
+        from Agent_Guru.connectors.oauth import connected
+        from Agent_Guru.llm.model_router import turn_routing
+        from Agent_Guru.platform.channels import CHANNELS
+
+        return {
+            "model": os.environ.get("OLLAMA_MODEL", "gemma4"),
+            "fallback_model": os.environ.get("AGENT_GURU_FALLBACK_MODEL", ""),
+            "routing": turn_routing.enabled(),
+            "cloud_allowed": os.environ.get("AGENT_GURU_ALLOW_CLOUD", "").lower() in {"1", "true", "yes", "on"},
+            "accounts": connected(),
+            "channels": sorted(name for name, c in CHANNELS.items() if c.configured()),
+        }
+
+    @app.get("/v1/turns")
+    async def turns_view(limit: int = 20, _user: dict = Depends(get_current_user)) -> list[dict[str, Any]]:  # noqa: B008
+        store = getattr(orchestrator, "trace_store", None)
+        if store is None:
+            return []
+        turns = await asyncio.to_thread(store.recent, limit=max(1, min(limit, 200)))
+        return [{"at": t.started_at, "seconds": round(t.seconds, 2), "heard": t.heard, "said": t.said,
+                 "intent": t.intent, "status": t.action_status, "outcome": t.outcome, "model": t.model,
+                 "rating": t.rating} for t in turns]
+
+    @app.get("/v1/tasks")
+    async def tasks_view(_user: dict = Depends(get_current_user)) -> list[dict[str, Any]]:  # noqa: B008
+        manager = orchestrator._reminders()
+        return [{"id": r.reminder_id, "kind": r.kind, "message": r.message, "fire_at": r.fire_at,
+                 "every_s": r.every_s, "tool": r.tool, "enabled": r.enabled,
+                 "last": (r.runs[-1] if r.runs else None)} for r in manager.list_reminders()]
+
+    @app.get("/v1/memory")
+    async def memory_view(_user: dict = Depends(get_current_user)) -> dict[str, Any]:  # noqa: B008
+        from Agent_Guru.platform.features.user_memory import get_user_memory
+
+        return get_user_memory().get_all()
+
     @app.get("/", response_class=HTMLResponse)
     async def page() -> str:
         return _PAGE
@@ -279,30 +319,58 @@ _PAGE = """<!doctype html>
 <style>
 :root{--bg:#f7f7f5;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#dedcd6;--accent:#2f5d8a}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#9a9890;--card:#201f1d;--line:#34332f;--accent:#7fa8d6}}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
-main{max-width:760px;margin:0 auto;padding:16px;display:flex;flex-direction:column;min-height:100vh;box-sizing:border-box}
-h1{font-size:20px;margin:8px 0 12px}#log{flex:1;overflow-y:auto}
-.msg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;white-space:pre-wrap}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px;display:flex;flex-direction:column;min-height:100vh}
+h1{font-size:20px;margin:8px 0}nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:8px}
+nav button{background:none;color:var(--muted);border:0;border-bottom:2px solid transparent;padding:8px 10px;font:inherit;cursor:pointer}
+nav button.on{color:var(--fg);border-color:var(--accent)}section{display:none;flex:1}section.on{display:flex;flex-direction:column}
+#log{flex:1;overflow-y:auto}.msg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .me{border-color:var(--accent)}.meta{color:var(--muted);font-size:13px}
 form{display:flex;gap:8px;margin-top:8px}input{flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
-button{padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
+.btn{padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:6px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+th{color:var(--muted);font-weight:600}.wrap{overflow-x:auto}
 </style></head><body><main>
-<h1>Agent Guru</h1><div id="log"></div>
-<form id="f"><input id="t" autocomplete="off" placeholder="Type to the assistant" required><button>Send</button></form>
-<p class="meta" id="s"></p></main>
+<h1>Agent Guru</h1>
+<nav id="tabs"><button data-t="chat" class="on">Chat</button><button data-t="activity">Activity</button>
+<button data-t="turns">Turns</button><button data-t="tasks">Tasks</button><button data-t="memory">Memory</button><button data-t="status">Status</button></nav>
+<section id="chat" class="on"><div id="log"></div>
+<form id="f"><input id="t" autocomplete="off" placeholder="Type to the assistant" required><button class="btn">Send</button></form><p class="meta" id="s"></p></section>
+<section id="activity"><div id="events" class="wrap"></div></section>
+<section id="turns"><div class="wrap" id="turnsv"></div></section>
+<section id="tasks"><div class="wrap" id="tasksv"></div></section>
+<section id="memory"><div class="wrap" id="memoryv"></div></section>
+<section id="status"><div class="wrap" id="statusv"></div></section>
+</main>
 <script>
-const log=document.getElementById('log'),s=document.getElementById('s');
-function key(){let k=sessionStorage.getItem('k');if(!k){k=prompt('API key (python -m Agent_Guru api key)')||'';sessionStorage.setItem('k',k)}return k}
+const $=id=>document.getElementById(id);
+function key(){let k='';try{k=sessionStorage.getItem('k')||''}catch(e){}if(!k){k=prompt('API key (python -m Agent_Guru api key)')||'';try{sessionStorage.setItem('k',k)}catch(e){}}return k}
+async function api(path,opts){const r=await fetch(path,{...(opts||{}),headers:{'Content-Type':'application/json','X-API-Key':key(),...((opts||{}).headers||{})}});
+ if(r.status===401){try{sessionStorage.removeItem('k')}catch(e){}throw new Error('wrong key')}return r.json()}
+function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function table(rows,cols){if(!rows.length)return '<p class="meta">Nothing yet.</p>';
+ return '<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+esc(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>'}
+function when(t){return t?new Date(t*1000).toLocaleString():''}
 function add(text,cls,meta){const d=document.createElement('div');d.className='msg '+(cls||'');d.textContent=text;
- if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;d.appendChild(m)}log.appendChild(d);log.scrollTop=log.scrollHeight}
-document.getElementById('f').onsubmit=async e=>{e.preventDefault();const t=document.getElementById('t'),text=t.value.trim();if(!text)return;t.value='';add(text,'me');
- s.textContent='Thinking...';try{const r=await fetch('/v1/turn',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':key()},body:JSON.stringify({text})});
- if(r.status===401){sessionStorage.removeItem('k');s.textContent='Wrong key.';return}const j=await r.json();
- add(j.reply||j.error||'(no reply)','',[j.status,j.awaiting_reply?'waiting for your answer':'',(j.sources||[]).map(x=>x.url||x.title).filter(Boolean).join(' ')].filter(Boolean).join(' - '));s.textContent=''}
- catch(err){s.textContent='Could not reach the assistant: '+err}};
+ if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;d.appendChild(m)}$('log').appendChild(d);$('log').scrollTop=1e9}
+$('f').onsubmit=async e=>{e.preventDefault();const text=$('t').value.trim();if(!text)return;$('t').value='';add(text,'me');$('s').textContent='Thinking...';
+ try{const j=await api('/v1/turn',{method:'POST',body:JSON.stringify({text})});
+ add(j.reply||j.error||'(no reply)','',[j.status,j.awaiting_reply?'waiting for your answer':'',(j.sources||[]).map(x=>x.url||x.title).filter(Boolean).join(' ')].filter(Boolean).join(' - '));$('s').textContent=''}
+ catch(err){$('s').textContent='Could not reach the assistant: '+err.message}};
+const views={
+ turns:async()=>{$('turnsv').innerHTML=table(await api('/v1/turns?limit=50'),[['When',r=>when(r.at)],['Heard',r=>r.heard],['Said',r=>r.said],['Status',r=>r.status||r.outcome||''],['Model',r=>r.model],['s',r=>r.seconds]])},
+ tasks:async()=>{$('tasksv').innerHTML=table(await api('/v1/tasks'),[['Kind',r=>r.kind],['What',r=>r.message||r.tool],['Next',r=>when(r.fire_at)],['Every',r=>r.every_s?Math.round(r.every_s/60)+' min':''],['On',r=>r.enabled?'yes':'no'],['Last run',r=>r.last?r.last.status:'']])},
+ memory:async()=>{const m=await api('/v1/memory');$('memoryv').innerHTML=table(Object.entries(m),[['What',r=>r[0]],['Remembered',r=>typeof r[1]==='string'?r[1]:JSON.stringify(r[1])]])},
+ status:async()=>{const s=await api('/v1/status');$('statusv').innerHTML=table([
+  ['Model',s.model],['Fallback model',s.fallback_model||'none'],['Routing by difficulty',s.routing?'on':'off'],['Cloud allowed',s.cloud_allowed?'yes':'no'],
+  ['Accounts',Object.entries(s.accounts).filter(x=>x[1]).map(x=>x[0]).join(', ')||'none'],['Channels',s.channels.join(', ')||'none']],[['',r=>r[0]],['',r=>r[1]]])}};
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button,section').forEach(x=>x.classList.remove('on'));
+ b.classList.add('on');$(b.dataset.t).classList.add('on');if(views[b.dataset.t])views[b.dataset.t]().catch(e=>$(b.dataset.t).insertAdjacentHTML('beforeend','<p class="meta">'+esc(e.message)+'</p>'))});
 (async()=>{try{const r=await fetch('/v1/events',{headers:{'X-API-Key':key()}});const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
- for(;;){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\\n\\n'))>=0){const chunk=buf.slice(0,i);buf=buf.slice(i+2);
- const data=chunk.split('\\n').find(l=>l.startsWith('data: '));if(!data)continue;const ev=JSON.parse(data.slice(6));
- if(ev.topic==='turn.finished'&&ev.heard)s.textContent='Heard: '+ev.heard;if(ev.topic==='task.ran')add('Scheduled task '+ev.task_id+': '+ev.status,'')}}}catch(e){}})();
+ for(;;){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n\n'))>=0){const chunk=buf.slice(0,i);buf=buf.slice(i+2);
+ const data=chunk.split('\n').find(l=>l.startsWith('data: '));if(!data)continue;const ev=JSON.parse(data.slice(6));
+ const line=document.createElement('div');line.className='msg';line.textContent=new Date(ev.at*1000).toLocaleTimeString()+'  '+ev.topic+'  '+
+  (ev.heard?('heard: '+ev.heard):'')+(ev.task_id?(' task '+ev.task_id+': '+ev.status):'')+(ev.channel?(' '+ev.channel+(ev.allowed===false?' (ignored)':'')):'');
+ $('events').prepend(line);if(ev.topic==='turn.finished'&&ev.heard)$('s').textContent='Heard: '+ev.heard}}}catch(e){}})();
 </script></body></html>
 """
