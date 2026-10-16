@@ -120,6 +120,39 @@ class TestJWTTokenRejection:
     def test_malformed_tokens_are_rejected(self, token):
         self._assert_rejected(token)
 
+    @staticmethod
+    def _deeply_nested_token(key: bytes) -> str:
+        """A token whose payload is valid JSON nested 20,000 levels deep, HS256-signed with key."""
+        import base64
+        import hashlib
+        import hmac
+
+        def b64(raw: bytes) -> str:
+            return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+        signing_input = b64(b'{"alg":"HS256","typ":"JWT"}') + "." + b64(b"[" * 20000 + b"]" * 20000)
+        signature = hmac.new(key, signing_input.encode(), hashlib.sha256).digest()
+        return signing_input + "." + b64(signature)
+
+    def test_deeply_nested_payload_with_a_forged_signature_is_rejected(self):
+        """GHSA-42vr-xj54-vc7v: PyJWT < 2.15.0 let json.loads' RecursionError escape.
+
+        verify_token checks the signature before PyJWT parses the payload, so
+        an unauthenticated caller cannot reach the parse. Measured on PyJWT
+        2.14.0: InvalidSignatureError, a 401. This pins that order.
+        """
+        self._assert_rejected(self._deeply_nested_token(b"not-the-server-secret-0123456789"))
+
+    def test_deeply_nested_payload_with_a_valid_signature_is_a_401_not_a_500(self):
+        """With a valid signature the payload is parsed. PyJWT 2.14.0 raised
+        RecursionError there, which verify_token does not catch and FastAPI
+        turns into a 500; PyJWT 2.15.0 raises DecodeError, a 401. This is
+        what fails if the PyJWT floor ever drops below the fix again.
+        """
+        from Agent_Guru.reasoning.api.auth import get_jwt_secret
+
+        self._assert_rejected(self._deeply_nested_token(get_jwt_secret().encode()))
+
     def test_unknown_role_claim_is_rejected(self):
         """A correctly signed token whose role this build cannot parse."""
         import jwt as pyjwt
