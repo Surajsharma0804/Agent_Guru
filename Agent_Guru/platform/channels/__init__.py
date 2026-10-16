@@ -375,9 +375,191 @@ class WebhookChannel(Channel):
         return Delivery(False, error=f"the webhook answered {code}: {answer}"[:200])
 
 
+class MastodonChannel(Channel):
+    """Mastodon (MASTODON_URL, MASTODON_TOKEN): "public" posts on the owner's timeline, @user@server sends a direct message."""
+
+    name = "mastodon"
+
+    def configured(self) -> bool:
+        return bool(_env("MASTODON_URL") and _env("MASTODON_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return contact.strip() == "public" or bool(re.fullmatch(r"@[\w.]+(@[\w.\-]+)?", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        target = contact.strip()
+        status = text[:480] if target == "public" else f"{target} {text}"[:480]
+        body = {"status": status, "visibility": "public" if target == "public" else "direct"}
+        try:
+            code, answer = await _post_json(f"{_env('MASTODON_URL').rstrip('/')}/api/v1/statuses", body,
+                                            {"Authorization": f"Bearer {_env('MASTODON_TOKEN')}"})
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300 and isinstance(answer, dict) and answer.get("id"):
+            return Delivery(True, message_id=str(answer["id"]))
+        return Delivery(False, error=f"Mastodon answered {code}: {answer}"[:200])
+
+
+class LineChannel(Channel):
+    """LINE Messaging API (LINE_CHANNEL_TOKEN): a user, group or room id."""
+
+    name = "line"
+
+    def configured(self) -> bool:
+        return bool(_env("LINE_CHANNEL_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"[UCR][0-9a-f]{32}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        try:
+            code, answer = await _post_json("https://api.line.me/v2/bot/message/push",
+                                            {"to": contact.strip(), "messages": [{"type": "text", "text": text[:5000]}]},
+                                            {"Authorization": f"Bearer {_env('LINE_CHANNEL_TOKEN')}"})
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300:
+            return Delivery(True)
+        return Delivery(False, error=f"LINE answered {code}: {answer}"[:200])
+
+
+class ViberChannel(Channel):
+    """A Viber bot (VIBER_TOKEN): the receiver's Viber user id."""
+
+    name = "viber"
+
+    def configured(self) -> bool:
+        return bool(_env("VIBER_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"[A-Za-z0-9+/=]{16,}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        try:
+            code, answer = await _post_json("https://chatapi.viber.com/pa/send_message", {
+                "receiver": contact.strip(), "type": "text", "text": text[:7000], "sender": {"name": "Agent Guru"}},
+                {"X-Viber-Auth-Token": _env("VIBER_TOKEN")})
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300 and isinstance(answer, dict) and answer.get("status") == 0:
+            return Delivery(True, message_id=str(answer.get("message_token", "")))
+        return Delivery(False, error=f"Viber answered {code}: {answer}"[:200])
+
+
+class MessengerChannel(Channel):
+    """Facebook Messenger through a page (MESSENGER_PAGE_TOKEN): the person's page-scoped id."""
+
+    name = "messenger"
+
+    def configured(self) -> bool:
+        return bool(_env("MESSENGER_PAGE_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"\d{10,20}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        try:
+            code, answer = await _post_json(
+                f"https://graph.facebook.com/v19.0/me/messages?access_token={_env('MESSENGER_PAGE_TOKEN')}",
+                {"recipient": {"id": contact.strip()}, "messaging_type": "MESSAGE_TAG", "tag": "ACCOUNT_UPDATE",
+                 "message": {"text": text[:2000]}})
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}"[:200])
+        if code < 300 and isinstance(answer, dict) and answer.get("message_id"):
+            return Delivery(True, message_id=answer["message_id"])
+        return Delivery(False, error=f"Messenger answered {code}: {answer}"[:200])
+
+
+class RedditChannel(Channel):
+    """Reddit private messages through a script app (REDDIT_CLIENT_ID, _SECRET, _USERNAME, _PASSWORD): u/name."""
+
+    name = "reddit"
+
+    def configured(self) -> bool:
+        return all(_env(f"REDDIT_{k}") for k in ("CLIENT_ID", "CLIENT_SECRET", "USERNAME", "PASSWORD"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"(u/)?[A-Za-z0-9_\-]{3,20}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        agent = {"User-Agent": "AgentGuru/1.0 (personal assistant)"}
+        try:
+            code, token = await _post_json("https://www.reddit.com/api/v1/access_token", {
+                "grant_type": "password", "username": _env("REDDIT_USERNAME"), "password": _env("REDDIT_PASSWORD")},
+                agent, auth=(_env("REDDIT_CLIENT_ID"), _env("REDDIT_CLIENT_SECRET")), form=True)
+            if code >= 300 or not isinstance(token, dict) or "access_token" not in token:
+                return Delivery(False, error=f"Reddit sign-in failed ({code})")
+            code, answer = await _post_json("https://oauth.reddit.com/api/compose", {
+                "to": contact.strip().removeprefix("u/"), "subject": text.split("\n", 1)[0][:100] or "Message",
+                "text": text[:10000], "api_type": "json"},
+                {**agent, "Authorization": f"Bearer {token['access_token']}"}, form=True)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        errors = ((answer or {}).get("json") or {}).get("errors") if isinstance(answer, dict) else None
+        if code < 300 and not errors:
+            return Delivery(True)
+        return Delivery(False, error=f"Reddit answered {code}: {errors or answer}"[:200])
+
+
+class IrcChannel(Channel):
+    """IRC over TLS (IRC_SERVER host:port, IRC_NICK, IRC_PASSWORD optional): #channel or nick.
+
+    Twitch chat is IRC too: IRC_SERVER irc.chat.twitch.tv:6697 with an
+    oauth: token as IRC_PASSWORD. Each message is one connection: join,
+    say it, quit; the assistant keeps no idle socket open.
+    """
+
+    def __init__(self, name: str = "irc", prefix: str = "IRC") -> None:
+        self.name, self._p = name, prefix
+
+    def configured(self) -> bool:
+        return bool(_env(f"{self._p}_SERVER") and _env(f"{self._p}_NICK"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"#?[A-Za-z0-9_\-\[\]\\`^{}|]{1,50}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        import asyncio
+
+        host, _, port = _env(f"{self._p}_SERVER").partition(":")
+        target = contact.strip()
+        lines = [line for line in text.replace("\r", "").split("\n") if line.strip()][:5]
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, int(port or 6697), ssl=ssl.create_default_context()), _TIMEOUT_S)
+            nick = _env(f"{self._p}_NICK")
+            if _env(f"{self._p}_PASSWORD"):
+                writer.write(f"PASS {_env(self._p + '_PASSWORD')}\r\n".encode())
+            writer.write(f"NICK {nick}\r\nUSER {nick} 0 * :Agent Guru\r\n".encode())
+            await writer.drain()
+            # Wait for the welcome (001) before speaking; answer the server's PINGs.
+            deadline = asyncio.get_running_loop().time() + _TIMEOUT_S
+            while True:
+                line = (await asyncio.wait_for(reader.readline(), max(0.1, deadline - asyncio.get_running_loop().time()))).decode(errors="replace")
+                if not line:
+                    return Delivery(False, error="the IRC server closed the connection")
+                if line.startswith("PING"):
+                    writer.write(("PONG" + line[4:]).encode())
+                if " 001 " in line:
+                    break
+                if " 433 " in line or " 464 " in line:
+                    return Delivery(False, error=line.strip()[:200])
+            if target.startswith("#"):
+                writer.write(f"JOIN {target}\r\n".encode())
+            for line in lines:
+                writer.write(f"PRIVMSG {target} :{line[:400]}\r\n".encode())
+            writer.write(b"QUIT :bye\r\n")
+            await writer.drain()
+            writer.close()
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        return Delivery(True)
+
+
 CHANNELS: dict[str, Channel] = {c.name: c for c in (
     TelegramChannel(), SlackChannel(), EmailChannel(), DiscordChannel(), SignalChannel(), TwilioSmsChannel(),
-    MatrixChannel(), ZulipChannel(),
+    MatrixChannel(), ZulipChannel(), MastodonChannel(), LineChannel(), ViberChannel(), MessengerChannel(),
+    RedditChannel(), IrcChannel(), IrcChannel("twitch", "TWITCH"),
     *(WebhookChannel(n) for n in ("teams", "google_chat", "mattermost", "rocketchat", "feishu", "webhook")),
 )}
 
