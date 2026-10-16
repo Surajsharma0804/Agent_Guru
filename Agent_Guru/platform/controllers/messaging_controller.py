@@ -75,7 +75,6 @@ from pathlib import Path
 
 from Agent_Guru.platform.controllers.whatsapp_view import whatsapp_view
 from Agent_Guru.platform.platform_detector import PlatformDetector
-from Agent_Guru.platform.utils import normalize as _normalize
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +85,13 @@ logger = logging.getLogger(__name__)
 _MAX_MESSAGE_LENGTH: int = 2_000
 
 # Supported app names (canonical lowercase)
-_SUPPORTED_APPS: frozenset[str] = frozenset({"whatsapp", "telegram", "slack", "sms", "email"})
+# The desktop apps, plus every API channel in platform/channels (Discord,
+# Signal, Matrix, Zulip and incoming webhooks), which only a configured
+# channel can reach.
+from Agent_Guru.platform.channels import API_ONLY as _API_ONLY  # noqa: E402
+from Agent_Guru.platform.channels import canonical as _canonical  # noqa: E402
+
+_SUPPORTED_APPS: frozenset[str] = frozenset({"whatsapp", "telegram", "slack", "sms", "email"}) | _API_ONLY
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -350,7 +355,7 @@ class MessagingController:
             _send_in_whatsapp_desktop().
 
         """
-        app_norm = _normalize(app)
+        app_norm = _canonical(app)
         if not app_norm:
             logger.warning("send_message called with empty app")
             return None
@@ -411,6 +416,13 @@ class MessagingController:
                 return "sent"
             logger.warning("send_message: %s did not deliver it: %s", app_norm, delivery.error)
             return None
+        if app_norm in _API_ONLY:
+            # No desktop app to fall back to: say why instead of pretending.
+            logger.warning(
+                "send_message: %s is not set up (or %r is not an address it takes); see platform/channels",
+                app_norm, contact,
+            )
+            return None
 
         try:
             if _is_mobile(self._platform):
@@ -444,7 +456,7 @@ class MessagingController:
             List of matching contact display-name strings (may be empty).
 
         """
-        app_norm = _normalize(app)
+        app_norm = _canonical(app)
         if not app_norm or not query or not query.strip():
             return []
 
@@ -505,7 +517,7 @@ class MessagingController:
             resolved.
 
         """
-        app_norm = _normalize(app)
+        app_norm = _canonical(app)
         value = (name_or_identifier or "").strip()
         if not value:
             return None
@@ -538,7 +550,7 @@ class MessagingController:
                 )
                 return None
 
-        if app_norm in ("telegram", "slack"):
+        if app_norm in ("telegram", "slack") or app_norm in _API_ONLY:
             return value
         return None
 

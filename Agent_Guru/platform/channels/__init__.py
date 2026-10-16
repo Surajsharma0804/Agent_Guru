@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import json
 import re
 import smtplib
 import ssl
@@ -170,10 +171,233 @@ class EmailChannel(Channel):
         return Delivery(True, message_id=message_id)
 
 
-CHANNELS: dict[str, Channel] = {c.name: c for c in (TelegramChannel(), SlackChannel(), EmailChannel())}
+async def _post_json(url: str, body: dict[str, Any], headers: dict[str, str] | None = None,
+                     auth: tuple[str, str] | None = None, form: bool = False) -> tuple[int, Any]:
+    import httpx
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+        if form:
+            response = await client.post(url, data=body, headers=headers, auth=auth)
+        else:
+            response = await client.post(url, json=body, headers=headers, auth=auth)
+    try:
+        payload: Any = response.json()
+    except ValueError:
+        payload = response.text[:300]
+    return response.status_code, payload
+
+
+def _env(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+class DiscordChannel(Channel):
+    """A Discord bot (DISCORD_BOT_TOKEN): a channel id, or a user id for a direct message."""
+
+    name = "discord"
+    api = "https://discord.com/api/v10"
+
+    def configured(self) -> bool:
+        return bool(_env("DISCORD_BOT_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"(user:)?\d{15,22}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        headers = {"Authorization": f"Bot {_env('DISCORD_BOT_TOKEN')}"}
+        target = contact.strip()
+        try:
+            if target.startswith("user:"):
+                code, body = await _post_json(f"{self.api}/users/@me/channels", {"recipient_id": target[5:]}, headers)
+                if code >= 300:
+                    return Delivery(False, error=f"could not open a direct message: {body}"[:200])
+                target = body["id"]
+            code, body = await _post_json(f"{self.api}/channels/{target}/messages", {"content": text[:2000]}, headers)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300 and isinstance(body, dict) and body.get("id"):
+            return Delivery(True, message_id=str(body["id"]))
+        return Delivery(False, error=f"Discord answered {code}: {body}"[:200])
+
+
+class SignalChannel(Channel):
+    """Signal through a signal-cli REST server the owner runs (SIGNAL_API_URL, SIGNAL_NUMBER)."""
+
+    name = "signal"
+
+    def configured(self) -> bool:
+        return bool(_env("SIGNAL_API_URL") and _env("SIGNAL_NUMBER"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"\+\d{7,15}|group\.[A-Za-z0-9+/=]{10,}", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        try:
+            code, body = await _post_json(f"{_env('SIGNAL_API_URL').rstrip('/')}/v2/send", {
+                "message": text[:_MAX_CHARS], "number": _env("SIGNAL_NUMBER"), "recipients": [contact.strip()]})
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300:
+            return Delivery(True, message_id=str((body or {}).get("timestamp", "")) if isinstance(body, dict) else "")
+        return Delivery(False, error=f"Signal answered {code}: {body}"[:200])
+
+
+class TwilioSmsChannel(Channel):
+    """SMS through Twilio (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM)."""
+
+    name = "sms"
+
+    def configured(self) -> bool:
+        return bool(_env("TWILIO_ACCOUNT_SID") and _env("TWILIO_AUTH_TOKEN") and _env("TWILIO_FROM"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"\+\d{7,15}", contact.strip().replace(" ", "")))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        sid = _env("TWILIO_ACCOUNT_SID")
+        try:
+            code, body = await _post_json(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+                {"To": contact.strip().replace(" ", ""), "From": _env("TWILIO_FROM"), "Body": text[:1600]},
+                auth=(sid, _env("TWILIO_AUTH_TOKEN")), form=True)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300 and isinstance(body, dict) and body.get("sid"):
+            return Delivery(True, message_id=body["sid"])
+        return Delivery(False, error=f"Twilio answered {code}: {body}"[:200])
+
+
+class MatrixChannel(Channel):
+    """Matrix (MATRIX_HOMESERVER, MATRIX_ACCESS_TOKEN): a room id like !abc:example.org."""
+
+    name = "matrix"
+
+    def configured(self) -> bool:
+        return bool(_env("MATRIX_HOMESERVER") and _env("MATRIX_ACCESS_TOKEN"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"![A-Za-z0-9]+:[A-Za-z0-9.\-]+", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        import secrets as _secrets
+        import urllib.parse
+
+        import httpx
+
+        url = (f"{_env('MATRIX_HOMESERVER').rstrip('/')}/_matrix/client/v3/rooms/"
+               f"{urllib.parse.quote(contact.strip(), safe='')}/send/m.room.message/{_secrets.token_hex(8)}")
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+                response = await client.put(url, json={"msgtype": "m.text", "body": text[:_MAX_CHARS]},
+                                            headers={"Authorization": f"Bearer {_env('MATRIX_ACCESS_TOKEN')}"})
+            body = response.json()
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if response.status_code < 300 and body.get("event_id"):
+            return Delivery(True, message_id=body["event_id"])
+        return Delivery(False, error=f"Matrix answered {response.status_code}: {body}"[:200])
+
+
+class ZulipChannel(Channel):
+    """Zulip (ZULIP_SITE, ZULIP_EMAIL, ZULIP_API_KEY): a user's email, or stream:NAME/TOPIC."""
+
+    name = "zulip"
+
+    def configured(self) -> bool:
+        return bool(_env("ZULIP_SITE") and _env("ZULIP_EMAIL") and _env("ZULIP_API_KEY"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"[^@\s]+@[^@\s]+|stream:[^/]+/.+", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        target = contact.strip()
+        if target.startswith("stream:"):
+            stream, _, topic = target[7:].partition("/")
+            body = {"type": "stream", "to": stream, "topic": topic, "content": text[:_MAX_CHARS]}
+        else:
+            body = {"type": "private", "to": json.dumps([target]), "content": text[:_MAX_CHARS]}
+        try:
+            code, answer = await _post_json(f"{_env('ZULIP_SITE').rstrip('/')}/api/v1/messages", body,
+                                            auth=(_env("ZULIP_EMAIL"), _env("ZULIP_API_KEY")), form=True)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300 and isinstance(answer, dict) and answer.get("result") == "success":
+            return Delivery(True, message_id=str(answer.get("id", "")))
+        return Delivery(False, error=f"Zulip answered {code}: {answer}"[:200])
+
+
+class WebhookChannel(Channel):
+    """Incoming webhooks: Teams, Google Chat, Mattermost, Rocket.Chat, Feishu, or any URL that takes JSON.
+
+    The owner names each hook in the environment, WEBHOOK_<NAME>_URL
+    (WEBHOOK_FAMILY_URL, WEBHOOK_TEAM_URL); the contact is that name.
+    The JSON shape follows the URL: Teams and Feishu want their own
+    fields, the rest take {"text": ...}. A generic hook gets the message
+    signed with WEBHOOK_SECRET (HMAC-SHA256 in X-Signature) when it is set.
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def _url(self, contact: str) -> str:
+        key = re.sub(r"[^A-Za-z0-9]", "_", contact.strip()).upper()
+        return _env(f"WEBHOOK_{key}_URL")
+
+    def configured(self) -> bool:
+        return any(k.startswith("WEBHOOK_") and k.endswith("_URL") and v.strip() for k, v in os.environ.items())
+
+    def accepts(self, contact: str) -> bool:
+        return bool(self._url(contact))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        import hashlib
+        import hmac
+
+        url = self._url(contact)
+        if "office.com" in url or "logic.azure.com" in url or self.name == "teams":
+            body: dict[str, Any] = {"type": "message", "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {"type": "AdaptiveCard", "version": "1.4", "body": [{"type": "TextBlock", "text": text, "wrap": True}]}}]}
+        elif "feishu" in url or "larksuite" in url:
+            body = {"msg_type": "text", "content": {"text": text}}
+        else:
+            body = {"text": text[:_MAX_CHARS]}
+        headers = {}
+        secret = _env("WEBHOOK_SECRET")
+        if secret:
+            headers["X-Signature"] = hmac.new(secret.encode(), json.dumps(body).encode(), hashlib.sha256).hexdigest()
+        try:
+            code, answer = await _post_json(url, body, headers)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if code < 300:
+            return Delivery(True)
+        return Delivery(False, error=f"the webhook answered {code}: {answer}"[:200])
+
+
+CHANNELS: dict[str, Channel] = {c.name: c for c in (
+    TelegramChannel(), SlackChannel(), EmailChannel(), DiscordChannel(), SignalChannel(), TwilioSmsChannel(),
+    MatrixChannel(), ZulipChannel(),
+    *(WebhookChannel(n) for n in ("teams", "google_chat", "mattermost", "rocketchat", "feishu", "webhook")),
+)}
+
+#: Spoken names for the same app.
+ALIASES = {
+    "microsoft teams": "teams", "ms teams": "teams", "google chat": "google_chat", "googlechat": "google_chat",
+    "rocket chat": "rocketchat", "rocket.chat": "rocketchat", "lark": "feishu", "text": "sms",
+    "text message": "sms", "twilio": "sms", "element": "matrix",
+}
+
+#: Apps with no desktop app to prefill: only a configured channel can reach them.
+API_ONLY = frozenset(set(CHANNELS) - {"telegram", "slack", "email", "sms"})
+
+
+def canonical(app: str) -> str:
+    name = app.strip().lower()
+    return ALIASES.get(name, name)
 
 
 def channel_for(app: str) -> Channel | None:
     """The configured API channel for *app*, or None (then the app is prefilled as before)."""
-    channel = CHANNELS.get(app.strip().lower())
+    channel = CHANNELS.get(canonical(app))
     return channel if channel is not None and channel.configured() else None
