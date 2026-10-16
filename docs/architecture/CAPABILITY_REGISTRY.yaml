@@ -261,3 +261,138 @@ capabilities:
     security: only listed settings are taken, each type-checked; names that look like secrets are refused; the environment wins over the file
     tests: [Agent_Guru/utils/tests/test_settings.py]
     do_not_duplicate: A new setting is an environment variable read where it is used, plus a line in KNOWN_SETTINGS; do not add another configuration loader.
+
+  - id: sensitive-file-policy
+    name: Sensitive-file policy
+    category: security
+    status: live
+    gap_id: SEC-6
+    implementation: Agent_Guru/security/file_policy.py; applied in platform/controllers/file_operations.py, platform/features/documents.py, integration/mcp_tools.py
+    owner: security
+    do_not_duplicate: Add folders or names to file_policy.py; do not add path checks elsewhere.
+
+  - id: taint-labels
+    name: Outside text in tool arguments
+    category: security
+    status: live
+    gap_id: SEC-7
+    implementation: Agent_Guru/security/taint.py; used by integration/tool_loop.py in the confirmation question
+    owner: security
+    do_not_duplicate: Labels only; confirmation stays in the tool loop.
+
+  - id: event-bus
+    name: Event bus
+    category: architecture
+    status: live
+    gap_id: ARCH-2
+    implementation: Agent_Guru/integration/events.py; orchestrator.events publishes turn.finished, task.ran, api.turn, message.in
+    owner: architecture
+    do_not_duplicate: Publish on orchestrator.events; do not add hooks into the code that does the work.
+
+  - id: turn-telemetry
+    name: Inter-token latency and GPU energy
+    category: telemetry
+    status: live
+    gap_id: TEL-2
+    implementation: Agent_Guru/llm/telemetry.py (itl_* in answer_spoken); Agent_Guru/platform/hardware/nvml.py (gpu stage)
+    owner: telemetry
+    do_not_duplicate: New per-turn measurements go into the turn record's stages.
+
+  - id: model-catalog
+    name: Model catalog
+    category: llm
+    status: live
+    gap_id: INT-3
+    implementation: Agent_Guru/llm/model_catalog.py (`python -m Agent_Guru models`)
+    owner: llm
+    do_not_duplicate: Ask Ollama and NVML; do not keep hand-written model metadata.
+
+  - id: recipes
+    name: Recipes of settings
+    category: configuration
+    status: live
+    gap_id: REC-1
+    implementation: Agent_Guru/utils/recipes.py; Agent_Guru/recipes/*.toml
+    owner: configuration
+    do_not_duplicate: A recipe is settings.toml lines; validation is settings.py's.
+
+  - id: cli-commands
+    name: Command line
+    category: cli
+    status: live
+    gap_id: CLI-2
+    implementation: Agent_Guru/__main__.py COMMANDS; Agent_Guru/utils/commands.py
+    owner: cli
+    do_not_duplicate: Add a command as a row in COMMANDS.
+
+  - id: local-api
+    name: Local HTTP API and dashboard
+    category: api
+    status: live
+    gap_id: API-1
+    implementation: Agent_Guru/integration/local_api.py (127.0.0.1, AGENT_GURU_API); OpenAI-compatible routes; A2A; dashboard page
+    owner: api
+    do_not_duplicate: Routes go in local_api.create_app; auth is reasoning/api/auth.py's APIKeyManager.
+
+  - id: secret-store
+    name: Secret store
+    category: security
+    status: live
+    gap_id: SEC-12
+    implementation: Agent_Guru/security/secret_store.py (DPAPI on Windows)
+    owner: security
+    do_not_duplicate: Keep assistant-made secrets here; settings.toml never holds secrets.
+
+  - id: channels
+    name: Messaging channels
+    category: messaging
+    status: live
+    gap_id: CHN-1
+    implementation: Agent_Guru/platform/channels/__init__.py (21 channels); inbound.py (Telegram long polling); used by MessagingController.deliver
+    owner: messaging
+    do_not_duplicate: A new service is a Channel subclass in platform/channels; deliver() stays the one way to send.
+
+  - id: connectors
+    name: Connectors and OAuth
+    category: connectors
+    status: live
+    gap_id: CON-1
+    implementation: Agent_Guru/connectors/oauth.py; Agent_Guru/connectors/tools.py (in-process tool server)
+    owner: connectors
+    do_not_duplicate: A new source is a tool in ConnectorTools, offered only when set up.
+
+  - id: openai-compatible-engines
+    name: OpenAI-compatible engines and fallback
+    category: llm
+    status: live
+    gap_id: INT-1
+    implementation: Agent_Guru/llm/providers/openai_compatible.py; LLMRuntime routing and AGENT_GURU_FALLBACK_MODEL
+    owner: llm
+    do_not_duplicate: New engines that speak the OpenAI API need only a URL, not an adapter.
+
+  - id: turn-routing
+    name: Routing answers by difficulty
+    category: llm
+    status: live
+    gap_id: INT-5
+    implementation: Agent_Guru/llm/model_router/turn_routing.py on the existing ModelRouter
+    owner: llm
+    do_not_duplicate: Routing decisions go through TurnRouter.choose.
+
+  - id: prompt-tuning
+    name: Prompt tuning and training data
+    category: learning
+    status: live
+    gap_id: LRN-1
+    implementation: Agent_Guru/self_improvement/prompt_tuning.py; Agent_Guru/self_improvement/turn_dataset.py
+    owner: learning
+    do_not_duplicate: Every adopted change passes the evaluation gate; keep rollback.
+
+  - id: skill-import
+    name: Skill import and discovery
+    category: skills
+    status: live
+    gap_id: SKL-2
+    implementation: Agent_Guru/reasoning/tools/skills/importer.py; trace_mining.py
+    owner: skills
+    do_not_duplicate: Install only through SkillInstaller after inspect().
