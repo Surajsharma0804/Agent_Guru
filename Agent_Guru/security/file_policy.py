@@ -68,6 +68,7 @@ _OWN_SECRETS = (
     ("audit_signing.key", "the assistant's audit signing key"),
     ("*.dpapi", "a key protected for this account"),
     ("oauth_tokens*", "the assistant's account tokens"),
+    ("api_key*", "the assistant's API key"),
     ("settings.toml", "the assistant's settings"),
 )
 

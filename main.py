@@ -470,6 +470,17 @@ async def run() -> None:
     )
     if task_tools is not None:
         task_tools.bind(orch)
+    # The local HTTP API (typed turns, events, agent-to-agent, a web page),
+    # on 127.0.0.1 only and off unless AGENT_GURU_API is set.
+    api_stop = asyncio.Event()
+    api_task = None
+    try:
+        from Agent_Guru.integration import local_api
+
+        if local_api.enabled():
+            api_task = asyncio.create_task(local_api.serve(orch, api_stop))
+    except Exception as e:
+        logger.warning("Local API unavailable (%s)", e)
 
     # --- Concurrent startup of all subsystems ---
     logger.info("Starting all subsystems concurrently...")
@@ -723,6 +734,12 @@ async def run() -> None:
     logger.info("Shutting down Agent Guru...")
     await wake_manager.stop_listening()
 
+    if api_task is not None:
+        api_stop.set()
+        try:
+            await asyncio.wait_for(api_task, 5)
+        except Exception as e:
+            logger.warning("Stopping the local API failed: %s", e)
     # MCP servers are child processes; each is ended with what it started.
     try:
         await orch.close_tools()

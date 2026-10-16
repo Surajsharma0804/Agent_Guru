@@ -25,6 +25,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "mcp": ("Agent_Guru.integration.mcp_tools", "run", "list or call tools on MCP servers, through the policy"),
     "models": ("Agent_Guru.llm.model_catalog", "run", "the models installed in Ollama and whether they fit the GPU"),
     "recipes": ("Agent_Guru.utils.recipes", "run", "list, show or apply a named set of settings"),
+    "api": ("Agent_Guru.integration.local_api", "run", "the local HTTP API: its state, or the owner's key"),
 }
 
 
