@@ -175,6 +175,67 @@ def create_app(orchestrator: Any) -> Any:
             "metadata": {"status": answer["status"], "awaiting_reply": answer["awaiting_reply"]},
         }})
 
+    # ---- OpenAI-compatible: any OpenAI client (Open WebUI, editor plugins,
+    # the openai package with base_url) talks to the assistant. Such clients
+    # send the key as "Authorization: Bearer <key>", which get_current_user
+    # would read as a JWT and refuse, so the owner's key is accepted here
+    # as a bearer too (compared in constant time).
+    import hmac
+
+    def openai_auth(request: Request) -> None:
+        sent = request.headers.get("x-api-key") or ""
+        bearer = request.headers.get("authorization", "")
+        if bearer.lower().startswith("bearer "):
+            sent = sent or bearer[7:].strip()
+        if not sent or not hmac.compare_digest(sent.encode(), owner_key().encode()):
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=401, detail="invalid API key")
+
+    class ChatMessage(BaseModel):
+        role: str
+        content: str | list[dict[str, Any]] | None = None
+
+    class ChatRequest(BaseModel):
+        model: str = "agent-guru"
+        messages: list[ChatMessage] = Field(min_length=1)
+        stream: bool = False
+
+    def _text(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        return " ".join(p.get("text", "") for p in content or [] if isinstance(p, dict) and p.get("type") == "text")
+
+    @app.get("/v1/models")
+    async def models(_: None = Depends(openai_auth)) -> dict[str, Any]:  # noqa: B008
+        return {"object": "list", "data": [{"id": "agent-guru", "object": "model", "owned_by": "local"}]}
+
+    @app.post("/v1/chat/completions")
+    async def chat_completions(body: ChatRequest, _: None = Depends(openai_auth)) -> Any:  # noqa: B008
+        # The assistant keeps its own conversation and memory, so only the
+        # newest user message is a turn; earlier messages are the client's copy.
+        last = next((_text(m.content) for m in reversed(body.messages) if m.role == "user"), "").strip()
+        if not last or len(last) > _MAX_TEXT:
+            return JSONResponse({"error": {"message": f"a user message of 1 to {_MAX_TEXT} characters is needed",
+                                           "type": "invalid_request_error"}}, status_code=400)
+        answer = await run_turn(last, "openai")
+        created, ident = int(__import__("time").time()), f"chatcmpl-{secrets.token_hex(12)}"
+        if not body.stream:
+            return {"id": ident, "object": "chat.completion", "created": created, "model": body.model,
+                    "choices": [{"index": 0, "finish_reason": "stop",
+                                 "message": {"role": "assistant", "content": answer["reply"]}}],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}}
+
+        async def events() -> Any:
+            base = {"id": ident, "object": "chat.completion.chunk", "created": created, "model": body.model}
+            first = {**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": answer["reply"]},
+                                          "finish_reason": None}]}
+            yield f"data: {json.dumps(first)}\n\n"
+            yield f"data: {json.dumps({**base, 'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(events(), media_type="text/event-stream")
+
     @app.get("/", response_class=HTMLResponse)
     async def page() -> str:
         return _PAGE
