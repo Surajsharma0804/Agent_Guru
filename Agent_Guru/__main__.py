@@ -29,6 +29,14 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "telegram": ("Agent_Guru.platform.channels.inbound", "run", "the Telegram bot: its state, or who has written to it"),
     "connect": ("Agent_Guru.connectors.oauth", "run", "sign in to Google or Microsoft for mail, calendar and contacts"),
     "learn": ("Agent_Guru.self_improvement.prompt_tuning", "run", "tune the prompt from mistakes, roll back, or export training data"),
+    "ask": ("Agent_Guru.utils.commands", "ask", "ask the running assistant one question, typed"),
+    "chat": ("Agent_Guru.utils.commands", "chat", "a typed conversation with the running assistant"),
+    "config": ("Agent_Guru.utils.commands", "config", "show or change settings.toml, checked"),
+    "model": ("Agent_Guru.utils.commands", "model", "the model in use, or switch to another installed one"),
+    "memory": ("Agent_Guru.utils.commands", "memory", "what the assistant remembers about you, or forget one thing"),
+    "tasks": ("Agent_Guru.utils.commands", "tasks", "reminders, checks and actions that are scheduled"),
+    "eval": ("Agent_Guru.utils.commands", "evaluate", "score the assistant on its evaluation set"),
+    "bench": ("Agent_Guru.utils.commands", "bench", "time every stage of spoken turns"),
     "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
 }
 
