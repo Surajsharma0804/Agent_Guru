@@ -193,4 +193,7 @@ async def test_a_spoken_answer_records_tokens_timings_and_first_text(plays, monk
 async def test_an_answer_without_model_counts_records_only_what_was_measured(plays, monkeypatch):
     orch, _ = _orchestrator(monkeypatch, _Runtime())
     result, _ = await _turn(orch)
-    assert set(result.llm_stats) == {"first_text_s"}  # nosec B101  no invented zeros
+    # The gaps between streamed chunks are measured from their arrival, so
+    # they are kept; token counts and timings the runtime did not report are not.
+    itl = {"itl_p50_ms", "itl_p95_ms", "itl_max_ms", "itl_chunks"}
+    assert set(result.llm_stats) - itl == {"first_text_s"}  # nosec B101  no invented zeros

@@ -316,6 +316,9 @@ class PipelineResult:
     # What the model reported about a streamed answer: prompt tokens it
     # processed, tokens it wrote, its timings, and when the first text came.
     llm_stats: dict[str, float] = field(default_factory=dict)
+    # GPU counters when the turn started (platform/hardware/nvml.py); the
+    # turn record keeps what the turn cost the GPU, {} without an NVIDIA GPU.
+    gpu_before: dict[str, float] = field(default_factory=dict)
 
 
 _RATING_INTENT = "feedback:rating"
@@ -529,6 +532,11 @@ class IntegrationOrchestrator:
         # Where reminders are kept between runs; from main.py. None keeps
         # them in memory, as tests need.
         self._reminder_store = reminder_store
+        # What happened in the assistant, for the local API, channels and
+        # anything else that reacts to it (integration/events.py).
+        from Agent_Guru.integration.events import EventBus
+
+        self.events = EventBus()
         # Learn lasting facts about the owner from conversation, after each
         # answer (owner's choice, 2026-10-07). On from main.py only, so tests
         # never write into the owner's memory. Tasks are kept referenced so
@@ -630,6 +638,11 @@ class IntegrationOrchestrator:
 
         Total startup time ≤ max(individual init times) + scheduling overhead.
         """
+        # Loaded off the startup path: the first turn's GPU reading then
+        # costs about 2 ms instead of 1.9 s (platform/hardware/nvml.py).
+        from Agent_Guru.platform.hardware import nvml
+
+        nvml.warm()
         logger.info("IntegrationOrchestrator.startup() - concurrent init begin")
         self._start_tools()
 
@@ -918,8 +931,18 @@ class IntegrationOrchestrator:
         # cannot start until the filler has finished. A typed turn has none.
         filler = None if typed else asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
         started_at = _time.time()
+        # Only when startup() has already loaded NVML (a read then takes about
+        # 2 ms). Its first load took 1.9 s here, and loading it during a turn,
+        # even on a thread, held the turn by up to 1.6 s (measured in
+        # test_filler_concurrency), so a turn never loads it.
+        from Agent_Guru.platform.hardware import nvml
+
+        if nvml.ready():
+            result.gpu_before = nvml.read()
         try:
             turn = await self._run_turn(wake_event, result, _wake_timestamp, _get_um)
+            if turn is not result:
+                turn.gpu_before = result.gpu_before
             await self._record_trace(turn, started_at, _time.perf_counter() - _wake_timestamp)
             return turn
         finally:
@@ -1247,10 +1270,20 @@ class IntegrationOrchestrator:
         record, not the turn.
         """
         store = self.trace_store
-        if store is None:
-            return
         try:
+            if result.gpu_before:
+                from Agent_Guru.platform.hardware import nvml
+
+                gpu = nvml.turn_detail(result.gpu_before, await asyncio.to_thread(nvml.read), turn_seconds)
+                if gpu:
+                    result.tool_stages.append(StageTiming(name="gpu", started_at=started_at, seconds=turn_seconds, detail=gpu))
             turn = self._turn_record(result, started_at, turn_seconds)
+            self.events.publish(
+                "turn.finished", turn_id=turn.turn_id, heard=turn.heard, said=turn.said,
+                intent=turn.intent, status=turn.action_status, seconds=round(turn_seconds, 2),
+            )
+            if store is None:
+                return
             await asyncio.wait_for(asyncio.to_thread(store.record, turn), timeout=TRACE_WRITE_TIMEOUT_S)
             if result.intent != _RATING_INTENT:
                 self._last_turn_id = turn.turn_id
@@ -2012,11 +2045,13 @@ class IntegrationOrchestrator:
 
         async def chunks() -> Any:
             asked = time.perf_counter()
+            arrivals: list[float] = []
             async for chunk in stream_fn(request):
                 if chunk.finish_reason:
                     finish["reason"] = chunk.finish_reason
                 if chunk.content:
-                    stats.setdefault("first_text_s", time.perf_counter() - asked)
+                    arrivals.append(time.perf_counter())
+                    stats.setdefault("first_text_s", arrivals[-1] - asked)
                     parts.append(chunk.content)
                     yield chunk.content
                 usage = getattr(chunk, "usage", None)
@@ -2026,6 +2061,9 @@ class IntegrationOrchestrator:
                 stats.update(getattr(chunk, "timings", None) or {})
             if stats.get("output_tokens") and stats.get("decode_s"):
                 stats["tokens_per_s"] = stats["output_tokens"] / stats["decode_s"]
+            from Agent_Guru.llm.telemetry import inter_token_stats
+
+            stats.update(inter_token_stats(arrivals))
 
         def capped() -> bool:
             return finish.get("reason") == "length"
@@ -3232,6 +3270,7 @@ class IntegrationOrchestrator:
             event_type=EventType.SCHEDULED_TASK_RUN, actor_id="scheduler", target_id=task_id,
             outcome=status, details=details,
         )
+        self.events.publish("task.ran", task_id=task_id, status=status, **{k: v for k, v in details.items() if k != "arguments"})
 
     def close_scheduler(self) -> None:
         """Stop scheduled tasks and release the store's lock; called by main.py at shutdown."""
