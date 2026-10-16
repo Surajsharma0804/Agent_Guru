@@ -206,7 +206,7 @@ def tasks(argv: list[str]) -> int:
         when = dt.datetime.fromtimestamp(float(t.get("fire_at", 0))).strftime("%a %d %b %H:%M") if t.get("fire_at") else "?"
         every = f" every {int(t['every_s']) // 60} min" if t.get("every_s") else ""
         state = "" if t.get("enabled", True) else " (disabled)"
-        print(f"  {t.get('id', '?')[:8]}  {t.get('kind', 'say'):6} {when}{every}{state}  {t.get('message') or t.get('tool', '')}")  # noqa: T201
+        print(f"  {(t.get('reminder_id') or t.get('id') or '?')[:8]}  {t.get('kind', 'say'):6} {when}{every}{state}  {t.get('message') or t.get('tool', '')}")  # noqa: T201
     print("To cancel one, ask the assistant: \"cancel the task <id>\".")  # noqa: T201
     return 0
 
