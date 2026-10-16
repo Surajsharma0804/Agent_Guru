@@ -129,7 +129,11 @@ def get_jwt_secret() -> str:
 
 
 # Security schemes
-security = HTTPBearer()
+# auto_error=False: HTTPBearer() refused every request without a bearer
+# token before get_current_user ran, so the X-API-Key path below could
+# never be reached and an API key was always answered "Not authenticated".
+# get_current_user itself answers 401 when neither credential is given.
+security = HTTPBearer(auto_error=False)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 class Role(str, Enum):
@@ -371,6 +375,28 @@ class APIKeyManager:
         # Update last used
         api_key.last_used = datetime.now(tz=UTC)
 
+        return api_key
+
+    def register_key(self, raw_key: str, user_id: str, role: Role, name: str) -> APIKey:
+        """Accept an existing *raw_key*, kept by its owner across restarts.
+
+        generate_key() makes a new key every time and this manager keeps
+        keys in memory only, so a key given out yesterday stopped working
+        at the next start. The assistant's own API key is kept encrypted in
+        the data folder (integration/local_api.py) and registered here on
+        each start; only its hash is held, as for generated keys.
+        """
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        existing = self._key_hash_to_id.get(key_hash)
+        if existing is not None:
+            return self._keys[existing]
+        key_id = f"key_{secrets.token_urlsafe(16)}"
+        api_key = APIKey(
+            key_id=key_id, key_hash=key_hash, user_id=user_id, role=role, name=name,
+            created_at=datetime.now(tz=UTC), expires_at=None, is_active=True,
+        )
+        self._keys[key_id] = api_key
+        self._key_hash_to_id[key_hash] = key_id
         return api_key
 
     def revoke_key(self, key_id: str) -> bool:
