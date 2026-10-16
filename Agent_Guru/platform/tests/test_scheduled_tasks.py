@@ -87,7 +87,17 @@ async def test_a_check_says_what_it_found_and_runs_again(store, monkeypatch):
     runner = Runner("31 C, haze", "32 C, haze")
     manager = _manager(store, runner)
     await manager.add_check("Delhi weather", server="w", tool="get_weather", arguments=ARGS, every_s=0.2)
-    await asyncio.sleep(0.35)
+    # Until the second run is recorded, then close at once. A fixed 0.35 s
+    # sleep left 0.05 s before the third run was due, and a slow CI runner
+    # (Python 3.12) overslept it: 3 runs. A third run needs another 0.2 s,
+    # so closing right after the second is recorded keeps the count exact.
+    def recorded() -> int:
+        kept = _kept(store) if store.exists() else {}
+        return len(next(iter(kept.values()), {}).get("runs") or [])
+
+    deadline = asyncio.get_running_loop().time() + 5
+    while recorded() < 2 and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(0.01)
     manager.close()
     assert len(runner.calls) == 2 and manager.said[0] == "Your check, Delhi weather: 31 C, haze"  # nosec B101
     assert [r["status"] for r in _kept(store)[next(iter(_kept(store)))]["runs"]] == ["success", "success"]  # nosec B101
