@@ -2395,6 +2395,15 @@ class IntegrationOrchestrator:
             knowledge_cutoff=knowledge_cutoff,
         )
 
+        # Guidance the owner's own mistakes taught, kept only after it passed
+        # the evaluation gate (self_improvement/prompt_tuning.py). The same
+        # text every turn, so it does not cost Ollama's prompt reuse.
+        from Agent_Guru.self_improvement.prompt_tuning import current_guidance
+
+        guidance = current_guidance()
+        if guidance:
+            system_prompt += "\n\nGuidance learned from earlier mistakes:\n" + guidance
+
         # Language instruction
         if language_code and language_code not in ("en", "en-US", "en-GB", ""):
             system_prompt += (
