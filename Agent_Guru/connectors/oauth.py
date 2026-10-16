@@ -47,6 +47,8 @@ class Provider:
     scopes: tuple[str, ...]
     client_id_env: str
     client_secret_env: str = ""
+    #: Strava wants its scopes separated by commas; every other provider by spaces.
+    scope_separator: str = " "
 
     def client_id(self) -> str:
         return os.environ.get(self.client_id_env, "").strip()
@@ -65,6 +67,8 @@ PROVIDERS: dict[str, Provider] = {
             "https://www.googleapis.com/auth/gmail.send",
             "https://www.googleapis.com/auth/calendar.events",
             "https://www.googleapis.com/auth/contacts.readonly",
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/tasks",
         ),
         client_id_env="GOOGLE_OAUTH_CLIENT_ID", client_secret_env="GOOGLE_OAUTH_CLIENT_SECRET",
     ),
@@ -74,6 +78,20 @@ PROVIDERS: dict[str, Provider] = {
         token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",  # nosec B106 - a URL
         scopes=("offline_access", "Mail.Read", "Mail.Send", "Calendars.ReadWrite", "Contacts.Read"),
         client_id_env="MS_OAUTH_CLIENT_ID",
+    ),
+    "strava": Provider(
+        name="strava",
+        auth_url="https://www.strava.com/oauth/authorize",
+        token_url="https://www.strava.com/oauth/token",  # nosec B106 - a URL
+        scopes=("read", "activity:read_all"),
+        client_id_env="STRAVA_CLIENT_ID", client_secret_env="STRAVA_CLIENT_SECRET", scope_separator=",",
+    ),
+    "spotify": Provider(
+        name="spotify",
+        auth_url="https://accounts.spotify.com/authorize",
+        token_url="https://accounts.spotify.com/api/token",  # nosec B106 - a URL
+        scopes=("user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing"),
+        client_id_env="SPOTIFY_CLIENT_ID",
     ),
 }
 
@@ -159,7 +177,7 @@ def sign_in(provider_name: str, *, open_browser: bool = True) -> dict[str, Any]:
     redirect = f"http://127.0.0.1:{server.server_port}/"
     params = {
         "client_id": provider.client_id(), "response_type": "code", "redirect_uri": redirect,
-        "scope": " ".join(provider.scopes), "state": state, "code_challenge": challenge,
+        "scope": provider.scope_separator.join(provider.scopes), "state": state, "code_challenge": challenge,
         "code_challenge_method": "S256", "access_type": "offline", "prompt": "consent",
     }
     url = f"{provider.auth_url}?{urllib.parse.urlencode(params)}"

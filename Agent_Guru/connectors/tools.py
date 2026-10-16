@@ -91,8 +91,20 @@ class ConnectorTools:
         mail = bool(provider or os.environ.get("IMAP_HOST"))
         send = bool(provider) or bool(os.environ.get("SMTP_HOST"))
         calendar = bool(provider or os.environ.get("CALENDAR_ICS"))
+        from Agent_Guru.connectors.oauth import connected
+
+        linked = connected()
+        google = bool(linked.get("google"))
         usable = {"mail_search": mail, "mail_read": mail, "mail_send": send, "calendar_events": calendar,
-                  "calendar_add": bool(provider), "contacts_search": True, "files_search": True}
+                  "calendar_add": bool(provider), "contacts_search": True, "files_search": True, "news": True,
+                  "drive_search": google, "tasks_list": google, "task_add": google,
+                  "notion_search": bool(os.environ.get("NOTION_TOKEN")),
+                  "notes_search": bool(os.environ.get("OBSIDIAN_VAULT")),
+                  "github_notifications": bool(os.environ.get("GITHUB_TOKEN")),
+                  "dropbox_search": bool(os.environ.get("DROPBOX_TOKEN")),
+                  "health_summary": bool(os.environ.get("OURA_TOKEN")),
+                  "strava_activities": bool(linked.get("strava")),
+                  "music_now": bool(linked.get("spotify")), "music_control": bool(linked.get("spotify"))}
         return [t for t in self._all_tools() if usable.get(t["name"], False)]
 
     def _all_tools(self) -> list[dict[str, Any]]:
@@ -122,6 +134,39 @@ class ConnectorTools:
              "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
             {"name": "files_search", "description": "Find the owner's files by name in Documents, Desktop and Downloads. Returns paths.",
              "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "news", "description": "Today's headlines with links: source 'headlines' (the owner's feeds) or 'hackernews'.",
+             "annotations": {"readOnlyHint": True, "openWorldHint": True}, "inputSchema": {"type": "object", "properties": {
+                 "source": {"type": "string", "enum": ["headlines", "hackernews"]},
+                 "limit": {"type": "integer", "minimum": 1, "maximum": _MAX_RESULTS}}, "additionalProperties": False}},
+            {"name": "drive_search", "description": "Find files in the owner's Google Drive by name or content.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "tasks_list", "description": "The owner's open Google Tasks.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+            {"name": "task_add", "description": "Add a Google Task (optional due date YYYY-MM-DD). The owner confirms first.",
+             "annotations": {"readOnlyHint": False}, "inputSchema": {"type": "object", "properties": {
+                 "title": {"type": "string", "minLength": 1, "maxLength": 200},
+                 "due": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                 "notes": {"type": "string", "maxLength": 1000}}, "required": ["title"], "additionalProperties": False}},
+            {"name": "notion_search", "description": "Search the owner's Notion pages by title.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "notes_search", "description": "Search the owner's Obsidian notes; returns the note and the matching line.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "github_notifications", "description": "The owner's unread GitHub notifications.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+            {"name": "dropbox_search", "description": "Find files in the owner's Dropbox by name.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "health_summary", "description": "The owner's sleep and activity scores for the last days (Oura).",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {
+                 "days": {"type": "integer", "minimum": 1, "maximum": 14}}, "additionalProperties": False}},
+            {"name": "strava_activities", "description": "The owner's recent Strava activities: type, distance, time.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {
+                 "limit": {"type": "integer", "minimum": 1, "maximum": _MAX_RESULTS}}, "additionalProperties": False}},
+            {"name": "music_now", "description": "What is playing on the owner's Spotify.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+            {"name": "music_control", "description": "Spotify playback: play (optionally a search query), pause, next, previous. The owner confirms first.",
+             "annotations": {"readOnlyHint": False}, "inputSchema": {"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["play", "pause", "next", "previous"]},
+                 "query": {"type": "string", "maxLength": 200}}, "required": ["action"], "additionalProperties": False}},
         ]
 
     async def call(self, name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
@@ -129,6 +174,11 @@ class ConnectorTools:
             "mail_search": self._mail_search, "mail_read": self._mail_read, "mail_send": self._mail_send,
             "calendar_events": self._calendar_events, "calendar_add": self._calendar_add,
             "contacts_search": self._contacts_search, "files_search": self._files_search,
+            "news": self._news, "drive_search": self._drive_search, "tasks_list": self._tasks_list,
+            "task_add": self._task_add, "notion_search": self._notion_search, "notes_search": self._notes_search,
+            "github_notifications": self._github, "dropbox_search": self._dropbox_search,
+            "health_summary": self._health, "strava_activities": self._strava,
+            "music_now": self._music_now, "music_control": self._music_control,
         }.get(name)
         if handler is None:
             return f"no tool named {name}", True
@@ -282,6 +332,180 @@ class ConnectorTools:
         return ("\n".join(found) if found else f"No file name matches {query!r}."), False
 
 
+    # ---- more sources ----
+
+    async def _news(self, source: str = "headlines", limit: int = 5) -> tuple[str, bool]:
+        import httpx
+
+        if source == "hackernews":
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                ids = (await client.get("https://hacker-news.firebaseio.com/v0/topstories.json")).json()[:limit]
+                items = await asyncio.gather(*(client.get(f"https://hacker-news.firebaseio.com/v0/item/{i}.json") for i in ids))
+            lines = []
+            for r in items:
+                item = r.json() or {}
+                lines.append(f"{item.get('title', '')} ({item.get('score', 0)} points) - "
+                             f"{item.get('url') or 'https://news.ycombinator.com/item?id=' + str(item.get('id'))}")
+            return "\n".join(lines) or "Hacker News did not answer.", not lines
+        from Agent_Guru.platform.features.briefing import _get_news_headlines
+
+        feeds = [u.strip() for u in os.environ.get("NEWS_FEEDS", "").split(",") if u.strip()] or [
+            "https://feeds.bbci.co.uk/news/rss.xml"]
+        per_feed = max(1, limit // len(feeds))
+        lists = await asyncio.gather(*(_get_news_headlines(per_feed, url, with_links=True) for url in feeds))
+        lines = [line for items in lists for line in items][:limit]
+        return ("\n".join(lines) if lines else "No headlines: the feeds did not answer."), not lines
+
+    async def _drive_search(self, query: str, limit: int = 5) -> tuple[str, bool]:
+        safe = query.replace("\\", "").replace("'", "\\'")
+        found = await _get("https://www.googleapis.com/drive/v3/files", "google",
+                           q=f"(name contains '{safe}' or fullText contains '{safe}') and trashed = false",
+                           pageSize=limit, fields="files(id,name,mimeType,modifiedTime,webViewLink)")
+        lines = [f"{f.get('name')} | {f.get('modifiedTime', '')[:10]} | {f.get('webViewLink', '')}" for f in found.get("files") or []]
+        return ("\n".join(lines) if lines else f"Nothing in Drive matches {query!r}."), False
+
+    async def _tasks_list(self) -> tuple[str, bool]:
+        found = await _get("https://tasks.googleapis.com/tasks/v1/lists/@default/tasks", "google",
+                           showCompleted="false", maxResults=50)
+        lines = [f"{t.get('title', '')}" + (f" (due {t['due'][:10]})" if t.get("due") else "") for t in found.get("items") or []]
+        return ("\n".join(lines) if lines else "No open tasks."), False
+
+    async def _task_add(self, title: str, due: str = "", notes: str = "") -> tuple[Any, ...]:
+        body: dict[str, Any] = {"title": title, "notes": notes}
+        if due:
+            body["due"] = f"{due}T00:00:00.000Z"
+        made = await _post("https://tasks.googleapis.com/tasks/v1/lists/@default/tasks", "google", body)
+        return f"Added the task {title!r}.", False, bool(made.get("id"))
+
+    async def _notion_search(self, query: str, limit: int = 5) -> tuple[str, bool]:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.post("https://api.notion.com/v1/search", json={"query": query, "page_size": limit},
+                                         headers={"Authorization": f"Bearer {os.environ['NOTION_TOKEN']}",
+                                                  "Notion-Version": "2022-06-28"})
+        response.raise_for_status()
+        lines = []
+        for r in response.json().get("results") or []:
+            title = ""
+            for prop in (r.get("properties") or {}).values():
+                if prop.get("type") == "title":
+                    title = "".join(t.get("plain_text", "") for t in prop.get("title") or [])
+            lines.append(f"{title or '(untitled)'} | {r.get('last_edited_time', '')[:10]} | {r.get('url', '')}")
+        return ("\n".join(lines) if lines else f"Nothing in Notion matches {query!r}."), False
+
+    async def _notes_search(self, query: str, limit: int = 8) -> tuple[str, bool]:
+        found = await asyncio.to_thread(_search_vault, Path(os.environ["OBSIDIAN_VAULT"]).expanduser(), query, limit)
+        return ("\n".join(found) if found else f"No note mentions {query!r}."), False
+
+    async def _github(self) -> tuple[str, bool]:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.get("https://api.github.com/notifications",
+                                        headers={"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                                                 "Accept": "application/vnd.github+json"})
+        response.raise_for_status()
+        lines = [f"{n['repository']['full_name']} | {n['subject']['type']} | {n['subject']['title']} | {n.get('reason', '')}"
+                 for n in response.json()[:20]]
+        return ("\n".join(lines) if lines else "No unread GitHub notifications."), False
+
+    async def _dropbox_search(self, query: str, limit: int = 5) -> tuple[str, bool]:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.post("https://api.dropboxapi.com/2/files/search_v2",
+                                         json={"query": query, "options": {"max_results": limit}},
+                                         headers={"Authorization": f"Bearer {os.environ['DROPBOX_TOKEN']}"})
+        response.raise_for_status()
+        lines = [((m.get("metadata") or {}).get("metadata") or {}).get("path_display", "") for m in response.json().get("matches") or []]
+        lines = [line for line in lines if line]
+        return ("\n".join(lines) if lines else f"Nothing in Dropbox matches {query!r}."), False
+
+    async def _health(self, days: int = 7) -> tuple[str, bool]:
+        import httpx
+
+        start = (dt.date.today() - dt.timedelta(days=days)).isoformat()
+        headers = {"Authorization": f"Bearer {os.environ['OURA_TOKEN']}"}
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            sleep = (await client.get("https://api.ouraring.com/v2/usercollection/daily_sleep", params={"start_date": start}, headers=headers)).json()
+            active = (await client.get("https://api.ouraring.com/v2/usercollection/daily_activity", params={"start_date": start}, headers=headers)).json()
+        by_day: dict[str, list[str]] = {}
+        for d in sleep.get("data") or []:
+            by_day.setdefault(d.get("day", ""), []).append(f"sleep {d.get('score')}")
+        for d in active.get("data") or []:
+            by_day.setdefault(d.get("day", ""), []).append(f"activity {d.get('score')}, {d.get('steps', 0)} steps")
+        lines = [f"{day}: {', '.join(v)}" for day, v in sorted(by_day.items())]
+        return ("\n".join(lines) if lines else "No Oura data for those days."), False
+
+    async def _strava(self, limit: int = 5) -> tuple[str, bool]:
+        found = await _get("https://www.strava.com/api/v3/athlete/activities", "strava", per_page=limit)
+        lines = [f"{a.get('start_date_local', '')[:10]} | {a.get('sport_type') or a.get('type')} | {a.get('name', '')} | "
+                 f"{(a.get('distance') or 0) / 1000:.1f} km | {int(a.get('moving_time') or 0) // 60} min" for a in found or []]
+        return ("\n".join(lines) if lines else "No Strava activities."), False
+
+    async def _music_now(self) -> tuple[str, bool]:
+        import httpx
+
+        from Agent_Guru.connectors.oauth import access_token
+
+        token = await asyncio.to_thread(access_token, "spotify")
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.get("https://api.spotify.com/v1/me/player/currently-playing",
+                                        headers={"Authorization": f"Bearer {token}"})
+        if response.status_code == 204 or not response.content:
+            return "Nothing is playing on Spotify.", False
+        item = response.json().get("item") or {}
+        artists = ", ".join(a.get("name", "") for a in item.get("artists") or [])
+        return f"{item.get('name', '?')} by {artists}", False
+
+    async def _music_control(self, action: str, query: str = "") -> tuple[Any, ...]:
+        import httpx
+
+        from Agent_Guru.connectors.oauth import access_token
+
+        token = await asyncio.to_thread(access_token, "spotify")
+        headers = {"Authorization": f"Bearer {token}"}
+        base = "https://api.spotify.com/v1/me/player"
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            body: dict[str, Any] | None = None
+            if action == "play" and query:
+                found = (await client.get("https://api.spotify.com/v1/search", params={"q": query, "type": "track", "limit": 1},
+                                          headers=headers)).json()
+                tracks = (found.get("tracks") or {}).get("items") or []
+                if not tracks:
+                    return f"Spotify found nothing for {query!r}.", True
+                body = {"uris": [tracks[0]["uri"]]}
+            method, path = {"play": ("PUT", "/play"), "pause": ("PUT", "/pause"),
+                            "next": ("POST", "/next"), "previous": ("POST", "/previous")}[action]
+            response = await client.request(method, base + path, headers=headers, json=body)
+        if response.status_code in (200, 202, 204):
+            return f"Spotify: {action}" + (f" {query}" if query else "") + ".", False, True
+        return f"Spotify refused ({response.status_code}): open Spotify on a device first.", True
+
+
+def _search_vault(vault: Path, query: str, limit: int) -> list[str]:
+    from Agent_Guru.security.file_policy import sensitive_reason
+
+    words = [w for w in re.split(r"\W+", query.lower()) if w]
+    found: list[str] = []
+    deadline = time.monotonic() + 5.0
+    for path in vault.rglob("*.md"):
+        if ".obsidian" in path.parts or ".trash" in path.parts or sensitive_reason(path):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        low = text.lower()
+        if all(w in low for w in words):
+            line = next((ln.strip() for ln in text.splitlines() if words and words[0] in ln.lower()), "")
+            found.append(f"{path.relative_to(vault)} | {_clip(line, 160)}")
+            if len(found) >= limit or time.monotonic() > deadline:
+                break
+    return found
+
+
 def _render(message: Any) -> str:
     part = message.get_body(preferencelist=("plain", "html"))
     text = part.get_content() if part is not None else ""
@@ -394,7 +618,11 @@ def connectors_server() -> Any:
     from Agent_Guru.integration.mcp_tools import ServerConfig, ToolRisk, ToolRule
 
     rules = {name: ToolRule(allow=True, risk=ToolRisk.READ_ONLY)
-             for name in ("mail_search", "mail_read", "calendar_events", "contacts_search", "files_search")}
+             for name in ("mail_search", "mail_read", "calendar_events", "contacts_search", "files_search", "news",
+                          "drive_search", "tasks_list", "notion_search", "notes_search", "github_notifications",
+                          "dropbox_search", "health_summary", "strava_activities", "music_now")}
+    rules["task_add"] = ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)
+    rules["music_control"] = ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)
     rules["mail_send"] = ToolRule(allow=True, risk=ToolRisk.EXTERNAL_SIDE_EFFECT)
     rules["calendar_add"] = ToolRule(allow=True, risk=ToolRisk.EXTERNAL_SIDE_EFFECT)
     return ServerConfig(name=SERVER_NAME, command="(in process)", timeout=30.0, tools=rules)

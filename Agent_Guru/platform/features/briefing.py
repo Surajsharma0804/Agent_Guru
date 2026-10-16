@@ -95,14 +95,18 @@ async def _get_weather(location: str) -> str | None:
     return None
 
 
-async def _get_news_headlines(max_items: int = 3) -> list[str]:
-    """Get top news headlines from BBC RSS (no API key needed)."""
+async def _get_news_headlines(
+    max_items: int = 3, url: str = "https://feeds.bbci.co.uk/news/rss.xml", *, with_links: bool = False,
+) -> list[str]:
+    """Top headlines from an RSS or Atom feed (BBC by default; no API key needed).
+
+    It read BBC's RSS only; the news tool (connectors/tools.py) passes the
+    owner's own feeds, which are often Atom (<entry> with <link href>).
+    """
     try:
         from Agent_Guru.security.xml_utils import safe_xml_parse
 
         import aiohttp
-
-        url = "https://feeds.bbci.co.uk/news/rss.xml"
 
         async with (
             aiohttp.ClientSession() as session,
@@ -117,10 +121,20 @@ async def _get_news_headlines(max_items: int = 3) -> list[str]:
             content = await resp.text()
 
         root = safe_xml_parse(content)
+        atom = "{http://www.w3.org/2005/Atom}"
+        items = root.findall(".//item") or root.findall(f".//{atom}entry")
         headlines = []
-        for item in root.findall(".//item")[:max_items]:
-            title = item.findtext("title", "").strip()
-            if title and len(title) > 10:
+        for item in items[:max_items]:
+            title = (item.findtext("title") or item.findtext(f"{atom}title") or "").strip()
+            if not title or len(title) <= 10:
+                continue
+            if with_links:
+                link = (item.findtext("link") or "").strip()
+                if not link:
+                    node = item.find(f"{atom}link")
+                    link = node.get("href", "") if node is not None else ""
+                headlines.append(f"{title} - {link}" if link else title)
+            else:
                 headlines.append(title + ".")
 
         return headlines

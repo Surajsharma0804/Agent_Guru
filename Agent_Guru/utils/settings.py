@@ -77,6 +77,8 @@ KNOWN_SETTINGS: dict[str, str] = {
     "SMTP_FROM": "text",
     "CALENDAR_ICS": "path",
     "FILES_ROOTS": "text",
+    "NEWS_FEEDS": "text",
+    "OBSIDIAN_VAULT": "path",
     "AGENT_GURU_ROUTER": "text",
     "AGENT_GURU_ENGINE_URL": "text",
     "AGENT_GURU_ENGINE_REASONING": "text",
