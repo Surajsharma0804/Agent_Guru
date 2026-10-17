@@ -65,6 +65,15 @@ def _install(monkeypatch: pytest.MonkeyPatch, tmp_path, available: list[str]) ->
     voices.write_bytes(b"voices")
     monkeypatch.setattr(tts_engine, "_MODEL_PATH", model)
     monkeypatch.setattr(tts_engine, "_VOICES_PATH", voices)
+    # The engine loads only pinned files; these stand-ins are pinned here,
+    # since this test is about providers, not integrity (test_kokoro_pins.py).
+    import hashlib
+
+    from Agent_Guru.utils.verified_files import PinnedFile
+
+    pins = tuple(PinnedFile(f.name, f.stat().st_size, hashlib.sha256(f.read_bytes()).hexdigest()) for f in (model, voices))
+    monkeypatch.setattr(tts_engine, "KOKORO_PINS", pins)
+    monkeypatch.setattr(tts_engine, "_PINS_BY_NAME", {p.name: p for p in pins})
     return seen
 
 

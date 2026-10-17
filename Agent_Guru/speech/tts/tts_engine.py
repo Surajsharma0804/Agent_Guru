@@ -385,13 +385,20 @@ class KokoroTTSEngine:
         # verified download), then load nothing that is not the pinned file.
         from Agent_Guru.utils.verified_files import problems, stamp_matches
 
-        if not stamp_matches(_CACHE_DIR, KOKORO_PINS):
+        # The folder checked is the folder the files are loaded from. It was
+        # _CACHE_DIR, so with the paths pointed elsewhere the real cache was
+        # checked while other files were loaded, unverified.
+        directory = _MODEL_PATH.parent
+        if _VOICES_PATH.parent != directory:
+            msg = f"Kokoro model and voices must be in one folder, not {directory} and {_VOICES_PATH.parent}"
+            raise TTSError(msg)
+        if not stamp_matches(directory, KOKORO_PINS):
             for url, path in ((_MODEL_URL, _MODEL_PATH), (_VOICES_URL, _VOICES_PATH)):
                 found = problems(path, _PINS_BY_NAME[path.name])
                 if found:
                     logger.warning("Kokoro: %s; fetching the pinned file", found)
                     _download(url, path)
-        verify_kokoro_files()
+        verify_kokoro_files(directory)
 
         try:
             from kokoro_onnx import Kokoro
