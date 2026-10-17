@@ -91,6 +91,29 @@ def test_a_file_that_still_fails_is_never_loaded(cache, monkeypatch):
     assert cache.loaded == []  # nosec B101
 
 
+def test_the_folder_checked_is_the_folder_loaded_from(cache, tmp_path_factory, monkeypatch):
+    # The engine used to check _CACHE_DIR but load _MODEL_PATH / _VOICES_PATH:
+    # with a verified cache and the paths pointed elsewhere, unchecked files
+    # were loaded.
+    (cache.dir / "kokoro-v1.0.onnx").write_bytes(MODEL)
+    (cache.dir / "voices-v1.0.bin").write_bytes(VOICES)
+    tts_engine.verify_kokoro_files(cache.dir)  # the cache is verified and stamped
+    other = tmp_path_factory.mktemp("elsewhere")
+    (other / "kokoro-v1.0.onnx").write_bytes(b"unchecked model")
+    (other / "voices-v1.0.bin").write_bytes(b"unchecked voices")
+    monkeypatch.setattr(tts_engine, "_MODEL_PATH", other / "kokoro-v1.0.onnx")
+    monkeypatch.setattr(tts_engine, "_VOICES_PATH", other / "voices-v1.0.bin")
+
+    def refuse(url, dest):
+        msg = "downloads are off"
+        raise TTSError(msg)
+
+    monkeypatch.setattr(tts_engine, "_download", refuse)
+    with pytest.raises(TTSError):
+        KokoroTTSEngine()._ensure_loaded()
+    assert cache.loaded == []  # nosec B101
+
+
 def test_missing_files_are_fetched_then_verified(cache):
     KokoroTTSEngine()._ensure_loaded()
     assert sorted(cache.downloads) == ["kokoro-v1.0.onnx", "voices-v1.0.bin"]  # nosec B101
