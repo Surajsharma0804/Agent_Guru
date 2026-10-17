@@ -143,10 +143,10 @@ def best_passage(text: str, query: str, limit: int = PASSAGE_CHARS) -> str:
     return "\n...\n".join([opening, *(chosen[p] for p in sorted(chosen, key=paragraphs.index))])
 
 
-def _guarded(text: str, source: str) -> str | None:
-    from Agent_Guru.llm.security import guard_external_text
+async def _guarded(text: str, source: str) -> str | None:
+    from Agent_Guru.llm.security import guard_external_text_async
 
-    return guard_external_text(text, source) or None
+    return await guard_external_text_async(text, source) or None
 
 
 def _format(source: Source) -> str:
@@ -228,7 +228,7 @@ class ResearchTools:
                 url = page.final_url or result.url
             else:
                 text, read, url = result.snippet, "snippet", result.url
-            passage = _guarded(text, f"web source {url}")
+            passage = await _guarded(text, f"web source {url}")
             if passage is None:
                 withheld += 1
                 continue
@@ -255,7 +255,8 @@ class ResearchTools:
         page = await fetch_page(known.url)
         if page.status not in {"complete", "truncated"} or not page.text:
             return f"Could not read {known.id}: {page.status} ({page.error})", True
-        passage = _guarded(best_passage(page.text, focus or known.title, limit=PASSAGE_CHARS * 2), f"web source {known.url}")
+        passage = await _guarded(best_passage(page.text, focus or known.title, limit=PASSAGE_CHARS * 2),
+                                 f"web source {known.url}")
         if passage is None:
             return f"{known.id} was withheld because it tried to give instructions.", False
         known.passage, known.read = passage, "page" if page.status == "complete" else "page_truncated"
@@ -265,7 +266,7 @@ class ResearchTools:
         passages = await self._documents.search(query)
         register, lines = _register(), []
         for p in passages:
-            passage = _guarded(p.text, f"document {p.document}")
+            passage = await _guarded(p.text, f"document {p.document}")
             if passage:
                 lines.append(_format(register.add("document", title=p.document, passage=passage[:PASSAGE_CHARS],
                                                   provider="documents", read="document")))
