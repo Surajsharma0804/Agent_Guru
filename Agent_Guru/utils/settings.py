@@ -98,6 +98,7 @@ KNOWN_SETTINGS: dict[str, str] = {
     "AGENT_GURU_INJECTION_MODEL_DIR": "path",
     "AGENT_GURU_INJECTION_TIMEOUT_S": "seconds",
     "AGENT_GURU_CODE_SANDBOX": "flag",
+    "AGENT_GURU_CODING_TOOLS": "flag",
     "AGENT_GURU_SANDBOX_DISTRO": "text",
     "AGENT_GURU_BROWSER_TOOLS": "flag",
     "AGENT_GURU_BROWSER_VISIBLE": "flag",
