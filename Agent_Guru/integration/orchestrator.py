@@ -2298,12 +2298,12 @@ class IntegrationOrchestrator:
         also logged it. Whatever the user said on an earlier turn, however
         private, left the machine attached to an unrelated question.
         """
-        from Agent_Guru.llm.security import guard_external_text
+        from Agent_Guru.llm.security import guard_external_text_async
         from Agent_Guru.platform.features.web_search import search_web
 
         if not self._intent_needs_web(intent, transcript):
             return ""
-        web_snippet = guard_external_text(await search_web(transcript) or "", "web search")
+        web_snippet = await guard_external_text_async(await search_web(transcript) or "", "web search")
         if web_snippet:
             logger.info("Web search injected for: %r", transcript[:60])
             return f"\n\nLive web search result: {web_snippet}"
@@ -2323,7 +2323,7 @@ class IntegrationOrchestrator:
         intent_type = (intent or "").split(":", 1)[0].lower().strip()
         if intent_type not in {"", "conversation", "information"} or self._intent_needs_web(intent, transcript):
             return ""
-        from Agent_Guru.llm.security import guard_external_text
+        from Agent_Guru.llm.security import guard_external_text_async
 
         try:
             passages = await asyncio.wait_for(self._documents.search(transcript), timeout=MEMORY_TIMEOUT_S)
@@ -2336,7 +2336,7 @@ class IntegrationOrchestrator:
         kept = [
             f"[{p.document}] {text}"
             for p in passages
-            if (text := guard_external_text(p.text, f"document {p.document}"))
+            if (text := await guard_external_text_async(p.text, f"document {p.document}"))
         ]
         if not kept:
             return ""
@@ -4182,7 +4182,20 @@ class IntegrationOrchestrator:
             self._toolbox = MCPToolbox(
                 self._mcp_servers, policy_check=self._stage_policy, audit_logger=self._audit_logger,
             )
-        self._tools_starting = asyncio.create_task(self._toolbox.discover(), name="mcp-start")
+        self._tools_starting = asyncio.create_task(self._discover_and_warm(), name="mcp-start")
+
+    async def _discover_and_warm(self) -> Any:
+        """Discover the tools, then queue the injection classifier on their descriptions (see tool_loop)."""
+        if self._toolbox is None:
+            return []
+        tools = await self._toolbox.discover()
+        try:
+            from Agent_Guru.integration.tool_loop import warm_tool_descriptions
+
+            warm_tool_descriptions(tools)
+        except Exception:
+            logger.debug("Could not queue tool descriptions for the injection classifier", exc_info=True)
+        return tools
 
     async def close_tools(self) -> None:
         """End every MCP server this assistant started; called by main.py at shutdown."""
