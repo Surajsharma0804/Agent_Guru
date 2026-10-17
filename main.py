@@ -491,6 +491,18 @@ async def run() -> None:
             install_mcp_policies(policy, [browser])
     except Exception as e:
         logger.warning("Browser tools unavailable (%s)", e)
+    # Audio files transcribed locally; images only with cloud switched on
+    # (integration/media_tools.py).
+    try:
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+        from Agent_Guru.integration.media_tools import MediaTools, media_server
+
+        media = media_server()
+        media.local = MediaTools()
+        mcp_servers = [*mcp_servers, media]
+        install_mcp_policies(policy, [media])
+    except Exception as e:
+        logger.warning("Media tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
