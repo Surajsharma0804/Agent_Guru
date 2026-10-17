@@ -543,32 +543,66 @@ class _Pyttsx3Engine:
         if self._engine is None:
             return _silence_wav(text)
 
+        import subprocess  # nosec B404
+        import sys
         import tempfile
 
         voice_id = (
             self._male_voice_id if personality == PersonalityType.GURU else self._female_voice_id
         )
-
-        with self._lock:
-            try:
-                if voice_id:
-                    self._engine.setProperty("voice", voice_id)
-                self._engine.setProperty("rate", int(160 * speech_rate))
-                self._engine.setProperty("volume", volume)
-
-                fd, tmp = tempfile.mkstemp(suffix=".wav")
-                os.close(fd)
-                try:
-                    self._engine.save_to_file(text, tmp)
-                    self._engine.runAndWait()
-                    with open(tmp, "rb") as f:
-                        return f.read()
-                finally:
-                    if os.path.exists(tmp):
-                        os.unlink(tmp)
-            except Exception as exc:
-                logger.warning("pyttsx3 synthesis failed: %s", exc)
+        fd, tmp = tempfile.mkstemp(suffix=".wav")
+        os.close(fd)
+        # Each sentence is synthesised in a short-lived process. In-process,
+        # pyttsx3 2.99's SAPI5 driver returned from save_to_file + runAndWait
+        # once and then blocked for ever in startLoop on the next call
+        # (reproduced on Windows 11: the second call never returned, with
+        # the same engine, a new engine, stop() or endLoop()); the speaking
+        # thread froze, and on CI pytest-timeout ended the whole run. A fresh
+        # process per call finished 4 calls of 4 at about 0.6 s each, and a
+        # stalled one is killed at its deadline instead of hanging.
+        deadline = _PYTTSX3_BASE_TIMEOUT_S + len(text) / _PYTTSX3_CHARS_PER_S
+        args = [sys.executable, "-c", _PYTTSX3_SCRIPT, tmp, voice_id or "", str(int(160 * speech_rate)), str(volume)]
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        try:
+            with self._lock:
+                done = subprocess.run(  # nosec B603 - fixed script, no shell, text passed on stdin
+                    args, input=text.encode("utf-8"), capture_output=True, timeout=deadline,
+                    creationflags=flags, check=False,
+                )
+            if done.returncode != 0 or os.path.getsize(tmp) == 0:
+                logger.warning("pyttsx3 synthesis failed (exit %s): %s", done.returncode,
+                               done.stderr.decode("utf-8", "replace")[-300:])
                 return _silence_wav(text)
+            with open(tmp, "rb") as f:
+                return f.read()
+        except subprocess.TimeoutExpired:
+            logger.warning("pyttsx3 synthesis gave no audio within %.0f s; the process was ended", deadline)
+            return _silence_wav(text)
+        except Exception as exc:
+            logger.warning("pyttsx3 synthesis failed: %s", exc)
+            return _silence_wav(text)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+
+#: The child process's whole job: read the text on stdin, write one WAV file.
+_PYTTSX3_SCRIPT = """
+import sys
+import pyttsx3
+path, voice, rate, volume = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4])
+text = sys.stdin.buffer.read().decode("utf-8")
+engine = pyttsx3.init()
+if voice:
+    engine.setProperty("voice", voice)
+engine.setProperty("rate", rate)
+engine.setProperty("volume", volume)
+engine.save_to_file(text, path)
+engine.runAndWait()
+"""
+#: A call is ended after this long plus one second per this many characters.
+_PYTTSX3_BASE_TIMEOUT_S = 15.0
+_PYTTSX3_CHARS_PER_S = 20.0
 
 # ---------------------------------------------------------------------------
 # Unified engine (used by the rest of the project)
