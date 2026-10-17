@@ -158,10 +158,46 @@ async def run_shell(script: str, *, seconds: int = 10, memory_mb: int = 256) -> 
     return await _run(script, SHELL, seconds, memory_mb)
 
 
-async def _run(code: str, program: tuple[str, ...], seconds: int, memory_mb: int) -> SandboxRun:
+#: A project copied into the box for run_project, compressed.
+MAX_PROJECT_BYTES = 4 * 1024 * 1024
+
+_PROJECT_BOOTSTRAP = """
+import base64, io, os, subprocess, sys, tarfile
+os.makedirs("/tmp/work", exist_ok=True)
+with tarfile.open(fileobj=io.BytesIO(base64.b64decode({data!r})), mode="r:gz") as tar:
+    tar.extractall("/tmp/work", filter="data")
+done = subprocess.run(["/bin/bash", "--noprofile", "--norc", "-c", {command!r}], cwd="/tmp/work")
+sys.exit(done.returncode)
+"""
+
+
+async def run_project(files: dict[str, bytes], command: str, *, seconds: int = 60, memory_mb: int = 512) -> SandboxRun:
+    """Copy *files* (relative path to bytes) into the box's /tmp/work and run *command* there with bash.
+
+    The copy is made inside the boundary and gone after the run; nothing
+    the command does reaches the owner's files.
+    """
+    import base64
+    import io
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, data in sorted(files.items()):
+            info = tarfile.TarInfo(name.replace("\\", "/"))
+            info.size, info.mode = len(data), 0o644
+            tar.addfile(info, io.BytesIO(data))
+    packed = buffer.getvalue()
+    if len(packed) > MAX_PROJECT_BYTES:
+        return SandboxRun("unavailable", None, "", f"the project is larger than {MAX_PROJECT_BYTES >> 20} MB packed", 0.0)
+    code = _PROJECT_BOOTSTRAP.format(data=base64.b64encode(packed).decode(), command=command)
+    return await _run(code, PYTHON, seconds, memory_mb, limit=len(code))
+
+
+async def _run(code: str, program: tuple[str, ...], seconds: int, memory_mb: int, limit: int = MAX_CODE_CHARS) -> SandboxRun:
     started = time.monotonic()
-    if len(code) > MAX_CODE_CHARS:
-        return SandboxRun("unavailable", None, "", f"code longer than {MAX_CODE_CHARS} characters", 0.0)
+    if len(code) > limit:
+        return SandboxRun("unavailable", None, "", f"code longer than {limit} characters", 0.0)
     wsl = shutil.which("wsl.exe") or shutil.which("wsl")
     if wsl is None:
         return SandboxRun("unavailable", None, "", "WSL is not installed", 0.0)
@@ -267,9 +303,12 @@ def setup(timeout: float = 120.0) -> list[str]:
     wsl = shutil.which("wsl.exe") or shutil.which("wsl")
     if wsl is None:
         return ["WSL is not installed"]
+    # pytest from the distribution, so a project's tests can run in the box
+    # (the box has no network, so nothing can be installed from inside it).
     script = (
         f"id -u {SANDBOX_USER} >/dev/null 2>&1 || "
-        f"useradd --system --no-create-home --shell /usr/sbin/nologin {SANDBOX_USER}"
+        f"useradd --system --no-create-home --shell /usr/sbin/nologin {SANDBOX_USER}; "
+        "python3 -c 'import pytest' 2>/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -q python3-pytest"
     )
     subprocess.run(  # nosec B603 - fixed script
         [wsl, "-d", distro(), "-u", "root", "--exec", "/bin/sh", "-c", script],
