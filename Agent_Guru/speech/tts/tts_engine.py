@@ -473,7 +473,17 @@ def _espeak_data_for_loaded_library(platform: str | None = None, maps: str | Non
     NG with its own data must not be pointed at another version's data.
     """
     platform = platform or sys.platform
-    if not platform.startswith("linux") or os.environ.get("ESPEAK_DATA_PATH"):
+    if os.environ.get("ESPEAK_DATA_PATH") or _loaded_espeakng_loader_library(platform, maps) is None:
+        return None
+    import espeakng_loader
+
+    return espeakng_loader.get_data_path()
+
+
+def _loaded_espeakng_loader_library(platform: str | None = None, maps: str | None = None) -> str | None:
+    """Path of espeakng-loader's eSpeak NG library when this Linux process has it mapped; else None."""
+    platform = platform or sys.platform
+    if not platform.startswith("linux"):
         return None
     try:
         import espeakng_loader
@@ -484,7 +494,7 @@ def _espeak_data_for_loaded_library(platform: str | None = None, maps: str | Non
                 maps = fh.read()
     except (ImportError, OSError):
         return None
-    return espeakng_loader.get_data_path() if library in maps else None
+    return library if library in maps else None
 
 
 class _Pyttsx3Engine:
@@ -495,6 +505,7 @@ class _Pyttsx3Engine:
         self._lock = threading.Lock()
         self._male_voice_id: str | None = None
         self._female_voice_id: str | None = None
+        self._espeak_library: str | None = None
 
     def initialize(self) -> bool:
         """Initialize pyttsx3. Returns True on success."""
@@ -527,6 +538,13 @@ class _Pyttsx3Engine:
             engine.setProperty("rate", 160)
             engine.setProperty("volume", 1.0)
             self._engine = engine
+            # The synthesis child must speak through the same eSpeak NG as
+            # this process. Where the only copy is espeakng-loader's, mapped
+            # here by Kokoro's phonemizer (CI Ubuntu has no system eSpeak
+            # NG), a fresh child could not load any eSpeak, pyttsx3 raised
+            # "you probably do not have eSpeak or eSpeak-ng installed", and
+            # every fallback sentence came back as silence (RMS 0.0).
+            self._espeak_library = _loaded_espeakng_loader_library()
             return True
         except Exception as exc:
             logger.warning("pyttsx3 unavailable: %s", exc)
@@ -561,7 +579,10 @@ class _Pyttsx3Engine:
         # process per call finished 4 calls of 4 at about 0.6 s each, and a
         # stalled one is killed at its deadline instead of hanging.
         deadline = _PYTTSX3_BASE_TIMEOUT_S + len(text) / _PYTTSX3_CHARS_PER_S
-        args = [sys.executable, "-c", _PYTTSX3_SCRIPT, tmp, voice_id or "", str(int(160 * speech_rate)), str(volume)]
+        args = [
+            sys.executable, "-c", _PYTTSX3_SCRIPT, tmp, voice_id or "", str(int(160 * speech_rate)), str(volume),
+            self._espeak_library or "",
+        ]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         try:
             with self._lock:
@@ -587,10 +608,15 @@ class _Pyttsx3Engine:
 
 
 #: The child process's whole job: read the text on stdin, write one WAV file.
+#: A library given in argv[5] is loaded before pyttsx3, so pyttsx3's dlopen of
+#: libespeak-ng.so.1 (that library's soname) returns the parent's copy.
 _PYTTSX3_SCRIPT = """
 import sys
+path, voice, rate, volume, library = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4]), sys.argv[5]
+if library:
+    import ctypes
+    ctypes.CDLL(library, mode=ctypes.RTLD_GLOBAL)
 import pyttsx3
-path, voice, rate, volume = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4])
 text = sys.stdin.buffer.read().decode("utf-8")
 engine = pyttsx3.init()
 if voice:
