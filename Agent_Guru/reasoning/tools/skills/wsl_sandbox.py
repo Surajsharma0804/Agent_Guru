@@ -197,7 +197,7 @@ async def _stop(wsl: str, process: asyncio.subprocess.Process, unit: str) -> Non
     await _kill_and_wait(process)
     killer = await asyncio.create_subprocess_exec(
         wsl, "-d", distro(), "-u", "root", "--exec", "systemctl", "kill", "--signal=SIGKILL", f"{unit}.service",
-        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     try:
@@ -231,7 +231,9 @@ def check(timeout: float = 60.0) -> list[str]:
     try:
         done = subprocess.run(  # nosec B603 - fixed script, no shell on this side
             [wsl, "-d", distro(), "-u", "root", "--exec", "/bin/sh", "-c", _CHECK_SCRIPT],
-            capture_output=True, timeout=timeout, check=False,
+            # stdin closed: wsl.exe forwards what it inherits, and swallowed the
+            # code piped to `sandbox run -` before it could be read.
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout, check=False,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -256,6 +258,44 @@ def setup(timeout: float = 120.0) -> list[str]:
     )
     subprocess.run(  # nosec B603 - fixed script
         [wsl, "-d", distro(), "-u", "root", "--exec", "/bin/sh", "-c", script],
-        capture_output=True, timeout=timeout, check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout, check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     return check()
+
+
+def run(argv: list[str]) -> int:
+    import argparse
+    import sys
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        prog="python -m Agent_Guru sandbox",
+        description=f"The WSL sandbox that runs Python the assistant writes (distribution {distro()!r}, {DISTRO_ENV}).",
+    )
+    sub = parser.add_subparsers(dest="action", required=True)
+    sub.add_parser("check", help="say whether the sandbox can be trusted on this machine")
+    sub.add_parser("setup", help="create the sandbox user in the distribution, then check")
+    go = sub.add_parser("run", help="run a Python file (or - for standard input) in the sandbox")
+    go.add_argument("file")
+    go.add_argument("--seconds", type=int, default=10)
+    go.add_argument("--memory-mb", type=int, default=256)
+    args = parser.parse_args(argv)
+    if args.action in ("check", "setup"):
+        problems = setup() if args.action == "setup" else check()
+        for problem in problems:
+            print(f"  not ready: {problem}")  # noqa: T201  the command's output
+        if not problems:
+            print(f"The sandbox in {distro()!r} is ready.")  # noqa: T201
+            print("The assistant offers it as a tool when AGENT_GURU_CODE_SANDBOX=1.")  # noqa: T201
+        return 1 if problems else 0
+    problems = check()
+    if problems:
+        print("The sandbox cannot be trusted here: " + "; ".join(problems))  # noqa: T201
+        return 1
+    code = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+    result = asyncio.run(run_python(code, seconds=args.seconds, memory_mb=args.memory_mb))
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr + ("\n" if result.stderr else ""))
+    print(f"[sandbox: {result.result}, exit {result.exit_code}, {result.seconds:.2f} s]", file=sys.stderr)  # noqa: T201
+    return 0 if result.ok else 1
