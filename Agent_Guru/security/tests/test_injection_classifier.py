@@ -277,6 +277,18 @@ def test_decoded_forms_are_bounded(monkeypatch):
     assert len(asked) == 1 + ic.MAX_DECODED_FORMS  # nosec B101
 
 
+def test_a_form_that_only_changes_spacing_is_not_classified_again(monkeypatch):
+    # Joining spaced letters also collapses double spaces, so ordinary pages
+    # produced a "decoded" form identical but for spacing, and were
+    # classified twice: 251 ms instead of 107 ms for 1,000 characters.
+    clf = InjectionClassifier()
+    text = "The fort was built in 1732.  It was restored later."
+    monkeypatch.setattr("Agent_Guru.llm.security._disguised_forms", lambda t: [" ".join(t.split())])
+    asked = _per_text(clf, {})
+    clf.classify_all(text)
+    assert asked == [text]  # nosec B101
+
+
 def test_the_combined_verdict_is_cached():
     clf = InjectionClassifier()
     asked = _per_text(clf, {})
