@@ -165,6 +165,21 @@ _PROMISED_LOOKUP = re.compile(
     re.IGNORECASE,
 )
 
+#: A reply that offers the next step instead of taking it ("Wanna know the
+#: actual departure time?", "I can check the status for you").
+_OFFERS_MORE = re.compile(
+    r"\b(?:wanna know|want (?:me )?to know|want me to|should i|shall i|do you want|"
+    r"i can (?:check|look|find|get|pull)|let me know if|you (?:should|could|can|might) (?:\w+ )?check)\b",
+    re.IGNORECASE,
+)
+
+#: Words too common to say what a question is about.
+_COMMON_WORDS = frozenset({
+    "what", "when", "where", "which", "does", "with", "that", "this", "have", "from", "your", "about", "will",
+    "would", "could", "there", "their", "they", "them", "then", "than", "into", "just", "like", "please", "tell",
+    "know", "want", "time", "today", "right", "some", "make", "give", "show", "find", "check",
+})
+
 #: Given to the model when it claimed a change no tool made.
 CORRECTION = (
     "Correction from the assistant's own checks: your last reply said something was done, but no tool was "
@@ -377,6 +392,9 @@ class ToolLoop:
             self._tools[f"{tool.server}__{tool.name}"] = tool
         self._seen: dict[str, ToolCallResult] = {}
         self.made: list[tuple[str, str, Any, ActionStatus]] = []
+        #: A failed call (offered name) and the tools that give what it needed: a chain to finish.
+        self._chains: dict[str, list[str]] = {}
+        self._chain_nudges = 0
         from Agent_Guru.security.taint import TaintTracker
 
         self._taint = TaintTracker()
@@ -456,7 +474,12 @@ class ToolLoop:
         outcome = self.outcome
         functions = self.functions()
         while True:
-            last = outcome.steps >= self.budget.max_steps or self._spent() or outcome.stop_reason == "repeat"
+            # A chain nudge brings its own step: the full chain (failed call,
+            # nudge, producer, nudge, retry, answer) ran past 4 steps, and the
+            # last step, offered no tools, came back empty ("Sorry, that
+            # didn't work."). The call and time budgets are unchanged.
+            last = (outcome.steps >= self.budget.max_steps + self._chain_nudges or self._spent()
+                    or outcome.stop_reason == "repeat")
             started = time.time()
             step = await model_step(messages, None if last else functions)
             outcome.steps += 1
@@ -477,6 +500,17 @@ class ToolLoop:
                     continue
                 outcome.answer, outcome.model_answer, outcome.stop_reason = NOT_DONE, False, "unbacked_claim"
                 return self._finish()
+            nudge = self._chain_step(step.text) if not step.tool_calls and not last else ""
+            if nudge:
+                # A failed call whose missing input another tool gives, not
+                # yet finished: gemma4 said "maybe we should try finding your
+                # booking" or, after find_booking, "I can check the departure
+                # time" and stopped, in 4 of 4 runs of the two-tool cases.
+                self._chain_nudges += 1
+                messages.append(Message(role="assistant", content=step.text))
+                messages.append(Message(role="system", content=nudge))
+                self._stage("tool_chain_continued", started, {"step": outcome.steps}, seconds=0.0)
+                continue
             if not step.tool_calls and not last and not outcome.corrected:
                 # Nothing has run yet, or only calls that were refused: a
                 # promise to do it is still unkept.
@@ -703,9 +737,79 @@ class ToolLoop:
             note = _CHANGE_NOTES.get(result.status)
             if note:
                 self.outcome.notes.append(note.format(tool=tool.name))
-        message = self._tool_message(result, call.name)
+        note = self._producer_note(call.name, tool) if result.status is ActionStatus.FAILED else ""
+        message = self._tool_message(result, call.name, note=note)
         self._output_chars += len(result.output)
         return message
+
+    def _chain_step(self, reply: str = "") -> str:
+        """The next call of an unfinished chain, said to the model; "" when there is none (at most twice a turn).
+
+        Two kinds: a call failed and a tool that gives its input was named
+        for it (see _producer_note); or a read-only tool returned text
+        naming another offered tool's required input ("flight 6E 523" for
+        flight_status's flight) and the reply offers to go on ("Wanna know
+        the departure time?") instead of going on.
+        """
+        if self._chain_nudges >= 2:
+            return ""
+        succeeded = {f"{s}__{t}" for s, t, _, status in self.made
+                     if status in {ActionStatus.SUCCESS, ActionStatus.UNVERIFIED}}
+        for failed, producers in self._chains.items():
+            if failed in succeeded:
+                continue
+            done = [p for p in producers if p in succeeded]
+            if not done:
+                return (f"Correction from the assistant's own checks: {failed} failed for want of input that "
+                        f"{producers[0]} gives. Call {producers[0]} now.")
+            return (f"Correction from the assistant's own checks: {done[0]} returned what {failed} needed. "
+                    f"Call {failed} now with it, then answer the owner.")
+        offers = bool(_OFFERS_MORE.search(reply or "") or _PROMISED_LOOKUP.search(reply or ""))
+        asked = {w for w in re.findall(r"[a-z]{4,}", self._owner_text.lower())} - _COMMON_WORDS
+        outputs = [(f"{c.server}__{c.tool}", (c.output or "").lower()) for c in self.outcome.calls
+                   if c.status is ActionStatus.SUCCESS]
+        for offered, other in self._tools.items():
+            if offered in succeeded or other.risk is not ToolRisk.READ_ONLY:
+                continue
+            # The owner's question is about what this tool does, or the reply
+            # offers to do it: without either, a tool that could take the
+            # output is not the owner's business this turn.
+            if not offers and not asked & set(re.findall(r"[a-z]{4,}", (other.description or "").lower())):
+                continue
+            required = [str(p).lower() for p in (other.input_schema or {}).get("required", [])]
+            for producer, text in outputs:
+                if required and all(re.search(rf"\b{re.escape(p)}\b", text) for p in required):
+                    return (f"Correction from the assistant's own checks: {producer} returned the {', '.join(required)} "
+                            f"that {offered} needs. If the owner's question needs it, call {offered} now instead of "
+                            f"offering to, then answer.")
+        return ""
+
+    def _producer_note(self, name: str, tool: Any) -> str:
+        """For a failed call: the offered read-only tools that give what it needed, to call first.
+
+        "When does my Goa flight leave?" was answered "I can't find a
+        flight called Goa" in every run of scripts/tool_loop_eval.py:
+        gemma4 called flight_status with the destination, got an error,
+        and gave up, though find_booking ("gives the booking reference and
+        flight number") was offered. A tool qualifies when its description
+        names a required argument of the failed tool and says it gives,
+        returns, finds or lists something. Descriptions are only matched
+        here; the note names tools, nothing else from them.
+        """
+        required = [str(p) for p in (getattr(tool, "input_schema", None) or {}).get("required", []) if str(p)]
+        producers = []
+        for offered, other in self._tools.items():
+            if offered == name or other.risk is not ToolRisk.READ_ONLY:
+                continue
+            words = (other.description or "").lower()
+            if (any(re.search(rf"\b{re.escape(p.lower())}\b", words) for p in required)
+                    and re.search(r"\b(gives?|returns?|provides?|finds?|lists?|looks? up)\b", words)):
+                producers.append(offered)
+        if not producers:
+            return ""
+        self._chains[name] = producers[:2]
+        return (f"{name} needs a real {', '.join(required)}. {' or '.join(producers[:2])} gives it: call that first, "
+                f"then call {name} again with what it returns.")
 
     def _tool_message(self, result: ToolCallResult, name: str, note: str = "") -> str:
         body = result.for_prompt()
