@@ -21,6 +21,7 @@ an interrupted or tampered download never looks like a model.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import hashlib
 import json
 import logging
@@ -98,8 +99,17 @@ DEFAULT_TIMEOUT_S = 2.0
 INJECTION_THRESHOLD = 0.98
 SUSPICIOUS_THRESHOLD = 0.50
 
+#: Decoded forms of a text classified beside it, at most. They come from the
+#: rules' own bounded decoder (llm/security.py _disguised_forms): zero-width
+#: characters removed, spaced or separated letters joined, leetspeak undone,
+#: printable base64 decoded. Nothing is executed or fetched. On the
+#: development half of set 5, attacks written as leetspeak went from 0 of 4
+#: caught to 4 of 4 and base64 ones from 0 of 4 to 4 of 4; 2 more of 22
+#: ordinary texts were marked (an encoded settings blob, a security article).
+MAX_DECODED_FORMS = 4
+
 #: Changes to how text is prepared invalidate cached results.
-PREPROCESSING_VERSION = "2"
+PREPROCESSING_VERSION = "3"
 _CACHE_SIZE = 512
 _DOWNLOAD_TIMEOUT_S = 60.0
 
@@ -124,6 +134,9 @@ class ClassifierResult:
     model: str = MODEL_ID
     revision: str = MODEL_REVISION[:12]
     window_scores: tuple[float, ...] = field(default=(), repr=False)
+    #: True when the deciding score came from a decoded form of the text
+    #: (leetspeak undone, base64 decoded), not from the text as written.
+    decoded: bool = False
 
 
 class ClassifierUnavailable(RuntimeError):
@@ -412,11 +425,46 @@ class InjectionClassifier:
                 self._cache.popitem(last=False)
         return result
 
-    def _cache_key(self, text: str) -> str:
+    def _cache_key(self, text: str, kind: str = "one") -> str:
         return hashlib.sha256(
-            f"{MODEL_REVISION}|{PREPROCESSING_VERSION}|{INJECTION_THRESHOLD}|{SUSPICIOUS_THRESHOLD}|".encode()
+            f"{kind}|{MODEL_REVISION}|{PREPROCESSING_VERSION}|{INJECTION_THRESHOLD}|{SUSPICIOUS_THRESHOLD}|".encode()
             + text[:MAX_CHARS].encode("utf-8", "surrogatepass"),
         ).hexdigest()
+
+    def classify_all(self, text: str) -> ClassifierResult:
+        """The verdict on *text* and on its decoded forms: the highest score decides; never raises.
+
+        The text as written and each decoded form are classified separately;
+        a decoded form only ever adds evidence, and the text that reaches
+        the model is never the decoded one.
+        """
+        if not isinstance(text, str) or not text.strip():
+            return self.classify(text)
+        key = self._cache_key(text, "all")
+        with self._cache_lock:
+            cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        from Agent_Guru.llm.security import _disguised_forms
+
+        main = self.classify(text)
+        results = [main]
+        for form in _disguised_forms(text[:MAX_CHARS])[:MAX_DECODED_FORMS]:
+            if form.strip():
+                results.append(self.classify(form))
+        scored = [r for r in results if r.score is not None]
+        if not scored:
+            best = main
+        else:
+            top = max(scored, key=lambda r: r.score or 0.0)
+            best = dataclasses.replace(top, seconds=sum(r.seconds for r in results), decoded=top is not main,
+                                       truncated=any(r.truncated for r in results))
+        if best.verdict is not Verdict.UNKNOWN or best is not main:
+            with self._cache_lock:
+                self._cache[key] = best
+                while len(self._cache) > _CACHE_SIZE:
+                    self._cache.popitem(last=False)
+        return best
 
     def cached_or_queue(self, text: str) -> ClassifierResult | None:
         """A verdict already worked out for *text*, or None after queueing one; never runs the model here.
@@ -428,20 +476,20 @@ class InjectionClassifier:
         if not isinstance(text, str) or not text.strip():
             return None
         with self._cache_lock:
-            cached = self._cache.get(self._cache_key(text))
+            cached = self._cache.get(self._cache_key(text, "all"))
         if cached is not None:
             return cached
         if self._failure:
             return None
-        _submit(self.classify, text)
+        _submit(self.classify_all, text)
         return None
 
     async def classify_async(self, text: str, timeout: float) -> ClassifierResult:
-        """classify() on the classifier's worker thread; UNKNOWN if it takes longer than *timeout*."""
+        """classify_all() on the classifier's worker thread; UNKNOWN if it takes longer than *timeout*."""
         import asyncio
 
         started = time.perf_counter()
-        future = _submit(self.classify, text)
+        future = _submit(self.classify_all, text)
         if future is None:
             return ClassifierResult(Verdict.UNKNOWN, reason="classifier queue full")
         try:
@@ -558,7 +606,7 @@ def run(argv: list[str]) -> int:
             print(f"loads: no ({exc})")  # noqa: T201
             return 1
         return 0
-    result = InjectionClassifier(directory).classify(args.text)
-    print(f"{result.verdict.value} score={result.score} windows={result.windows} "  # noqa: T201
+    result = InjectionClassifier(directory).classify_all(args.text)
+    print(f"{result.verdict.value} score={result.score} windows={result.windows} decoded={result.decoded} "  # noqa: T201
           f"{result.seconds * 1000:.0f} ms {result.reason}")
     return 0
