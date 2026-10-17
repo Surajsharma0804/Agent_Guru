@@ -83,3 +83,9 @@ def test_no_wsl_means_unavailable_not_an_error(monkeypatch):
     assert asyncio.run(wsl_sandbox.run_python("print(1)")).result == "unavailable"  # nosec B101
     monkeypatch.setattr(wsl_sandbox, "_checked_ok", False)
     assert wsl_sandbox.check() == ["WSL is not installed"]  # nosec B101
+
+
+def test_a_shell_run_reads_no_profile_and_runs_under_the_same_properties():
+    argv = run_command(10, 256, "wsl.exe", program=wsl_sandbox.SHELL)
+    assert argv[-4:] == ["/bin/bash", "--noprofile", "--norc", "-s"]  # nosec B101
+    assert argv[:-4] == run_command(10, 256, "wsl.exe")[:-4]  # nosec B101
