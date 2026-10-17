@@ -246,7 +246,28 @@ def run(argv: list[str]) -> int:
     imp.add_argument("source")
     imp.add_argument("--yes", action="store_true", help="install it if nothing blocks it")
     sub.add_parser("discover", help="repeated tool sequences in past turns")
+    cat = sub.add_parser("catalog", help="list the instruction skills in hermes, openclaw, a git URL or a folder")
+    cat.add_argument("source")
+    learn_ = sub.add_parser("learn", help="install one instruction skill (its Markdown only) from a catalog")
+    learn_.add_argument("source")
+    learn_.add_argument("name")
+    learn_.add_argument("--yes", action="store_true", help="install it")
+    sub.add_parser("instructions", help="the instruction skills installed")
     args = parser.parse_args(argv)
+    if args.action in ("catalog", "learn", "instructions"):
+        from Agent_Guru.reasoning.tools.skills import instruction_skills
+
+        if args.action == "catalog":
+            for skill in instruction_skills.catalog(args.source):
+                print(f"  {skill.name:32} {skill.description[:100]}")  # noqa: T201  the command's output
+            return 0
+        if args.action == "instructions":
+            for skill in instruction_skills.installed():
+                print(f"  {skill.name:32} {skill.description[:100]}")  # noqa: T201
+            return 0
+        ok, report = instruction_skills.learn(args.source, args.name, install=args.yes)
+        print("\n".join(report))  # noqa: T201
+        return 0 if ok or not args.yes else 1
     if args.action == "discover":
         from Agent_Guru.reasoning.tools.skills.trace_mining import report
 
