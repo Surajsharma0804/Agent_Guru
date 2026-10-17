@@ -280,23 +280,30 @@ class TestPermissionManager:
         assert "request_id" in request  # nosec B101
     
     def test_cache_performance(self):
-        """Test that caching improves performance."""
+        """A cached check answers without reading the database.
+
+        This test used to time two checks and require the second to take at
+        most twice the first. grant_permission() already caches, so both
+        were cache hits of a few microseconds and the comparison was noise:
+        it failed on CI with 24 us against 2 x 5.8 us while the cache
+        worked. Database reads are now counted instead of timed.
+        """
         manager = PermissionManager()
-        
         manager.grant_permission("user123", "messaging", "admin")
-        
-        # First check (database query)
-        start = time.perf_counter()
-        manager.check_permission("user123", "messaging")
-        first_time = time.perf_counter() - start
-        
-        # Second check (cached)
-        start = time.perf_counter()
-        manager.check_permission("user123", "messaging")
-        second_time = time.perf_counter() - start
-        
-        # Cached check should be faster (or at least not slower)
-        assert second_time <= first_time * 2  # Allow some variance  # nosec B101
+        manager.clear_cache()
+
+        reads: list[str] = []
+        assert manager._conn is not None  # nosec B101
+        manager._conn.set_trace_callback(
+            lambda sql: reads.append(sql) if sql.lstrip().upper().startswith("SELECT") else None
+        )
+
+        assert manager.check_permission("user123", "messaging") is True  # nosec B101
+        assert len(reads) >= 1, "a check after clear_cache() must read the database"  # nosec B101
+
+        reads.clear()
+        assert manager.check_permission("user123", "messaging") is True  # nosec B101
+        assert reads == [], "the second check must be answered from the cache"  # nosec B101
     
     def test_clear_cache_specific_user(self):
         """Test clearing cache for specific user."""
