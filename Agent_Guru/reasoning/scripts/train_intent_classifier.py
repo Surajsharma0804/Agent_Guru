@@ -50,6 +50,25 @@ import nltk  # type: ignore[import-untyped]  # noqa: E402
 _original_download = nltk.download
 
 
+def _nltk_resource_present(resource: str) -> bool:
+    """True if an NLTK resource is on disk, unpacked or still zipped.
+
+    nltk 3.10.3 leaves wordnet and omw-1.4 as .zip files after download
+    and reads them from the zip, but find("corpora/wordnet") only matches
+    the unpacked folder. The checks below used find() alone, so data
+    already on disk looked missing and every new process went back to the
+    download server: 0.5 s when it answered, and a hang when the
+    connection stalled (a test run timed out after 30 s on it).
+    """
+    for candidate in (resource, f"{resource}.zip"):
+        try:
+            nltk.data.find(candidate)  # nosec - local filesystem lookup, not a DB query
+        except LookupError:
+            continue
+        return True
+    return False
+
+
 def _patched_download(
     info_or_id=None,
     download_dir=None,
@@ -61,14 +80,10 @@ def _patched_download(
     print_error_to=None,
 ):
     """Patched NLTK download that only downloads once per package."""
-    if info_or_id:
-        try:
-            nltk.data.find(  # nosec - local filesystem lookup, not a DB query
-                f"taggers/{info_or_id}" if "tagger" in info_or_id else f"corpora/{info_or_id}",
-            )
-            return True  # Already exists, skip download
-        except LookupError:
-            pass  # Not found, proceed with download
+    if info_or_id and _nltk_resource_present(
+        f"taggers/{info_or_id}" if "tagger" in info_or_id else f"corpora/{info_or_id}",
+    ):
+        return True  # Already exists, skip download
     return _original_download(
         info_or_id,
         download_dir,
@@ -198,18 +213,13 @@ class DataAugmenter:
         if not DataAugmenter._nltk_initialized:
             import nltk  # type: ignore[import-untyped]
 
-            try:
-                nltk.data.find("taggers/averaged_perceptron_tagger")
-            except LookupError:
-                nltk.download("averaged_perceptron_tagger", quiet=True)
-            try:
-                nltk.data.find("corpora/wordnet")
-            except LookupError:
-                nltk.download("wordnet", quiet=True)
-            try:
-                nltk.data.find("corpora/omw-1.4")
-            except LookupError:
-                nltk.download("omw-1.4", quiet=True)
+            for resource in (
+                "taggers/averaged_perceptron_tagger",
+                "corpora/wordnet",
+                "corpora/omw-1.4",
+            ):
+                if not _nltk_resource_present(resource):
+                    nltk.download(resource.split("/", 1)[1], quiet=True)
             DataAugmenter._nltk_initialized = True
 
         # Lazy import to avoid NLTK download loop on module load
