@@ -467,6 +467,21 @@ async def run() -> None:
             install_mcp_policies(policy, [code])
     except Exception as e:
         logger.warning("Code tool unavailable (%s)", e)
+    # A browser of its own the assistant can click and type in, after the
+    # owner's yes (integration/browser_tools.py). Off unless
+    # AGENT_GURU_BROWSER_TOOLS is on.
+    try:
+        from Agent_Guru.integration.browser_tools import BrowserTools, browser_server
+        from Agent_Guru.integration.browser_tools import enabled as browser_enabled
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+        if browser_enabled():
+            browser = browser_server()
+            browser.local = BrowserTools()
+            mcp_servers = [*mcp_servers, browser]
+            install_mcp_policies(policy, [browser])
+    except Exception as e:
+        logger.warning("Browser tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
