@@ -1061,3 +1061,52 @@ class TestLanguageDetector:
             result = detector.detect_language(text)
             assert result is not None  # nosec B101
             assert 0.0 <= result.confidence <= 1.0  # nosec B101
+
+
+class TestEnglishIsNotTurkish:
+    """English with the letter i was detected as Turkish.
+
+    The Turkish pattern lists the dotless "ı", and it was matched with
+    re.IGNORECASE, under which "ı", "i" and "I" are the same letter. Any
+    text with an i scored 1.0 for Turkish and beat English's common-word
+    score: "Set a timer for ten minutes." came back as Turkish, and so did
+    "Je suis très content." Speech recognition picks its language from
+    this result.
+    """
+
+    @pytest.fixture
+    def detector(self) -> LanguageDetector:
+        return LanguageDetector()
+
+    @pytest.mark.parametrize("text", [
+        "Set a timer for ten minutes.",
+        "I will call him this evening.",
+        "Play music in the living room.",
+        "Remind me to drink water.",
+        "What is the time in London?",
+        "Is it raining in Mumbai?",
+    ])
+    def test_english_with_an_i_is_english(self, detector, text):
+        assert detector.detect_language(text).language == Language.ENGLISH  # nosec B101
+
+    def test_the_letter_i_alone_is_no_evidence_for_turkish(self, detector):
+        assert Language.TURKISH not in detector._detect_by_patterns("Set a timer for ten minutes.")  # nosec B101
+
+    @pytest.mark.parametrize("text", ["Bugün hava çok güzel.", "Merhaba, nasılsın?", "ŞİMDİ GİDİYORUM"])
+    def test_turkish_letters_still_mean_turkish_in_either_case(self, detector, text):
+        assert detector.detect_language(text).language == Language.TURKISH  # nosec B101
+
+    @pytest.mark.parametrize(("text", "language"), [
+        ("La reunión es el jueves.", Language.SPANISH),
+        ("Wie spät ist es?", Language.GERMAN),
+        ("Je suis très content.", Language.FRENCH),
+        ("मौसम कैसा है", Language.HINDI),
+    ])
+    def test_other_supported_languages_are_unchanged(self, detector, text, language):
+        assert detector.detect_language(text).language == language  # nosec B101
+
+    @pytest.mark.parametrize("text", ["", "   ", "ok", "xyz", "12345"])
+    def test_too_little_to_go_on_is_unknown_not_a_guess(self, detector, text):
+        result = detector.detect_language(text)
+        assert result.language == Language.UNKNOWN and result.confidence < 0.2  # nosec B101
+
