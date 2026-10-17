@@ -77,6 +77,11 @@ from Agent_Guru.utils.path_utils import app_data_dir as _app_data_dir  # noqa: E
 from Agent_Guru.utils.settings import apply_settings_file  # noqa: E402
 
 apply_settings_file(_app_data_dir("settings.toml"))
+# Credentials the owner keeps encrypted (`python -m Agent_Guru vault`) fill
+# the variables still unset; the environment and .env win.
+from Agent_Guru.security.vault import apply as _apply_vault  # noqa: E402
+
+_apply_vault()
 
 # Startup timeout - prevents infinite hang if Ollama or Whisper download stalls
 _STARTUP_TIMEOUT_S = float(os.environ.get("AGENT_GURU_STARTUP_TIMEOUT", "120"))
@@ -394,6 +399,10 @@ async def run() -> None:
     logger.info("         Agent Guru  v0.1.0              ")
     logger.info("  Say 'Hey Guru' or 'Hey Maya' to start  ")
     logger.info("=" * 44)
+    # Recorded at once, before the minute of model loading, so
+    # `python -m Agent_Guru service status|stop` find this process.
+    from Agent_Guru.utils import service as _service
+    _service.announce()
 
     # --- Load all subsystems ---
     logger.info("Loading subsystems...")
@@ -778,8 +787,14 @@ async def run() -> None:
         except NotImplementedError:
             signal.signal(sig, _handle_signal)
 
+    # `service stop` asks through a file: a windowless process on Windows
+    # gets no Ctrl+Break, and os.kill there is TerminateProcess, which would
+    # skip everything below.
+    stop_watch = asyncio.create_task(_service.watch_for_stop(stop_event), name="stop-request")
+
     # Keep running until interrupted
     await stop_event.wait()
+    stop_watch.cancel()
 
     # --- Shutdown ---
     logger.info("Shutting down Agent Guru...")
@@ -819,6 +834,7 @@ async def run() -> None:
         except Exception as e:
             logger.warning("Speech shutdown suppressed: %s", e)
 
+    _service.withdraw()
     logger.info("Agent Guru stopped. Goodbye.")
 
 
