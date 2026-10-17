@@ -94,8 +94,19 @@ class DatabaseSchema:
         with open_sqlite(db_file) as conn:
             cursor = conn.cursor()
 
-            # Enable foreign keys
+            # Enable foreign keys (before BEGIN: SQLite ignores this pragma
+            # inside a transaction)
             cursor.execute("PRAGMA foreign_keys = ON")
+
+            # One transaction for the whole schema. sqlite3 does not open
+            # one implicitly for CREATE statements, so each of the 36
+            # committed on its own: 144 fsyncs per call (4 now), 91 ms on a
+            # new file on the development machine (6 ms now), and on CI
+            # runners enough to push property tests that build a schema per
+            # example past the 30 s timeout. A failure part-way also left
+            # the tables made so far behind, the half-built schema
+            # verify_schema() has to catch.
+            cursor.execute("BEGIN")
 
             # Create schema version table
             DatabaseSchema._create_version_table(cursor)
