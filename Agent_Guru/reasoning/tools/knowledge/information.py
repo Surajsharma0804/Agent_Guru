@@ -3,6 +3,9 @@
 Provides access to knowledge bases and computational tools.
 """
 
+import ast
+import math
+import re
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -220,65 +223,234 @@ class CalculateTool(Tool):
             Execution result with calculation result
 
         """
-        expression = kwargs["expression"]
-
-        # Validate expression
-        if not expression or not expression.strip():
-            return {
-                "success": False,
-                "error": "Expression cannot be empty",
-            }
-
+        expression = str(kwargs.get("expression") or "")
+        if not expression.strip():
+            return {"success": False, "error": "Expression cannot be empty"}
+        # Never raises: every failure is a result the caller can say. The
+        # old evaluator let SyntaxError, OverflowError and RecursionError
+        # escape, so "(1+2", "9**9**9" and a long sum of 5,000 terms took
+        # the caller down instead of getting an answer.
         try:
-            # Sanitize expression (only allow safe characters)
-            safe_chars = set("0123456789+-*/().% ")
-            if not all(c in safe_chars for c in expression):
-                return {
-                    "success": False,
-                    "error": "Expression contains invalid characters",
-                }
+            result = evaluate_expression(expression)
+        except CalculationError as exc:
+            return {"success": False, "error": str(exc)}
+        except Exception as exc:  # anything unforeseen is still an answer, not a crash
+            return {"success": False, "error": f"Could not calculate that ({type(exc).__name__})"}
+        shown = _format_number(result)
+        return {
+            "success": True,
+            "result": {"expression": expression, "result": result, "message": f"{expression} = {shown}"},
+        }
 
-            # Evaluate expression safely using ast for security
-            import ast as _ast
-            import operator as _op
 
-            _SAFE_OPS = {
-                _ast.Add: _op.add,
-                _ast.Sub: _op.sub,
-                _ast.Mult: _op.mul,
-                _ast.Div: _op.truediv,
-                _ast.Mod: _op.mod,
-                _ast.Pow: _op.pow,
-                _ast.USub: _op.neg,
-                _ast.UAdd: _op.pos,
-            }
+class CalculationError(ValueError):
+    """An expression that cannot be calculated, with the reason in words."""
 
-            def _safe_eval(node: _ast.AST) -> float:
-                if isinstance(node, _ast.Constant) and isinstance(node.value, (int, float)):
-                    return float(node.value)
-                if isinstance(node, _ast.BinOp) and type(node.op) in _SAFE_OPS:
-                    return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
-                if isinstance(node, _ast.UnaryOp) and type(node.op) in _SAFE_OPS:
-                    return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
-                msg = f"Unsupported expression node: {type(node).__name__}"
-                raise ValueError(msg)
 
-            result = _safe_eval(_ast.parse(expression, mode="eval").body)
+#: Longest expression accepted, in characters after rewriting.
+MAX_EXPRESSION_CHARS = 20_000
+#: Largest integer result, in decimal digits. 9**9**9 has about 370 million
+#: digits; computing it used gigabytes of memory before any check ran.
+MAX_RESULT_DIGITS = 10_000
+_MAX_RESULT_BITS = int(MAX_RESULT_DIGITS * 3.33)
 
-            return {
-                "success": True,
-                "result": {
-                    "expression": expression,
-                    "result": result,
-                    "message": f"{expression} = {result}",
-                },
-            }
 
-        except ZeroDivisionError:
-            return {
-                "success": False,
-                "error": "Division by zero",
-            }
+def _factorial(n: Any) -> int:
+    if not float(n).is_integer() or n < 0:
+        msg = "factorial needs a whole number that is not negative"
+        raise CalculationError(msg)
+    if n > 3000:
+        msg = "that factorial is too large to calculate"
+        raise CalculationError(msg)
+    return math.factorial(int(n))
+
+
+def _log(x: Any, base: Any = None) -> float:
+    return math.log(x) if base is None else math.log(x, base)
+
+
+_FUNCTIONS: dict[str, Any] = {
+    "sqrt": math.sqrt, "cbrt": lambda x: math.copysign(abs(x) ** (1 / 3), x), "abs": abs,
+    "sin": math.sin, "cos": math.cos, "tan": math.tan, "asin": math.asin, "acos": math.acos, "atan": math.atan,
+    "atan2": math.atan2, "sinh": math.sinh, "cosh": math.cosh, "tanh": math.tanh,
+    "log": _log, "ln": math.log, "log10": math.log10, "log2": math.log2, "exp": math.exp,
+    "floor": math.floor, "ceil": math.ceil, "round": round, "factorial": _factorial,
+    "gcd": math.gcd, "lcm": math.lcm, "hypot": math.hypot, "degrees": math.degrees, "radians": math.radians,
+    "min": min, "max": max,
+}
+_CONSTANTS: dict[str, float] = {"pi": math.pi, "e": math.e, "tau": math.tau}
+
+_SPOKEN = [
+    (r"^\s*(?:what\s+is|what's|whats|calculate|compute|evaluate|how\s+much\s+is)\s+", ""),
+    (r"[?=]+\s*$", ""),
+    (r"(?<=\d),(?=\d{3}\b)", ""),  # 1,000 -> 1000
+    (r"\bsquare\s+root\s+of\s+", "sqrt "),
+    (r"\bcube\s+root\s+of\s+", "cbrt "),
+    (r"(\d+(?:\.\d+)?)\s+squared\b", r"(\1**2)"),
+    (r"(\d+(?:\.\d+)?)\s+cubed\b", r"(\1**3)"),
+    (r"(\d+(?:\.\d+)?)\s*(?:%|percent)\s+of\s+", r"(\1/100)*"),
+    (r"(\d+(?:\.\d+)?)\s*(?:%|percent)(?!\s*[\d(.])", r"(\1/100)"),  # "10 % 3" stays modulo
+    (r"\bto\s+the\s+power\s+of\b", "**"),
+    (r"\b(?:multiplied\s+by|times)\b", "*"),
+    (r"\b(?:divided\s+by|over)\b", "/"),
+    (r"\bplus\b", "+"),
+    (r"\bminus\b", "-"),
+    (r"(?<=[\d)])\s*[x×]\s*(?=[\d(])", "*"),
+    (r"÷", "/"),
+    (r"[−–]", "-"),
+    (r"\^", "**"),
+    (r"\b(sqrt|cbrt) (\d+(?:\.\d+)?)", r"\1(\2)"),
+]
+
+
+def _rewrite_spoken(text: str) -> str:
+    """The expression as Python arithmetic: "15% of 200" -> "(15/100)*200"."""
+    out = text.strip().lower()
+    for pattern, replacement in _SPOKEN:
+        out = re.sub(pattern, replacement, out)
+    return out.strip()
+
+
+def _check_size(value: Any) -> Any:
+    if isinstance(value, complex):
+        msg = "the answer is not a real number"
+        raise CalculationError(msg)
+    if isinstance(value, int) and not isinstance(value, bool) and value.bit_length() > _MAX_RESULT_BITS:
+        msg = f"the answer would have more than {MAX_RESULT_DIGITS:,} digits"
+        raise CalculationError(msg)
+    if isinstance(value, float) and math.isinf(value):
+        msg = "the answer is too large"
+        raise CalculationError(msg)
+    return value
+
+
+def _power(base: Any, exponent: Any) -> Any:
+    # Size checked before computing: 10**10**8 would allocate first and fail later.
+    if abs(base) > 1 and exponent > 0 and exponent * math.log10(abs(base)) > MAX_RESULT_DIGITS:
+        msg = f"the answer would have more than {MAX_RESULT_DIGITS:,} digits"
+        raise CalculationError(msg)
+    return base ** exponent
+
+
+_BINARY: dict[type, Any] = {
+    ast.Add: lambda a, b: a + b, ast.Sub: lambda a, b: a - b, ast.Mult: lambda a, b: a * b,
+    ast.Div: lambda a, b: a / b, ast.FloorDiv: lambda a, b: a // b, ast.Mod: lambda a, b: a % b,
+    ast.Pow: _power,
+}
+_UNARY: dict[type, Any] = {ast.USub: lambda a: -a, ast.UAdd: lambda a: +a}
+
+
+def evaluate_expression(text: str) -> int | float:
+    """The value of an arithmetic expression, written or spoken; raises CalculationError.
+
+    Only numbers, + - * / // % **, the functions in _FUNCTIONS and pi, e
+    and tau are accepted; any other name, attribute, string, subscript or
+    keyword is refused before anything is evaluated. The tree is walked
+    with an explicit stack, so a long expression cannot exhaust Python's
+    recursion limit.
+    """
+    expression = _rewrite_spoken(text)
+    if len(expression) > MAX_EXPRESSION_CHARS:
+        msg = "that expression is too long"
+        raise CalculationError(msg)
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except RecursionError as exc:
+        # Python's parser nests "1+1+...+1" one level per term and gives up
+        # at about 2,000 terms on Windows with Python 3.13. Summing the
+        # top-level terms one by one has no such limit.
+        terms = _top_level_terms(expression)
+        if len(terms) < 2:
+            msg = "that expression is nested too deeply"
+            raise CalculationError(msg) from exc
+        total: Any = 0
+        for sign, term in terms:
+            total = _apply(lambda a, b, s=sign: a + b if s == "+" else a - b, total, evaluate_expression(term))
+        return total
+    except (SyntaxError, ValueError, MemoryError) as exc:
+        msg = "I could not read that as a calculation"
+        raise CalculationError(msg) from exc
+
+    values: list[Any] = []
+    stack: list[tuple[ast.AST, bool]] = [(tree.body, False)]
+    while stack:
+        node, ready = stack.pop()
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                msg = "only numbers can be calculated"
+                raise CalculationError(msg)
+            values.append(node.value)
+        elif isinstance(node, ast.Name):
+            if node.id not in _CONSTANTS:
+                msg = f"I don't know what {node.id} is"
+                raise CalculationError(msg)
+            values.append(_CONSTANTS[node.id])
+        elif isinstance(node, ast.BinOp) and type(node.op) in _BINARY:
+            if ready:
+                right, left = values.pop(), values.pop()
+                values.append(_apply(_BINARY[type(node.op)], left, right))
+            else:
+                stack += [(node, True), (node.right, False), (node.left, False)]
+        elif isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY:
+            if ready:
+                values.append(_apply(_UNARY[type(node.op)], values.pop()))
+            else:
+                stack += [(node, True), (node.operand, False)]
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _FUNCTIONS
+              and not node.keywords and 1 <= len(node.args) <= 4):
+            if ready:
+                args = [values.pop() for _ in node.args][::-1]
+                values.append(_apply(_FUNCTIONS[node.func.id], *args))
+            else:
+                stack.append((node, True))
+                stack += [(arg, False) for arg in reversed(node.args)]
+        else:
+            msg = "that is not a calculation I can do"
+            raise CalculationError(msg)
+    return values.pop()
+
+
+def _top_level_terms(expression: str) -> list[tuple[str, str]]:
+    """Split at + and - outside brackets that are not signs: "1+2*(3-4)-5" -> [+1, +2*(3-4), -5]."""
+    terms: list[tuple[str, str]] = []
+    depth, start, sign, previous = 0, 0, "+", ""
+    for i, ch in enumerate(expression):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch in "+-" and depth == 0 and previous and previous not in "+-*/%(eE":
+            terms.append((sign, expression[start:i]))
+            sign, start = ch, i + 1
+        if not ch.isspace():
+            previous = ch
+    terms.append((sign, expression[start:]))
+    return [(s, t) for s, t in terms if t.strip()]
+
+
+def _apply(fn: Any, *args: Any) -> Any:
+    try:
+        return _check_size(fn(*args))
+    except ZeroDivisionError as exc:
+        msg = "you can't divide by zero"
+        raise CalculationError(msg) from exc
+    except (OverflowError, MemoryError) as exc:
+        msg = "the answer is too large"
+        raise CalculationError(msg) from exc
+    except (ValueError, TypeError) as exc:
+        if isinstance(exc, CalculationError):
+            raise
+        msg = f"that is outside what the function accepts ({exc})"
+        raise CalculationError(msg) from exc
+
+
+def _format_number(value: int | float) -> str:
+    """How a result is said: whole floats without ".0", others to 12 significant digits."""
+    if isinstance(value, float):
+        if value.is_integer() and abs(value) < 1e15:
+            return str(int(value))
+        return f"{value:.12g}"
+    return str(value)
 
 # Unit conversion factors (to base unit)
 UNIT_CONVERSIONS = {
