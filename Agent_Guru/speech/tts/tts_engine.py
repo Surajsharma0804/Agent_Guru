@@ -765,6 +765,13 @@ class CoquiTTSEngine:
         """
         self._validate_request(text, speech_rate, volume)
         personality = _coerce_personality(personality)
+        # A cloud voice only when the owner switched one on (speech/cloud_speech.py);
+        # None means none is on or it failed, and the local voice speaks.
+        from Agent_Guru.speech import cloud_speech
+
+        cloud = cloud_speech.synthesize(text, personality, speech_rate, volume)
+        if cloud is not None:
+            return cloud
 
         if self._use_kokoro:
             try:
@@ -797,6 +804,11 @@ class CoquiTTSEngine:
         """Synthesize *text* and return ``(float32_array, sample_rate)``."""
         self._validate_request(text, speech_rate, volume)
         personality = _coerce_personality(personality)
+        from Agent_Guru.speech import cloud_speech
+
+        cloud = cloud_speech.synthesize(text, personality, speech_rate, volume)
+        if cloud is not None:
+            return _wav_to_array(cloud)
 
         if self._use_kokoro:
             try:
