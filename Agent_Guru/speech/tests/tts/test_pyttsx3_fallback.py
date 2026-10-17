@@ -8,7 +8,9 @@ the Windows CI runners pytest-timeout then ended the whole test run.
 
 from __future__ import annotations
 
+import os
 import subprocess
+import sys
 import time
 
 import pytest
@@ -60,6 +62,32 @@ def test_the_text_goes_on_stdin_not_on_the_command_line(monkeypatch):
     engine.synthesize(text, PersonalityType.GURU)
     assert text not in " ".join(seen["args"])  # nosec B101
     assert seen["input"] == text.encode("utf-8")  # nosec B101
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="pyttsx3 uses eSpeak NG only on Linux")
+def test_the_child_speaks_through_the_espeak_the_parent_loaded():
+    """CI Ubuntu has no system eSpeak NG; only espeakng-loader's copy, mapped by Kokoro.
+
+    The per-sentence child loaded no eSpeak at all, so pyttsx3 raised in it
+    and the fallback voice returned silence on every call (RMS 0.0 in the
+    audio quality test on Python 3.11, 3.12 and 3.13). Run in a child so the
+    library loaded here does not leak into the rest of the suite.
+    """
+    child = "\n".join([
+        "import ctypes, io, wave, espeakng_loader",
+        # What Kokoro's phonemizer does before any fallback can happen.
+        "ctypes.CDLL(espeakng_loader.get_library_path(), mode=ctypes.RTLD_GLOBAL)",
+        "from Agent_Guru.speech.models import PersonalityType",
+        "from Agent_Guru.speech.tts.tts_engine import _Pyttsx3Engine",
+        "engine = _Pyttsx3Engine()",
+        "assert engine.initialize()",
+        "wav = wave.open(io.BytesIO(engine.synthesize('Hello there.', PersonalityType.GURU)))",
+        "print('audible', any(wav.readframes(wav.getnframes())))",
+    ])
+    env = {k: v for k, v in os.environ.items() if k != "ESPEAK_DATA_PATH"}
+    done = subprocess.run([sys.executable, "-c", child], env=env, capture_output=True, text=True, timeout=60)  # nosec B603
+    assert done.returncode == 0, done.stderr[-500:]  # nosec B101
+    assert "audible True" in done.stdout, done.stderr[-500:]  # nosec B101
 
 
 def test_a_failed_child_gives_silence_not_an_exception(monkeypatch):
