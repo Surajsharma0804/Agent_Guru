@@ -621,8 +621,16 @@ class ToolLoop:
         tool = self._tools.get(call.name)
         if tool is None or tool.risk is ToolRisk.READ_ONLY or self._key(call) in self._seen:
             return None
-        shown = json.dumps(call.arguments, ensure_ascii=False)[:200] if isinstance(call.arguments, dict) else ""
-        question = f"Should I run {tool.name} on {tool.server}" + (f" with {shown}" if shown and shown != "{}" else "") + "?"
+        # A tool that can say what the call does is read back in its words:
+        # "browser_click with {"element": 7}" told the owner nothing about
+        # which button would be pressed on which site.
+        describe = getattr(self._toolbox, "describe", None)
+        said = describe(tool.server, tool.name, call.arguments) if describe is not None else None
+        if said:
+            question = f"Should I {said}?"
+        else:
+            shown = json.dumps(call.arguments, ensure_ascii=False)[:200] if isinstance(call.arguments, dict) else ""
+            question = f"Should I run {tool.name} on {tool.server}" + (f" with {shown}" if shown and shown != "{}" else "") + "?"
         # Text the model copied from a tool's output is named, so the owner
         # knows "x@example.net" came from a page and not from them.
         taints = self._taint.find(call.arguments, self._owner_text)
