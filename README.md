@@ -1,498 +1,389 @@
+<div align="center">
+
+# Agent Guru
+
+**A voice assistant that runs on your own computer.**<br>
+Say "Hey Guru" or "Hey Maya", ask a question or give a command, and hear the answer.<br>
+The model, speech recognition and speech run locally; nothing goes to the cloud unless you turn it on.
+
+</div>
+
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=40&pause=1000&color=6C63FF&center=true&vCenter=true&random=false&width=600&height=80&lines=%F0%9F%A4%96+Agent+Guru;Your+AI+Companion;Voice-First+%7C+Privacy-First;100%25+Local+%7C+Zero+Cloud" alt="Typing SVG" />
+  <a href="https://github.com/Surajsharma0804/Agent_Guru/actions/workflows/ci.yml"><img src="https://github.com/Surajsharma0804/Agent_Guru/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache_2.0-blue" alt="Apache License 2.0"></a>
+  <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python 3.11 to 3.13">
+  <img src="https://img.shields.io/badge/developed%20on-Windows%2011-informational" alt="Developed on Windows 11">
+  <a href="https://ollama.com"><img src="https://img.shields.io/badge/LLM-Ollama%20(local)-informational" alt="Local LLM through Ollama"></a>
 </p>
 
 <p align="center">
-  <strong>An always-on AI voice assistant that runs entirely on your machine.<br>No cloud. No subscriptions. No data leaves your device. Ever.</strong>
+  <a href="#quick-start">Quick start</a> &middot;
+  <a href="#what-it-can-do">What it can do</a> &middot;
+  <a href="#how-a-turn-works">How a turn works</a> &middot;
+  <a href="#safety-model">Safety model</a> &middot;
+  <a href="#commands">Commands</a> &middot;
+  <a href="#measured-performance">Measured performance</a> &middot;
+  <a href="#known-limitations">Known limitations</a>
 </p>
 
-<p align="center">
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-22c55e?style=for-the-badge" alt="Apache License 2.0"></a>
-  <a href="https://github.com/Surajsharma0804/Agent_Guru"><img src="https://img.shields.io/badge/Status-Production_Ready-10b981?style=for-the-badge" alt="Production Ready"></a>
-  <a href="https://github.com/Surajsharma0804/Agent_Guru/stargazers"><img src="https://img.shields.io/github/stars/Surajsharma0804/Agent_Guru?style=for-the-badge&color=f59e0b" alt="Stars"></a>
-</p>
-
-<p align="center">
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-what-can-it-do">Features</a> •
-  <a href="#-self-improvement-engine">Self-Improvement</a> •
-  <a href="#-contributing">Contributing</a>
-</p>
+> [!NOTE]
+> Agent Guru is developed and used daily on Windows 11 (RTX 2050 laptop, 4 GB VRAM). Its test suite runs on
+> Linux in CI on Python 3.11, 3.12 and 3.13. macOS, Linux desktop and mobile adapters exist in the code but have
+> not been tried on real devices. See [Platform support](#platform-support).
 
 ---
 
-<br>
+## Quick start
 
-## ⚡ Agent Guru vs The Big Three
-
-> *"Why build another voice assistant?"* - Because the existing ones don't respect your privacy, don't learn from mistakes, and can't actually control your computer.
-
-| | <img width="20" src="https://img.icons8.com/color/48/siri.png"> Siri / Alexa / Google | <img width="20" src="https://img.icons8.com/color/48/bot.png"> **Agent Guru** |
-|:---|:---|:---|
-| 🔒 **Privacy** | Cloud-dependent - your data gets uploaded | **100% local** - nothing ever leaves your device |
-| 💰 **Cost** | Subscription / locked ecosystem | **Free forever** - no API keys required |
-| 🖥️ **Device Control** | Limited sandbox actions | **Full OS control** - files, apps, settings, anything |
-| 🧠 **Learning** | Static - same mistakes repeated forever | **Self-improving** - gets 40% better after 100 tasks |
-| ⚡ **Wake Latency** | 250-300ms | **<200ms** |
-| 🎭 **Personality** | One voice, one tone | **Dual personas** - Guru (analytical) + Maya (warm) |
-| 🌍 **Platforms** | Locked to one ecosystem | **Windows, macOS, Linux, Android, iOS** |
-
-<br>
-
-## 🎯 What Can It Do?
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🎤 Voice & Conversation
-```
-"Hey Guru, open Chrome and search for PyTorch docs"
-"Hey Maya, send a WhatsApp message to Mom"
-"Hey Guru, what did we talk about yesterday?"
-```
-- 🎙️ Always-on wake word - "Hey Guru" / "Hey Maya"
-- ⚡ GPU-accelerated speech recognition (Whisper + CUDA)
-- 🗣️ Natural text-to-speech with gender-specific voices
-- 🔊 Speaker verification - knows who's talking
-- 😊 14-emotion detection - responds to your mood
-- 🧠 Persistent memory - remembers your preferences
-
-</td>
-<td width="50%" valign="top">
-
-### 💻 Full Device Control
-```
-"Set volume to 50%"
-"Open VS Code and create a new Python file"
-"Take a screenshot and save it to Desktop"
-```
-- 📱 Open/close any application
-- 💬 Send messages (WhatsApp, Telegram, Slack, SMS)
-- 📁 File operations - create, delete, move, copy
-- ⚙️ System settings - volume, brightness, WiFi
-- 🎵 Media control - play, pause, skip, mute
-- 🖥️ Window management - minimize, maximize, snap
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 👁️ Vision & Security
-```
-"Who's in front of the camera?"
-"Unlock - it's me"
-```
-- 🔍 Real-time face detection + recognition
-- 🛡️ Liveness detection (anti-spoofing)
-- 👥 Multi-face tracking, frame-by-frame
-- 🗝️ Voice biometrics + face auth (multi-factor)
-- 🔐 Ed25519 cryptographic identity
-- 📋 Complete audit trail - every action logged
-
-</td>
-<td width="50%" valign="top">
-
-### 🧠 Intelligent Reasoning
-```
-"Research this topic and summarize it for me"
-"Break this task into smaller steps"
-```
-- 🤖 Multi-LLM - Ollama (free local), OpenAI, Gemini, Anthropic
-- 🔀 Smart routing - picks the best model per task
-- 📈 Self-improvement - learns from every interaction
-- 🎯 Goal decomposition - handles complex multi-step tasks
-- 🌐 Real-time web search integration
-- 💡 Context-aware conversation flow
-
-</td>
-</tr>
-</table>
-
-<br>
-
-## 🏗️ Architecture
-
-### System Pipeline
-
-```mermaid
-graph LR
-    A["🎤 Wake Word<br/><i>'Hey Guru'</i>"] --> B["🗣️ Speech-to-Text<br/><i>Whisper + GPU</i>"]
-    B --> C["🧠 Memory<br/><i>Context Retrieval</i>"]
-    C --> D["💡 Reasoning<br/><i>LLM + Intent</i>"]
-    D --> E["🛡️ Policy<br/><i>Permission Check</i>"]
-    E --> F["⚡ Action<br/><i>OS Controller</i>"]
-    F --> G["🔊 TTS<br/><i>Spoken Response</i>"]
-    
-    style A fill:#6C63FF,stroke:#5A52D5,color:#fff
-    style B fill:#FF6B6B,stroke:#E55A5A,color:#fff
-    style C fill:#4ECDC4,stroke:#3DB8B0,color:#fff
-    style D fill:#FFE66D,stroke:#E6CF5C,color:#000
-    style E fill:#FF8A5C,stroke:#E67A4D,color:#fff
-    style F fill:#95E1D3,stroke:#7CCABF,color:#000
-    style G fill:#AA96DA,stroke:#9683C4,color:#fff
-```
-
-### Module Architecture
-
-```mermaid
-graph TB
-    subgraph "🎤 Speech Engine"
-        WW[Wake Word] --> STT[Speech-to-Text]
-        STT --> VAD[Voice Activity]
-        TTS[Text-to-Speech] --> VC[Voice Cloning]
-    end
-    
-    subgraph "👁️ Vision Engine"
-        FD[Face Detection] --> FR[Face Recognition]
-        FR --> FT[Face Tracking]
-        FD --> LD[Liveness Detection]
-    end
-    
-    subgraph "🧠 Reasoning Engine"
-        IR[Intent Router] --> LLM[LLM Providers]
-        LLM --> TE[Task Executor]
-        TE --> TR[Tool Registry]
-    end
-    
-    subgraph "💻 Platform Layer"
-        OC[OS Controller] --> AC[App Control]
-        OC --> FC[File Control]
-        OC --> SC[System Settings]
-        OC --> MC[Media Control]
-    end
-    
-    subgraph "🔗 Orchestrator"
-        ORCH["orchestrator.py<br/><i>2,400 lines - wires everything</i>"]
-    end
-    
-    STT --> ORCH
-    FR --> ORCH
-    ORCH --> IR
-    TE --> OC
-    ORCH --> TTS
-    
-    style ORCH fill:#6C63FF,stroke:#5A52D5,color:#fff
-```
-
-### Directory Layout
-
-```
-Agent_Guru/
-│
-├── 🎤 speech/              # Voice pipeline
-│   ├── audio/               #   Capture, VAD, wake word, noise cancellation
-│   ├── stt/                 #   Whisper speech-to-text
-│   ├── tts/                 #   Coqui TTS, voice cloning
-│   └── mobile/              #   Android/iOS adapters
-│
-├── 👁️ vision/               # Computer vision
-│   ├── detection/           #   RetinaFace detector
-│   ├── tracking/            #   Multi-face IoU tracker
-│   ├── liveness/            #   Anti-spoofing
-│   └── training/            #   Dataset & preprocessing
-│
-├── 🧠 reasoning/            # Intelligence layer
-│   ├── llm/                 #   Ollama, OpenAI, Gemini, Anthropic
-│   ├── intent/              #   Fast intent classification
-│   ├── execution/           #   Sync, async, parallel executors
-│   ├── tools/               #   Sandboxed tool execution
-│   └── api/                 #   REST + WebSocket endpoints
-│
-├── 🔗 integration/          # Core orchestrator
-│   └── orchestrator.py      #   Wake → STT → Memory → LLM → Action → TTS
-│
-├── 💻 platform/             # OS-level control
-│   ├── controllers/         #   App, file, text, media, screen, mouse, keyboard
-│   ├── windows/             #   Windows integration
-│   ├── macos/               #   macOS integration
-│   ├── linux/               #   Linux integration
-│   └── features/            #   Reminders, dictation, web search
-│
-├── 🧠 memory/               # Conversation persistence
-├── 😊 emotion/              # 14-class emotion detection
-├── 🛡️ policy/               # Permission & rule engine
-├── 🔐 security/             # Crypto, ZK proofs, path sanitization
-├── 🤖 agents/               # Multi-agent orchestration
-├── 📈 self_improvement/     # Self-learning engine
-├── 🎨 avatar/               # Avatar rendering + lip sync
-└── 📦 deployment/           # Installer builders
-```
-
-<br>
-
-## 📈 Self-Improvement Engine
-
-> **The thing that makes Agent Guru fundamentally different.** It doesn't just execute - it *learns*.
-
-### How It Works
-
-```mermaid
-graph LR
-    A["🎯 Execute Task"] --> B["📊 Record Outcome"]
-    B --> C["🔍 Analyze Patterns"]
-    C --> D["🧬 Optimize Strategy"]
-    D --> E["✨ Evolve Prompts"]
-    E --> A
-    
-    style A fill:#6C63FF,stroke:#5A52D5,color:#fff
-    style B fill:#FF6B6B,stroke:#E55A5A,color:#fff
-    style C fill:#4ECDC4,stroke:#3DB8B0,color:#fff
-    style D fill:#FFE66D,stroke:#E6CF5C,color:#000
-    style E fill:#AA96DA,stroke:#9683C4,color:#fff
-```
-
-**Every interaction is a data point.** Agent Guru automatically:
-1. 📊 **Records** success/failure of every task
-2. 🔍 **Categorizes** failures (reasoning errors, tool bugs, hallucinations)
-3. 🧬 **Selects** the best strategy for each task type
-4. ✨ **Refines** prompts based on what actually works
-5. 💾 **Persists** all learning in Git for reproducibility
-
-### Validated Results
-
-```
-📊 100-Task Learning Cycle
-═══════════════════════════════════════════════════════
-
-Success Rate    ████████████████████░░░░░░  50% → 70%  (+40% ↑)
-Execution Time  ████████████████████░░░░░░  202ms → 121ms  (+40% ↑)
-Reasoning       ████████████████░░░░░░░░░░  0.50 → 0.67  (+34% ↑)
-```
-
-| Metric | Baseline | After 100 Tasks | Improvement |
-|:-------|:---------|:----------------|:------------|
-| ✅ Success Rate | 50% | 70% | **+40%** |
-| ⚡ Execution Time | 202ms | 121ms | **+40% faster** |
-| 🧠 Reasoning Quality | 0.498 | 0.669 | **+34%** |
-
-```python
-from Agent_Guru.self_improvement import SelfImprovementEngine
-
-engine = SelfImprovementEngine(storage_path="data/learning.db")
-
-# Record outcomes → engine learns automatically
-engine.record_task_execution(
-    task_id="task_001",
-    task_type="voice_command",
-    strategy_used="chain_of_thought",
-    success=True,
-    execution_time_ms=150.5,
-)
-
-# Next time: engine picks the best strategy
-strategy = engine.get_optimal_strategy(task_type="voice_command")
-# → Already learned that chain_of_thought works best for voice commands
-```
-
-<br>
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-| Requirement | Required | Notes |
-|:------------|:---------|:------|
-| Python 3.11+ | ✅ Yes | Core runtime |
-| NVIDIA GPU | ⭐ Recommended | About 8x faster speech recognition (measured, see below). Works on CPU too. |
-| [Ollama](https://ollama.ai) | 🔄 Optional | For free local LLM. Can use cloud APIs instead. |
-
-### Install & Run
+You need Python 3.11, 3.12 or 3.13, a microphone and speakers, and [Ollama](https://ollama.com).
 
 ```bash
-# Clone
+# 1. A local model for Ollama (the assistant's default)
+ollama pull gemma4
+
+# 2. Agent Guru and its dependencies
 git clone https://github.com/Surajsharma0804/Agent_Guru.git
 cd Agent_Guru
-
-# Setup
-python -m venv .venv && .venv\Scripts\activate          # Windows
-python -m venv .venv && source .venv/bin/activate        # Linux/macOS
-
-# GPU install (recommended): CUDA torch for the torch-based features
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+python -m venv .venv
+.venv\Scripts\activate            # Windows   (Linux/macOS: source .venv/bin/activate)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 
-# OR CPU-only
-pip install -r requirements-cpu.txt
-
-# Optional: speech recognition on an NVIDIA GPU (see below)
-pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
-
-# Run
-python Guru_Demo.py
-# Say "Hey Guru" - done. 🎉
+# 3. Check the machine, then start the assistant
+python -m Agent_Guru doctor
+python main.py
 ```
 
-#### GPU speech recognition
+Say **"Hey Guru"** (analytical) or **"Hey Maya"** (warm), then say what you want.
 
-Speech recognition (faster-whisper) does not use torch, so the CUDA torch
-above does not make it faster. It needs the CUDA 12 cuBLAS and cuDNN 9
-libraries, about 2 GB, which are optional:
+<details>
+<summary><strong>Optional: speech recognition on an NVIDIA GPU</strong></summary>
+<br>
+
+Speech recognition uses faster-whisper (CTranslate2), not torch. To run it on the GPU it needs the CUDA 12 cuBLAS
+and cuDNN 9 libraries, about 2 GB:
 
 ```bash
-pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"   # any install
-pip install -e ".[gpu]"                                  # same, from pyproject.toml
+pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"   # or: pip install -e ".[gpu]"
 ```
 
-Nothing else to configure. At startup Guru tries a short transcription on the
-GPU and uses it only if that works; otherwise it stays on the CPU. The log says
-which, for example `Whisper base loaded on the GPU (cuda, int8_float16)`, or a
-warning that starts `Speech recognition runs on the CPU` with the reason.
-Measured with the base model on an RTX 2050 laptop, a 2.5 s command took
-1.8 s to transcribe on the CPU and 0.2 s on the GPU. To force the CPU, set
-`device = "cpu"` in `STTConfig` (`Agent_Guru/speech/config.py`). Tested on
-Windows; on Linux the same packages install, but their libraries may need to
-be on `LD_LIBRARY_PATH`.
+At start the assistant tries a short transcription on the GPU and uses it only if that works. The log says which:
+`Whisper base loaded on the GPU (cuda, int8_float16)`, or a warning starting `Speech recognition runs on the CPU`
+with the reason.
+</details>
 
+<details>
+<summary><strong>Optional: type instead of speaking, or use it from other apps</strong></summary>
 <br>
 
-## 📊 Performance Benchmarks
+Turn on the local API (127.0.0.1 only) in `settings.toml` in the data folder (`%LOCALAPPDATA%\agent_guru` on
+Windows):
 
-```
-Wake Word         ████████████████████████████████  <200ms   (Alexa: 250ms, Siri: 300ms)
-Speech-to-Text    ████████████████████████████░░░░  <1s GPU  (about 8x faster than CPU, measured)
-Face Recognition  ████████████████████████████████  30-60 FPS real-time
-End-to-End        ████████████████████████░░░░░░░░  <2s wake word → spoken response
-Battery (Sleep)   ████████████░░░░░░░░░░░░░░░░░░░░  <5%/hr   (wake word only)
-Battery (Active)  ████████████████░░░░░░░░░░░░░░░░  <10%/hr  (full processing)
+```toml
+AGENT_GURU_API = true
 ```
 
+Then `python -m Agent_Guru ask "what is on my calendar tomorrow"`, `python -m Agent_Guru chat`, or open
+`http://127.0.0.1:8765/` for the dashboard. Any OpenAI client can use `http://127.0.0.1:8765/v1` as its base URL;
+the key is printed by `python -m Agent_Guru api key`.
+</details>
+
+---
+
+## What it can do
+
+| Area | Examples | What makes it trustworthy |
+|:--|:--|:--|
+| **Conversation** | "What did we talk about yesterday?", "Remember that my sister's birthday is in March" | Memory is searched by meaning and by names and numbers; facts it learns are kept with where they came from |
+| **The computer** | "Open Notepad", "Set the volume to 40", "Take a screenshot", "Play the next song" | Each action is checked afterwards: it says *done* only when it saw the result |
+| **Messages** | "Send Rahul on WhatsApp: running late" | On WhatsApp it reads the draft back before sending; on every channel it reports *sent* only when the app or service confirmed it |
+| **Research** | "What changed in the new tax rules?" | Answers cite numbered sources; invented links and unsupported numbers are removed before you hear them |
+| **Scheduling** | "Remind me at 9 pm", "Check the Delhi weather every hour and tell me if it changes" | Actions run later only with your approval for that exact action, which expires |
+| **Your accounts** (optional) | "Any mail from Rahul about Friday?", "Add a dentist appointment at 4" | Sign-in on the provider's page; tokens are encrypted on disk; sending and adding wait for your yes |
+| **Tools** | Any [MCP](https://modelcontextprotocol.io) server you allow | Only the tools you allow, with the risk you declare, and every call audited |
+
+<details>
+<summary><strong>Everything in more detail</strong></summary>
 <br>
 
-## 🌍 Platform Support
+**Voice**
+- Wake words "Hey Guru" and "Hey Maya", two personalities, replies spoken sentence by sentence as they are written.
+- Speech recognition with faster-whisper; speech with Kokoro, falling back to the system voice.
+- English and Hinglish; other languages are detected and answered in kind.
 
-| Platform | Status | Device Control | LLM Options |
-|:---------|:-------|:---------------|:------------|
-| <img width="16" src="https://img.icons8.com/color/48/windows-10.png"> **Windows** | ✅ Production Ready | Full system control | Ollama (local) or Cloud API |
-| <img width="16" src="https://img.icons8.com/color/48/mac-logo.png"> **macOS** | ✅ Production Ready | Full system control | Ollama (local) or Cloud API |
-| <img width="16" src="https://img.icons8.com/color/48/linux.png"> **Linux** | ✅ Production Ready | Full system control | Ollama (local) or Cloud API |
-| <img width="16" src="https://img.icons8.com/color/48/android-os.png"> **Android** | ✅ Production Ready | Mobile-optimized | Cloud API |
-| <img width="16" src="https://img.icons8.com/color/48/ios-logo.png"> **iOS** | ✅ Production Ready | Mobile-optimized | Cloud API |
+**Computer control** (`Agent_Guru/platform`)
+- Apps, files, windows, volume and brightness, media keys, screenshots, typing, browser automation.
+- Files that hold keys or credentials (SSH keys, `.env`, browser password stores) are refused to every file tool.
 
-<br>
+**Messaging** (`Agent_Guru/platform/channels`)
+- WhatsApp Desktop, plus Telegram, Slack, email (SMTP), Discord, Signal, SMS (Twilio), Matrix, Zulip, Mastodon,
+  LINE, Viber, Messenger, Reddit, IRC, Twitch, and webhooks for Teams, Google Chat, Mattermost, Rocket.Chat and Feishu.
+- Ask it from Telegram: messages from chats you list become typed turns; every other chat is ignored.
 
-## 🛠️ Tech Stack
+**Knowledge**
+- Documents you add (`python -m Agent_Guru documents add file.pdf`) are answered from with citations.
+- Web research (Wikipedia, DuckDuckGo) with pages read safely: private network addresses are refused at every redirect.
+
+**Accounts and sources** (`Agent_Guru/connectors`, each offered only once you set it up)
+- Gmail or Outlook or IMAP mail; Google or Outlook calendar or an `.ics` file; contacts; Google Drive and Tasks;
+  Notion; an Obsidian vault; GitHub notifications; Dropbox; Oura; Strava; Spotify; news feeds and Hacker News.
+
+**Models** (`Agent_Guru/llm`)
+- Ollama by default. Any engine with an OpenAI-compatible API (llama.cpp server, vLLM, LM Studio, SGLang, LiteLLM).
+- Cloud models (OpenAI, Anthropic, Gemini) only when you allow the cloud and give a key.
+- A fallback engine when the main one fails; routing by question difficulty that never makes an easy question wait
+  for a model swap.
+
+**Learning** (`Agent_Guru/self_improvement`)
+- Say "that was wrong" after a bad answer. `python -m Agent_Guru learn tune` proposes guidance from your marked
+  mistakes and good answers, and keeps it only if the evaluation set improves with nothing lost. Rollback is one command.
+</details>
+
+---
+
+## How a turn works
 
 ```mermaid
-graph TB
-    subgraph "🎤 Speech"
-        W[Whisper] 
-        CT[Coqui TTS]
-        PP[Porcupine]
-    end
-    
-    subgraph "👁️ Vision"
-        IF[InsightFace]
-        CV[OpenCV]
-        OX[ONNX Runtime]
-    end
-    
-    subgraph "🧠 AI/ML"
-        PT[PyTorch]
-        TF[Transformers]
-        SK[scikit-learn]
-    end
-    
-    subgraph "⚡ GPU"
-        CU[CUDA 11.8+]
-        CN[cuDNN]
-        TR[TensorRT]
-    end
-    
-    subgraph "🤖 LLM"
-        OL[Ollama]
-        OA[OpenAI]
-        GE[Gemini]
-        AN[Anthropic]
-    end
-    
-    style W fill:#FF6B6B,color:#fff
-    style PT fill:#EE4C2C,color:#fff
-    style CU fill:#76B900,color:#fff
-    style OL fill:#6C63FF,color:#fff
-    style IF fill:#4ECDC4,color:#fff
+sequenceDiagram
+    autonumber
+    actor You
+    participant Mic as Wake word + capture
+    participant STT as Speech to text
+    participant O as Orchestrator
+    participant M as Memory
+    participant P as Policy
+    participant T as Tools and actions
+    participant LLM as Local model (Ollama)
+    participant TTS as Speech
+
+    You->>Mic: "Hey Guru, is it going to rain in Delhi?"
+    Mic->>STT: your words, until you stop speaking
+    STT->>O: transcript
+    O->>M: recall what is relevant
+    O->>P: is this allowed?
+    P-->>O: allowed
+    O->>T: weather lookup (read only: no confirmation needed)
+    T-->>O: result, scanned for injected instructions
+    O->>LLM: question + context + result
+    LLM-->>O: answer, streamed
+    O->>TTS: each sentence as soon as it is complete
+    TTS-->>You: spoken answer
+    O->>O: turn record: every stage timed, the outcome checked
 ```
 
-<br>
+A change (sending a message, deleting a file, scheduling an action) stops at step 7 and asks you first; your next
+words answer the question.
 
-## 🔐 Security & Privacy
+## Architecture
 
-<table>
-<tr><td>🔒</td><td><strong>100% Local Processing</strong></td><td>Zero cloud dependency - your data never leaves your machine</td></tr>
-<tr><td>👤</td><td><strong>Multi-Factor Biometrics</strong></td><td>Face + Voice + Fingerprint authentication</td></tr>
-<tr><td>🔑</td><td><strong>Cryptographic Identity</strong></td><td>Ed25519 digital signatures for every action</td></tr>
-<tr><td>🛡️</td><td><strong>Shell Injection Protection</strong></td><td>All OS commands sanitized through shlex.quote()</td></tr>
-<tr><td>🗃️</td><td><strong>Memory Encryption</strong></td><td>Conversations encrypted at rest with AES-256</td></tr>
-<tr><td>📋</td><td><strong>Audit Trail</strong></td><td>Every operation logged with timestamps</td></tr>
-</table>
+```mermaid
+flowchart TB
+    subgraph In["Input"]
+        direction LR
+        WW["Wake word and capture<br/>speech/audio"] --> STT["Speech to text<br/>speech/stt"]
+        API["Local API, Telegram<br/>integration/local_api.py"]
+    end
 
-<br>
+    subgraph Core["Orchestrator: integration/orchestrator.py"]
+        direction LR
+        INT["Intent"] --> POL["Policy<br/>policy/"] --> LOOP["Tool loop<br/>integration/tool_loop.py"]
+    end
 
-## 🔧 Troubleshooting
+    subgraph Know["Knowledge"]
+        direction LR
+        MEM["Memory"] ~~~ DOC["Documents"] ~~~ WEB["Web research"]
+    end
+
+    subgraph Act["Actions"]
+        direction LR
+        OS["OS control"] ~~~ MSG["Channels"] ~~~ CON["Connectors"] ~~~ MCP["MCP servers"] ~~~ SCH["Scheduler"]
+    end
+
+    subgraph Out["Answer"]
+        direction LR
+        LLM["LLM runtime<br/>llm/"] --> TTS["Speech<br/>speech/tts"]
+    end
+
+    In --> Core
+    Core <--> Know
+    Core --> Act
+    Core --> Out
+    Core -.-> REC[("Turn records, signed audit log, events")]
+```
 
 <details>
-<summary>🔴 <strong>GPU not detected</strong></summary>
+<summary><strong>Project layout</strong></summary>
+<br>
+
+```
+main.py                     starts the assistant (also: python -m Agent_Guru)
+Agent_Guru/
+  integration/              orchestrator, tool loop, MCP toolbox, research, tasks, local API, event bus
+  speech/                   wake word, capture, speech to text, text to speech
+  llm/                      runtime, Ollama and OpenAI-compatible adapters, routing, model catalog
+  platform/                 OS controllers, channels, reminders and scheduling, documents, web search
+  connectors/               OAuth sign-in and account tools
+  memory/                   conversation memory and learned facts
+  policy/                   policy engine and its audit log
+  security/                 audit log, sensitive-file policy, taint labels, secret store
+  self_improvement/         prompt tuning, training data export, learning engine
+  reasoning/                reasoning engine, skills, its own HTTP API
+  vision/, emotion/, avatar/
+scripts/                    evaluations, benchmarks, CI helpers
+docs/architecture/          roadmap, capability registry, provenance
+```
+</details>
+
+---
+
+## Safety model
+
+Every tool call, whether the model asked for it, a schedule ran it, or another agent sent it, takes the same path:
+
+```mermaid
+flowchart TD
+    A["A tool call"] --> B{"Tool allowed by you,<br/>with a declared risk?"}
+    B -- no --> X["Refused"]
+    B -- yes --> C{"Policy engine allows it?"}
+    C -- no --> X
+    C -- yes --> D{"Arguments match the<br/>tool's schema?"}
+    D -- no --> X
+    D -- yes --> E{"Names a key or<br/>credential file?"}
+    E -- yes --> X
+    E -- no --> F{"Changes something?"}
+    F -- no --> G["Run it"]
+    F -- yes --> H["Ask you, naming any text<br/>that came from a web page or tool"]
+    H -- "you say yes" --> G
+    H -- "anything else" --> X
+    G --> I["Output scanned for injected<br/>instructions and cut to size"]
+    I --> J["Signed audit entry + turn record"]
+```
+
+- **Approval** comes only from your own words in the next turn. A model, a web page, an email or a tool's output
+  can never approve anything.
+- **Results are reported as they are**: done, failed, refused, or *could not confirm*. It does not say "done" for
+  something it could not see happen.
+- **The audit log** is a hash chain signed with a key protected by Windows DPAPI; tampering shows.
+- **Secrets** (API keys, tokens) are read from the environment or `.env`, never from `settings.toml`; keys the
+  assistant creates are encrypted with DPAPI.
+- **Network**: the local API listens on 127.0.0.1 only and is off by default; the Telegram bot uses long polling,
+  so no port is opened.
+
+---
+
+## Commands
+
+`python -m Agent_Guru <command>`; `python -m Agent_Guru help` lists them.
+
+| Command | What it does |
+|:--|:--|
+| *(none)* | start the assistant |
+| `doctor` | check the machine |
+| `ask` / `chat` | ask the running assistant, typed |
+| `config` | show or change `settings.toml`, checked |
+| `model` / `models` | the model in use, or switch; the installed models and whether they fit the GPU |
+| `recipes` | list, show or apply a named set of settings (`default`, `low-vram`, `private`, `research`) |
+| `documents` | add, remove or list documents to answer from |
+| `memory` | what it remembers about you, or forget one thing |
+| `tasks` | reminders, checks and actions that are scheduled |
+| `connect` | sign in to Google, Microsoft, Strava or Spotify |
+| `mcp` | list or call tools on MCP servers, through the policy |
+| `api` | the local HTTP API: its state, or your key |
+| `telegram` | the Telegram bot: its state, or who has written to it |
+| `learn` | tune the prompt from mistakes, roll back, or export training data |
+| `skills` | import a skill after checking it, or find repeated tool sequences |
+| `eval` / `bench` | score it on its evaluation set; time every stage of spoken turns |
+
+## Configuration
+
+Settings live in `settings.toml` in the data folder. Only known settings are taken, each checked; a misspelled
+name is refused with a suggestion.
+
+```toml
+OLLAMA_MODEL = "gemma4"
+AGENT_GURU_RESEARCH = true        # web research for questions that need live information
+AGENT_GURU_API = false            # the local HTTP API and dashboard
+```
+
+Or apply a recipe: `python -m Agent_Guru recipes apply private` turns off everything that reaches the network.
+
+---
+
+## Measured performance
+
+Measured on the development laptop (Intel i5-12450H, RTX 2050 4 GB, Windows 11) with gemma4. Nothing here is an
+estimate; each figure comes from the evaluation scripts in `scripts/` or the turn records.
+
+| What | Result |
+|:--|:--|
+| Transcribing a 2.5 s command (Whisper base) | 1.8 s on the CPU, 0.2 s on the GPU |
+| First sentence of an answer ready after the request (gemma4, streamed) | about 2.1 s |
+| Research questions answered with correct citations (`scripts/research_eval.py`) | 6 of 6, typed and spoken |
+| Tool-use evaluation (`scripts/tool_loop_eval.py`) | 9 of 11 (misses: two tools chained in one turn) |
+| Start to listening (warm start) | about 12 s |
+| Automated tests | 6,380 passed in the last full local run; CI runs the suite on Python 3.11, 3.12 and 3.13 |
+
+## Platform support
+
+| Platform | State |
+|:--|:--|
+| Windows 11 | Developed and used daily. Device control and WhatsApp Desktop verified. |
+| Linux | Test suite passes in CI. Desktop use not tried. |
+| macOS | Adapters in the code; not tried. |
+| Android, iOS | Adapters in the code; not tried. |
+
+## Known limitations
+
+- **False wakes**: when the openWakeWord model is not available, the fallback detector reacts to loud speech, not
+  only to the wake phrase. Each false wake starts a turn.
+- **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
+  `low-vram` recipe switches to the smaller gemma4:e2b. Swapping between models takes 17 to 19 s.
+- **No code execution**: the assistant does not run code it writes. A sandbox needs an isolation boundary that can be
+  demonstrated (Windows Sandbox, Docker or WSL), which this machine does not have.
+- **Accounts and channels** need your own credentials (OAuth client ids, bot tokens) and were checked against local
+  test servers, not your accounts.
+
+---
+
+<details>
+<summary><strong>Troubleshooting</strong></summary>
+<br>
+
+| Problem | Try |
+|:--|:--|
+| Anything | `python -m Agent_Guru doctor` checks Ollama, the model, GPU, microphone, speaker and the data folder |
+| "Ollama is not answering" | Start Ollama, then `ollama list`; the model in `OLLAMA_MODEL` must be there |
+| It does not hear the wake word | Check the microphone in Windows settings and that the right input device is the default |
+| Speech recognition is slow | See [GPU speech recognition](#quick-start); the log says whether it runs on the GPU |
+| An answer was wrong | Say "that was wrong"; it is marked, and `learn tune` can learn from it |
+</details>
+
+<details>
+<summary><strong>Development</strong></summary>
 <br>
 
 ```bash
-python -c "import torch; print(torch.cuda.is_available())"
-nvidia-smi  # Check NVIDIA drivers
-```
-See [GPU_SETUP.md](GPU_SETUP.md) for full setup guide.
-</details>
-
-<details>
-<summary>🔴 <strong>Wake word not responding</strong></summary>
-<br>
-
-- Check microphone permissions in OS settings
-- Verify correct audio input device is selected
-- Adjust sensitivity threshold in config
-</details>
-
-<details>
-<summary>🔴 <strong>LLM not responding</strong></summary>
-<br>
-
-- **Local mode**: Make sure Ollama is running → `ollama list`
-- **Cloud mode**: Verify your API key is configured in `.env`
-</details>
-
-<details>
-<summary>🔴 <strong>Face recognition issues</strong></summary>
-<br>
-
-- Check camera permissions
-- Ensure good lighting conditions
-- Re-enroll face data if accuracy drops
-</details>
-
-<br>
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's the flow:
-
-```
-Fork → Branch → Code → Test → PR
+pip install -e ".[test]"
+pytest                                   # the full suite takes 35 to 70 minutes
+ruff check . --select F,E9,PLE           # the blocking lint gate
+bandit -r Agent_Guru -c pyproject.toml   # the blocking security gate
 ```
 
-1. **Fork** the repository
-2. **Branch**: `git checkout -b feature/your-feature`
-3. **Follow** the specs in `.kiro/specs/`
-4. **Test** your changes
-5. **PR** with a clear description of what and why
+CI runs the suite on Python 3.11, 3.12 and 3.13, and fails a run that did not execute every collected test.
+Design records are in [`docs/architecture/`](docs/architecture/): the roadmap, the capability registry (where each
+feature lives, so it is not built twice) and the provenance of every component.
 
-<br>
+Contributions are welcome: open an issue first for anything large, keep each change focused, add a test that fails
+without it, and explain in the commit message what was wrong and how it is now.
+</details>
 
-## 📝 Copyright, Licence and Attribution
+---
+
+## Copyright, licence and attribution
 
 AGENT_GURU is an open-source project created by **Suraj Sharma**.
 
-Copyright © 2026 Suraj Sharma.
+Copyright &copy; 2026 Suraj Sharma.
 Repository: https://github.com/Surajsharma0804/Agent_Guru
 
 The project is distributed under the **Apache License 2.0**; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
@@ -502,31 +393,18 @@ Contributions are accepted under the same licence (section 5 of the Apache Licen
 The AGENT_GURU name and branding are not licensed for use as an endorsement or to imply
 official affiliation; the Apache License 2.0 grants no trademark rights (section 6).
 
-<br>
+## Acknowledgements
 
-## 🙏 Acknowledgments
+Agent Guru builds on these projects, each under its own licence:
 
-| Project | Used For |
-|:--------|:---------|
-| [OpenAI Whisper](https://github.com/openai/whisper) | Speech recognition |
-| [InsightFace](https://github.com/deepinsight/insightface) | Face recognition (ArcFace + RetinaFace) |
-| [Ollama](https://ollama.ai) | Local LLM runtime |
-| [PyTorch](https://pytorch.org) | Deep learning framework |
-| [Coqui TTS](https://github.com/coqui-ai/TTS) | Text-to-speech synthesis |
+| Project | Used for |
+|:--|:--|
+| [Ollama](https://ollama.com) | running the local model |
+| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and CTranslate2 | speech recognition |
+| [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) via [kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx) | speech (with eSpeak NG, GPL-3, for pronunciation) |
+| [openWakeWord](https://github.com/dscripka/openWakeWord) and [Silero VAD](https://github.com/snakers4/silero-vad) | wake word and speech detection |
+| [sentence-transformers](https://www.sbert.net) | searching memory and documents by meaning |
+| [InsightFace](https://github.com/deepinsight/insightface) and [OpenCV](https://opencv.org) | vision (models under their own terms) |
+| [PyTorch](https://pytorch.org), [FastAPI](https://fastapi.tiangolo.com), [pywinauto](https://github.com/pywinauto/pywinauto) | the rest of the stack |
 
-<br>
-
----
-
-<p align="center">
-  <strong>🐛 <a href="https://github.com/Surajsharma0804/Agent_Guru/issues">Issues</a></strong> •
-  <strong>💬 <a href="https://github.com/Surajsharma0804/Agent_Guru/discussions">Discussions</a></strong>
-</p>
-
-<p align="center">
-  <sub>Built with focus, caffeine, and a lot of late nights by <a href="https://github.com/Surajsharma0804"><strong>Suraj Sharma</strong></a></sub>
-</p>
-
-<p align="center">
-  <sub>⭐ Star this repo if Agent Guru impressed you - it helps more people discover it!</sub>
-</p>
+<p align="center"><a href="#agent-guru">Back to top</a></p>
