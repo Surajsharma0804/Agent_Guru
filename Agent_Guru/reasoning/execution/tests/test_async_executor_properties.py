@@ -9,10 +9,12 @@ regardless of action duration, across many random inputs using Hypothesis.
 Note: These tests use mocking to avoid Redis/Celery infrastructure dependencies.
 """
 
+import statistics
 import time
 from typing import Any
 from unittest.mock import Mock, patch
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -23,6 +25,23 @@ from Agent_Guru.reasoning.execution.async_executor import (
     TaskStatus,
 )
 from Agent_Guru.reasoning.models.action import Action
+
+
+def _assert_handed_off_not_run(mock_task: Mock, action_spy: Mock, submissions: int = 1) -> None:
+    """What "returns immediately" means: each action went to the queue and none ran here.
+
+    These tests used to assert that submission took under 100 ms of wall
+    clock. Submission does no I/O (the Celery task is mocked), so that only
+    measured how busy the machine was: under load one run took 898 ms and
+    failed, while a regression that ran the action inline would not have
+    been caught, because the action is time.sleep and is replaced here.
+    The action is a spy, so running it inline is seen directly, on any
+    machine. Speed is measured by test_submission_median_latency below.
+    """
+    assert action_spy.call_count == 0, "the action ran during submission instead of being queued"  # nosec B101
+    assert mock_task.apply_async.call_count == submissions  # nosec B101
+    assert not mock_task.called, "the task was called directly instead of queued"  # nosec B101
+    assert not mock_task.apply.called and not mock_task.delay.called  # nosec B101
 
 # ============================================================================
 # Property-Based Tests for Async Execution
@@ -80,7 +99,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         # Mock Celery task to avoid Redis dependency
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             # Create mock async result with task ID
             mock_async_result = Mock()
             mock_async_result.id = f"task_{action_id}_{int(time.time() * 1000)}"
@@ -98,20 +117,14 @@ class TestAsyncExecutionImmediateReturnProperties:
             )
 
             # Measure time to submit async task
-            start_time = time.perf_counter()
             result = executor.execute_async(
                 action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert submission_time < 0.1, (  # nosec B101
-                f"Async execution should return within 100ms, "
-                f"but took {submission_time * 1000:.2f}ms for action "
-                f"with duration {action_duration}s"
-            )
+            _assert_handed_off_not_run(mock_task, action_spy)
 
             # Property assertions - result structure
             assert isinstance(result, AsyncExecutionResult), (  # nosec B101
@@ -175,7 +188,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         """
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             # Create mock async results
             mock_short_result = Mock()
             mock_short_result.id = f"task_short_{int(time.time() * 1000)}"
@@ -195,13 +208,11 @@ class TestAsyncExecutionImmediateReturnProperties:
                 parameters={"duration": short_duration},
             )
 
-            start_time = time.perf_counter()
             short_result = executor.execute_async(
                 short_action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            short_submission_time = time.perf_counter() - start_time
 
             # Submit long duration task
             long_action = Action(
@@ -210,33 +221,17 @@ class TestAsyncExecutionImmediateReturnProperties:
                 parameters={"duration": long_duration},
             )
 
-            start_time = time.perf_counter()
             long_result = executor.execute_async(
                 long_action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            long_submission_time = time.perf_counter() - start_time
 
-            # Property assertions - both submit quickly
-            assert short_submission_time < 0.1, (  # nosec B101
-                f"Short task submission should be <100ms, "
-                f"took {short_submission_time * 1000:.2f}ms"
-            )
-            assert long_submission_time < 0.1, (  # nosec B101
-                f"Long task submission should be <100ms, "
-                f"took {long_submission_time * 1000:.2f}ms"
-            )
-
-            # Property assertions - submission times similar
-            # Allow 50ms difference (generous tolerance for system variance)
-            time_difference = abs(short_submission_time - long_submission_time)
-            assert time_difference < 0.05, (  # nosec B101
-                f"Submission times should be similar regardless of duration: "
-                f"short={short_submission_time * 1000:.2f}ms, "
-                f"long={long_submission_time * 1000:.2f}ms, "
-                f"difference={time_difference * 1000:.2f}ms"
-            )
+            # Property assertions - neither waited for its action, and both were
+            # submitted the same way whatever their duration.
+            _assert_handed_off_not_run(mock_task, action_spy, submissions=2)
+            submitted = [c.kwargs["args"][1:] for c in mock_task.apply_async.call_args_list]
+            assert submitted == [["time", "sleep"], ["time", "sleep"]]  # nosec B101
 
             # Property assertions - both tasks submitted successfully
             assert (  # nosec B101
@@ -276,7 +271,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         """
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             # Create mock async results for each task
             mock_results = []
             for i in range(num_tasks):
@@ -288,11 +283,9 @@ class TestAsyncExecutionImmediateReturnProperties:
 
             executor = AsyncExecutor()
 
-            submission_times = []
             results = []
 
             # Submit multiple tasks
-            total_start = time.perf_counter()
             for i in range(num_tasks):
                 action = Action(
                     action_id=f"{action_id_prefix}_{i}",
@@ -300,41 +293,17 @@ class TestAsyncExecutionImmediateReturnProperties:
                     parameters={"duration": task_duration},
                 )
 
-                start_time = time.perf_counter()
                 result = executor.execute_async(
                     action,
                     tool_module="time",
                     tool_function_name="sleep",
                 )
-                submission_time = time.perf_counter() - start_time
 
-                submission_times.append(submission_time)
                 results.append(result)
 
-            total_submission_time = time.perf_counter() - total_start
 
-            # Property assertions - each submission immediate
-            for i, submission_time in enumerate(submission_times):
-                assert submission_time < 0.1, (  # nosec B101
-                    f"Task {i} submission should be <100ms, " f"took {submission_time * 1000:.2f}ms"
-                )
-
-            # Property assertions - total time reasonable
-            # Total should be < (num_tasks * 100ms) + overhead
-            max_expected_time = (num_tasks * 0.1) + 0.1  # 100ms per task + 100ms overhead
-            assert total_submission_time < max_expected_time, (  # nosec B101
-                f"Total submission time for {num_tasks} tasks should be "
-                f"<{max_expected_time}s, took {total_submission_time}s"
-            )
-
-            # Property assertions - NOT waiting for task completion
-            # If we were waiting, total time would be >= num_tasks * task_duration
-            min_completion_time = num_tasks * task_duration
-            assert total_submission_time < min_completion_time, (  # nosec B101
-                f"Total submission time {total_submission_time}s should be much less "
-                f"than sequential completion time {min_completion_time}s, "
-                f"proving tasks are async"
-            )
+            # Property assertions - every task was queued, none ran here
+            _assert_handed_off_not_run(mock_task, action_spy, submissions=num_tasks)
 
             # Property assertions - all tasks submitted successfully
             assert len(results) == num_tasks, f"Should have {num_tasks} results, got {len(results)}"  # nosec B101
@@ -381,7 +350,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         """
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             mock_async_result = Mock()
             mock_async_result.id = f"task_metadata_{int(time.time() * 1000)}"
             mock_task.apply_async.return_value = mock_async_result
@@ -398,18 +367,14 @@ class TestAsyncExecutionImmediateReturnProperties:
             )
 
             # Submit async task
-            start_time = time.perf_counter()
             result = executor.execute_async(
                 action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert (  # nosec B101
-                submission_time < 0.1
-            ), f"Submission should be <100ms, took {submission_time * 1000:.2f}ms"
+            _assert_handed_off_not_run(mock_task, action_spy)
 
             # Property assertions - metadata preserved
             assert result.action_id == "test_action_metadata", (  # nosec B101
@@ -461,7 +426,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         """
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             mock_async_result = Mock()
             mock_async_result.id = f"task_controller_{action_id}_{int(time.time() * 1000)}"
             mock_task.apply_async.return_value = mock_async_result
@@ -475,20 +440,14 @@ class TestAsyncExecutionImmediateReturnProperties:
             )
 
             # Submit via controller
-            start_time = time.perf_counter()
             result = controller.execute_async(
                 action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert submission_time < 0.1, (  # nosec B101
-                f"Controller async execution should return within 100ms, "
-                f"but took {submission_time * 1000:.2f}ms for action "
-                f"with duration {action_duration}s"
-            )
+            _assert_handed_off_not_run(mock_task, action_spy)
 
             # Property assertions - result structure
             assert isinstance(  # nosec B101
@@ -531,7 +490,7 @@ class TestAsyncExecutionImmediateReturnProperties:
         """
         with patch(
             "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
-        ) as mock_task:
+        ) as mock_task, patch("time.sleep") as action_spy:
             mock_async_result = Mock()
             mock_async_result.id = f"task_serialize_{action_id}_{int(time.time() * 1000)}"
             mock_task.apply_async.return_value = mock_async_result
@@ -545,27 +504,17 @@ class TestAsyncExecutionImmediateReturnProperties:
             )
 
             # Submit async task
-            start_time = time.perf_counter()
             result = executor.execute_async(
                 action,
                 tool_module="time",
                 tool_function_name="sleep",
             )
-            submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert (  # nosec B101
-                submission_time < 0.1
-            ), f"Submission should be <100ms, took {submission_time * 1000:.2f}ms"
+            _assert_handed_off_not_run(mock_task, action_spy)
 
-            # Property assertions - immediate serialization
-            serialize_start = time.perf_counter()
+            # Property assertions - serializable while the task is still pending
             result_dict = result.to_dict()
-            serialize_time = time.perf_counter() - serialize_start
-
-            assert (  # nosec B101
-                serialize_time < 0.01
-            ), f"Serialization should be <10ms, took {serialize_time * 1000:.2f}ms"
 
             # Property assertions - serialized structure
             assert isinstance(  # nosec B101
@@ -594,3 +543,31 @@ class TestAsyncExecutionImmediateReturnProperties:
             assert result_dict["action_id"] == action_id  # nosec B101
             assert result_dict["progress"] < 100.0, "Progress should not be 100% immediately"  # nosec B101
             assert result_dict["completed_at"] is None, "Should not be completed immediately"  # nosec B101
+
+
+@pytest.mark.performance
+def test_submission_median_latency():
+    """Submitting a task stays far below a millisecond, measured as a median.
+
+    Method: 200 submissions with the Celery task mocked, as in the property
+    tests above; the median is compared with 5 ms. A median ignores the
+    occasional scheduler stall that made single wall-clock checks fail
+    under load. Measured on the development laptop (Intel 12th generation,
+    Windows 11, Python 3.13): median 0.013 ms, p95 0.047 ms. The bound
+    leaves room for slow CI runners and still fails if submission starts
+    waiting on a broker connection or on the action itself.
+    """
+    with patch(
+        "Agent_Guru.reasoning.execution.async_executor.execute_action_task"
+    ) as mock_task, patch("time.sleep") as action_spy:
+        mock_task.apply_async.return_value = Mock(id="task_latency")
+        executor = AsyncExecutor()
+        action = Action(action_id="latency", tool_id="test_tool", parameters={"duration": 1.0})
+        times = []
+        for _ in range(200):
+            started = time.perf_counter()
+            executor.execute_async(action, tool_module="time", tool_function_name="sleep")
+            times.append(time.perf_counter() - started)
+        _assert_handed_off_not_run(mock_task, action_spy, submissions=200)
+    assert statistics.median(times) < 0.005, f"median {statistics.median(times) * 1000:.3f} ms"  # nosec B101
+
