@@ -694,9 +694,9 @@ class MCPToolbox:
         text = _clean(_output_text(raw))
         if len(text) > MAX_OUTPUT_CHARS:
             text, result.truncated = text[:MAX_OUTPUT_CHARS], True
-        from Agent_Guru.llm.security import guard_external_text
+        from Agent_Guru.llm.security import guard_external_text_async
 
-        guarded = guard_external_text(text, f"MCP tool {entry.config.name}/{tool}")
+        guarded = await guard_external_text_async(text, f"MCP tool {entry.config.name}/{tool}")
         result.guarded = bool(text) and not guarded
         result.output = guarded
         if isinstance(raw, dict) and raw.get("isError") is True:
