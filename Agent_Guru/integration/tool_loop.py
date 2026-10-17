@@ -289,11 +289,54 @@ def _owner_words(messages: list[Message]) -> str:
     return " ".join(m.content or "" for m in messages if m.role == "user")
 
 
+def _guard_input(text: str, limit: int) -> str:
+    return " ".join(_clean(text).split())[:limit]
+
+
 def _guarded(text: str, limit: int, source: str) -> str:
     from Agent_Guru.llm.security import guard_external_text
 
-    cleaned = " ".join(_clean(text).split())[:limit]
-    return guard_external_text(cleaned, source) or "(withheld: it tried to give instructions)"
+    return guard_external_text(_guard_input(text, limit), source) or "(withheld: it tried to give instructions)"
+
+
+def _schema_texts(schema: Any, depth: int = 0) -> list[str]:
+    """The free text in *schema* that _schema_for_model() guards, as it is guarded."""
+    if depth > 16 or not isinstance(schema, dict):
+        return []
+    found: list[str] = []
+    for key, value in schema.items():
+        if key in _DROPPED:
+            continue
+        if key in _DESCRIPTIVE and isinstance(value, str):
+            found.append(_guard_input(value, 200))
+        elif key == "properties" and isinstance(value, dict):
+            for sub in value.values():
+                found += _schema_texts(sub, depth + 1)
+        elif key in ("items", "additionalProperties") and isinstance(value, dict):
+            found += _schema_texts(value, depth + 1)
+    return found
+
+
+def warm_tool_descriptions(tools: list[Any]) -> int:
+    """Queue the injection classifier on every tool description the model will be shown; how many.
+
+    functions() guards descriptions on the event loop, where the classifier
+    model is never run; it only uses verdicts already worked out. Queued
+    when the servers are discovered, at startup, the verdicts are ready by
+    the first turn that offers the tools, which then waits for none of them.
+    """
+    from Agent_Guru.security import injection_classifier as ic
+
+    if not ic.enabled():
+        return 0
+    texts = []
+    for tool in tools:
+        texts.append(_guard_input(getattr(tool, "description", "") or "", 300))
+        texts += _schema_texts(getattr(tool, "input_schema", None))
+    classifier = ic.shared()
+    for text in dict.fromkeys(t for t in texts if t.strip()):
+        classifier.cached_or_queue(text)
+    return len(texts)
 
 
 def _schema_for_model(schema: Any, source: str, depth: int = 0) -> Any:
