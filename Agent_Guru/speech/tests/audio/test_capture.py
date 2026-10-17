@@ -1,5 +1,10 @@
 """Tests for audio capture."""
 
+import sys
+import threading
+import time
+import types
+
 import pytest
 import numpy as np
 import tempfile
@@ -9,6 +14,7 @@ from pathlib import Path
 # where a fixture needs it. At module scope its absence stopped this whole
 # file collecting, including the tests that never touch a file.
 
+from Agent_Guru.speech.audio import capture as capture_module
 from Agent_Guru.speech.audio.capture import (
     AudioCapture,
     MicrophoneCapture,
@@ -100,6 +106,94 @@ class TestMicrophoneCapture:
         except AudioInputError:
             # May fail in CI environments without audio devices
             pytest.skip("Audio capture not available")
+
+    def test_a_device_that_never_delivers_audio_raises_instead_of_hanging(
+        self, monkeypatch
+    ):
+        """A stalled input stream must end in AudioInputError, not a hang.
+
+        capture() used to call sd.wait(), which has no timeout. On a device
+        that opened but sent no frames (measured on the WSLg virtual source)
+        a 0.5 s recording was still blocked after 20 s. The fake below
+        behaves the same way: its stream stays active and its wait() never
+        returns, so the old code blocks until the join below gives up.
+        """
+        never = threading.Event()
+        stream = types.SimpleNamespace(active=True)
+        stopped = []
+
+        def stop():
+            stopped.append(True)
+            stream.active = False
+
+        fake_sd = types.SimpleNamespace(
+            rec=lambda frames, **kwargs: np.zeros((frames, 1), dtype=np.float32),
+            get_stream=lambda: stream,
+            stop=stop,
+            wait=never.wait,
+        )
+        monkeypatch.setitem(sys.modules, "sounddevice", fake_sd)
+        # raising=False so that, run against code without the deadline, the
+        # test fails on the hang it exists to catch, not on the missing name.
+        monkeypatch.setattr(
+            capture_module, "_CAPTURE_START_GRACE_S", 0.2, raising=False
+        )
+
+        outcome: dict[str, object] = {}
+
+        def run():
+            try:
+                MicrophoneCapture().capture(duration=0.1)
+                outcome["result"] = "returned audio"
+            except AudioInputError as exc:
+                outcome["result"] = exc
+
+        started = time.monotonic()
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        worker.join(5.0)
+        never.set()  # lets the old code's thread finish after the check
+        elapsed = time.monotonic() - started
+
+        assert "result" in outcome, "capture() was still blocked after 5 s"  # nosec B101
+        assert isinstance(outcome["result"], AudioInputError)  # nosec B101
+        assert "no audio" in str(outcome["result"])  # nosec B101
+        assert stopped, "the stalled stream was not stopped"  # nosec B101
+        assert elapsed < 2.0  # nosec B101
+
+    def test_a_recording_that_finishes_is_returned(self, monkeypatch):
+        """The deadline must not cut short a stream that ends normally."""
+        class FinishingStream:
+            """Active for the first three polls, then done."""
+
+            polls = 0
+
+            @property
+            def active(self):
+                self.polls += 1
+                return self.polls < 4
+
+        stream = FinishingStream()
+        frames_seen = []
+
+        def rec(frames, **kwargs):
+            frames_seen.append(frames)
+            return np.full((frames, 1), 0.25, dtype=np.float32)
+
+        fake_sd = types.SimpleNamespace(
+            rec=rec,
+            get_stream=lambda: stream,
+            stop=lambda: pytest.fail("a finished stream must not be stopped"),
+            wait=lambda: None,
+        )
+        monkeypatch.setitem(sys.modules, "sounddevice", fake_sd)
+
+        audio, sample_rate = MicrophoneCapture(sample_rate=16000).capture(duration=0.5)
+
+        assert frames_seen == [8000]  # nosec B101
+        assert sample_rate == 16000  # nosec B101
+        assert audio.shape == (8000,)  # nosec B101
+        assert float(audio[0]) == 0.25  # nosec B101
 
 
 class TestFileCapture:
