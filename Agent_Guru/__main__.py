@@ -43,6 +43,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "sandbox": ("Agent_Guru.reasoning.tools.skills.wsl_sandbox", "run", "set up, check or try the WSL sandbox that runs the assistant's code"),
     "vault": ("Agent_Guru.security.vault", "run", "keep service credentials encrypted for this account instead of in .env"),
     "service": ("Agent_Guru.utils.service", "run", "run it in the background, stop it cleanly, or start it at log-in"),
+    "update": ("Agent_Guru.utils.update", "run", "fast-forward this checkout to its upstream (--check to look first)"),
 }
 
 
