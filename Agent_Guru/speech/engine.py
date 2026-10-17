@@ -555,6 +555,14 @@ class SpeechEngine:
             msg = "STT transcriber not initialized"
             raise RuntimeError(msg)
 
+        # A cloud recogniser only when the owner switched one on
+        # (speech/cloud_speech.py); None falls back to the local Whisper.
+        from Agent_Guru.speech import cloud_speech
+
+        cloud = cloud_speech.transcribe(audio, self.config.audio.sample_rate, language=self.config.stt.language)
+        if cloud is not None:
+            return cloud
+
         # Transcribe with automatic language detection (Whisper handles this)
         result = self.stt_transcriber.transcribe(
             audio,
