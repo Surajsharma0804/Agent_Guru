@@ -529,6 +529,18 @@ async def run() -> None:
             install_mcp_policies(policy, [coding])
     except Exception as e:
         logger.warning("Coding tools unavailable (%s)", e)
+    # Instruction skills the owner installed (`skills learn`), offered as
+    # use_skill; nothing is offered while none is installed.
+    try:
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+        from Agent_Guru.reasoning.tools.skills.instruction_skills import SkillTools, skills_server
+
+        skills = skills_server()
+        skills.local = SkillTools()
+        mcp_servers = [*mcp_servers, skills]
+        install_mcp_policies(policy, [skills])
+    except Exception as e:
+        logger.warning("Instruction skills unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
