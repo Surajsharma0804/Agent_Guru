@@ -104,7 +104,10 @@ class ConnectorTools:
                   "dropbox_search": bool(os.environ.get("DROPBOX_TOKEN")),
                   "health_summary": bool(os.environ.get("OURA_TOKEN")),
                   "strava_activities": bool(linked.get("strava")),
-                  "music_now": bool(linked.get("spotify")), "music_control": bool(linked.get("spotify"))}
+                  "music_now": bool(linked.get("spotify")), "music_control": bool(linked.get("spotify")),
+                  "slack_search": bool(os.environ.get("SLACK_USER_TOKEN")),
+                  "meetings_search": bool(os.environ.get("GRANOLA_API_KEY")),
+                  "meeting_read": bool(os.environ.get("GRANOLA_API_KEY"))}
         return [t for t in self._all_tools() if usable.get(t["name"], False)]
 
     def _all_tools(self) -> list[dict[str, Any]]:
@@ -167,6 +170,13 @@ class ConnectorTools:
              "annotations": {"readOnlyHint": False}, "inputSchema": {"type": "object", "properties": {
                  "action": {"type": "string", "enum": ["play", "pause", "next", "previous"]},
                  "query": {"type": "string", "maxLength": 200}}, "required": ["action"], "additionalProperties": False}},
+            {"name": "slack_search", "description": "Search the owner's Slack messages (words, from:@name, in:#channel). Returns when, who, where and the text.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "meetings_search", "description": "Find the owner's meeting notes in Granola by words in the title or summary. Returns id, date, title and summary.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": _Q},
+            {"name": "meeting_read", "description": "Read one Granola meeting note by the id meetings_search gave: summary, attendees and transcript.",
+             "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "properties": {
+                 "id": {"type": "string", "minLength": 1, "maxLength": 100}}, "required": ["id"], "additionalProperties": False}},
         ]
 
     async def call(self, name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
@@ -179,6 +189,7 @@ class ConnectorTools:
             "github_notifications": self._github, "dropbox_search": self._dropbox_search,
             "health_summary": self._health, "strava_activities": self._strava,
             "music_now": self._music_now, "music_control": self._music_control,
+            "slack_search": self._slack_search, "meetings_search": self._meetings_search, "meeting_read": self._meeting_read,
         }.get(name)
         if handler is None:
             return f"no tool named {name}", True
@@ -190,6 +201,69 @@ class ConnectorTools:
             if isinstance(exc, OAuthError):
                 return str(exc), True
             return f"{name} failed: {type(exc).__name__}: {_clip(str(exc), 200)}", True
+
+    # ---- Slack and Granola ----
+
+    async def _slack_search(self, query: str, limit: int = 5) -> tuple[str, bool]:
+        """Slack's search.messages, with the owner's user token (SLACK_USER_TOKEN, search:read scope).
+
+        The bot token Slack sending uses cannot search: search is a user's view.
+        """
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.get("https://slack.com/api/search.messages", params={"query": query, "count": limit},
+                                        headers={"Authorization": f"Bearer {os.environ['SLACK_USER_TOKEN']}"})
+        body = response.json()
+        if not body.get("ok"):
+            return f"Slack refused the search: {body.get('error', response.status_code)}", True
+        lines = []
+        for m in ((body.get("messages") or {}).get("matches") or [])[:limit]:
+            when = dt.datetime.fromtimestamp(float(m.get("ts", 0) or 0)).strftime("%Y-%m-%d %H:%M")
+            where = (m.get("channel") or {}).get("name", "")
+            lines.append(f"{when} | {m.get('username') or m.get('user', '')} | #{where} | {_clip(m.get('text', ''), 240)}")
+        return ("\n".join(lines) if lines else f"No Slack message matches {query!r}."), False
+
+    async def _granola(self, path: str, **params: Any) -> Any:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.get(f"https://public-api.granola.ai/v1/{path}", params=params or None,
+                                        headers={"Authorization": f"Bearer {os.environ['GRANOLA_API_KEY']}"})
+        response.raise_for_status()
+        return response.json()
+
+    async def _meetings_search(self, query: str, limit: int = 5) -> tuple[str, bool]:
+        words = [w for w in query.lower().split() if len(w) > 2]
+        found: list[str] = []
+        cursor = None
+        for _ in range(4):  # the most recent 120 notes at most
+            page = await self._granola("notes", page_size=30, **({"cursor": cursor} if cursor else {}))
+            for note in page.get("notes") or []:
+                summary = (note.get("summary") or {}).get("markdown") or note.get("summary_text") or ""
+                haystack = f"{note.get('title', '')} {summary}".lower()
+                if not words or all(w in haystack for w in words):
+                    found.append(f"[{note.get('id', '')}] {str(note.get('created_at', ''))[:10]} | "
+                                 f"{note.get('title') or '(untitled)'} | {_clip(summary, 200)}")
+            cursor = page.get("cursor")
+            if len(found) >= limit or not page.get("hasMore") or not cursor:
+                break
+        return ("\n".join(found[:limit]) if found else f"No meeting note matches {query!r}."), False
+
+    async def _meeting_read(self, id: str) -> tuple[str, bool]:  # noqa: A002 - the tool's argument name
+        note = await self._granola(f"notes/{id}", include="transcript")
+        attendees = ", ".join(a.get("name") or a.get("email") or "" for a in note.get("attendees") or [] if a)
+        summary = (note.get("summary") or {}).get("markdown") or ""
+        turns = []
+        for turn in note.get("transcript") or []:
+            speaker = turn.get("speaker")
+            speaker = speaker.get("source", "") if isinstance(speaker, dict) else (speaker or "")
+            turns.append(f"{speaker}: {turn.get('text', '')}")
+        lines = [
+            f"{note.get('title') or '(untitled)'} ({str(note.get('created_at', ''))[:16]})",
+            f"Attendees: {attendees or 'not listed'}", "Summary:", summary, "Transcript:", *turns,
+        ]
+        return "\n".join(lines)[:_MAX_BODY], False
 
     # ---- mail ----
 
@@ -620,7 +694,8 @@ def connectors_server() -> Any:
     rules = {name: ToolRule(allow=True, risk=ToolRisk.READ_ONLY)
              for name in ("mail_search", "mail_read", "calendar_events", "contacts_search", "files_search", "news",
                           "drive_search", "tasks_list", "notion_search", "notes_search", "github_notifications",
-                          "dropbox_search", "health_summary", "strava_activities", "music_now")}
+                          "dropbox_search", "health_summary", "strava_activities", "music_now",
+                          "slack_search", "meetings_search", "meeting_read")}
     rules["task_add"] = ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)
     rules["music_control"] = ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)
     rules["mail_send"] = ToolRule(allow=True, risk=ToolRisk.EXTERNAL_SIDE_EFFECT)
