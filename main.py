@@ -453,6 +453,20 @@ async def run() -> None:
         install_mcp_policies(policy, [connectors])
     except Exception as e:
         logger.warning("Connector tools unavailable (%s)", e)
+    # Python the assistant writes, run only in the WSL sandbox after the
+    # owner's yes (integration/code_tools.py). Off unless
+    # AGENT_GURU_CODE_SANDBOX is on: it keeps the WSL virtual machine running.
+    try:
+        from Agent_Guru.integration.code_tools import CodeTools, code_server, enabled
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+        if enabled():
+            code = code_server()
+            code.local = CodeTools()
+            mcp_servers = [*mcp_servers, code]
+            install_mcp_policies(policy, [code])
+    except Exception as e:
+        logger.warning("Code tool unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
