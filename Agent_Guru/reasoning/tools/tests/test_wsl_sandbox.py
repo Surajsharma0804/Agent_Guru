@@ -63,6 +63,21 @@ def test_too_long_code_is_refused_before_anything_starts(monkeypatch):
     assert run.result == "unavailable" and not run.ok  # nosec B101
 
 
+def test_the_checks_do_not_take_the_callers_input(monkeypatch):
+    """wsl.exe forwards the stdin it inherits: `sandbox run -` lost its piped code to check()."""
+    seen = []
+
+    def fake_run(argv, **kwargs):
+        seen.append(kwargs.get("stdin"))
+        return wsl_sandbox.subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    monkeypatch.setattr(wsl_sandbox.shutil, "which", lambda _name: "wsl.exe")
+    monkeypatch.setattr(wsl_sandbox.subprocess, "run", fake_run)
+    monkeypatch.setattr(wsl_sandbox, "_checked_ok", False)
+    wsl_sandbox.setup()
+    assert seen and all(s is wsl_sandbox.subprocess.DEVNULL for s in seen)  # nosec B101
+
+
 def test_no_wsl_means_unavailable_not_an_error(monkeypatch):
     monkeypatch.setattr(wsl_sandbox.shutil, "which", lambda _name: None)
     assert asyncio.run(wsl_sandbox.run_python("print(1)")).result == "unavailable"  # nosec B101
