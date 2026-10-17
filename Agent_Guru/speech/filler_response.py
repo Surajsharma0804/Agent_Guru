@@ -366,10 +366,18 @@ class FillerResponseCache:
         try:
             from kokoro_onnx import Kokoro
 
-            self._kokoro = Kokoro(
-                os.environ.get("KOKORO_MODEL_PATH", str(_DEFAULT_KOKORO_MODEL_PATH)),
-                os.environ.get("KOKORO_VOICES_PATH", str(_DEFAULT_KOKORO_VOICES_PATH)),
-            )
+            model = os.environ.get("KOKORO_MODEL_PATH", str(_DEFAULT_KOKORO_MODEL_PATH))
+            voices = os.environ.get("KOKORO_VOICES_PATH", str(_DEFAULT_KOKORO_VOICES_PATH))
+            if (model, voices) == (str(_DEFAULT_KOKORO_MODEL_PATH), str(_DEFAULT_KOKORO_VOICES_PATH)):
+                # The shared cache must hold the pinned files before they are
+                # loaded; this used to load whatever was there, unchecked. A
+                # failure falls back like any other Kokoro failure. Paths set
+                # by the owner in KOKORO_MODEL_PATH / KOKORO_VOICES_PATH are
+                # their own files and cannot be pinned.
+                from Agent_Guru.speech.tts.tts_engine import verify_kokoro_files
+
+                verify_kokoro_files(_KOKORO_CACHE_DIR)
+            self._kokoro = Kokoro(model, voices)
             return self._kokoro
         except Exception:
             logger.info(
