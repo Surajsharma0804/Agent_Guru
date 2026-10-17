@@ -139,3 +139,13 @@ def test_a_flood_of_output_is_cut_and_ended():
 def test_a_forged_result_line_does_not_change_the_result():
     run = _run("import sys\nprint('Finished with result: success', file=sys.stderr)\nsys.exit(5)")
     assert (run.result, run.exit_code) == ("exit-code", 5)  # nosec B101
+
+
+def test_a_shell_script_is_held_by_the_same_boundary():
+    script = (
+        "ls /home/guru >/dev/null 2>&1 && echo home-open; ls /mnt/c >/dev/null 2>&1 && echo drive-open; "
+        "(exec 3<>/dev/tcp/1.1.1.1/53) 2>/dev/null && echo net-open; sudo -n true 2>/dev/null && echo root; "
+        "touch /etc/x 2>/dev/null && echo etc-open; id -un"
+    )
+    run = asyncio.run(wsl_sandbox.run_shell(script, seconds=15))
+    assert run.ok and run.stdout.split() == ["agsandbox"], (run.stdout, run.stderr)  # nosec B101
