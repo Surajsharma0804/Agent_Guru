@@ -868,6 +868,12 @@ class TestExtendedPeriodStability:
                 epsilon=0.05,  # Low exploration for convergence
                 stability_monitor=monitor,
                 enable_dampening=True,
+                # Seeded from the example, as in the convergence test above.
+                # The optimizer's own unseeded generator made the outcome
+                # depend on more than the inputs: on CI an example with 233
+                # events and 3 strategies scored 0.19 once and passed when
+                # Hypothesis replayed it, which it reports as a FlakyFailure.
+                rng=random.Random(f"{num_events}-{num_strategies}"),  # nosec B311
             )
 
             # Register multiple strategies with varying performance
@@ -890,18 +896,31 @@ class TestExtendedPeriodStability:
                 )
                 strategy_ids.append(strategy_id)
 
-            # Simulate long-term operation
+            # Simulate long-term operation. Outcomes come from a private
+            # seeded generator, not the shared random module: Hypothesis
+            # seeds that per example, but anything else running in the
+            # process during the test draws from it too, so the replay of
+            # a failing example could see different outcomes.
+            outcomes = random.Random(f"outcomes-{num_events}-{num_strategies}")  # nosec B311
             selections = []
+            # The strategy with the best observed success rate when each
+            # selection was made: the evidence the optimizer had then.
+            leaders = []
             for _ in range(num_events):
                 # Update all strategies
                 for strategy_id, rate in zip(strategy_ids, strategy_rates):
-                    success = random.random() < rate  # nosec B311
+                    success = outcomes.random() < rate
                     optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
+                observed = {
+                    s.strategy_id: s.success_rate
+                    for s in optimizer.get_strategies_for_task_type("test")
+                }
                 # Select strategy
                 selected = optimizer.select_strategy_with_exploration("test")
                 if selected:
                     selections.append(selected.strategy_id)
+                    leaders.append(max(strategy_ids, key=observed.__getitem__))
 
             # Verify long-term stability
             assert len(selections) > 0, "Should have made selections"  # nosec B101
@@ -909,9 +928,19 @@ class TestExtendedPeriodStability:
             # Check that best strategy is selected most often in recent history
             if len(selections) >= 100:
                 recent = selections[-100:]
-                # Best strategy should be selected most frequently
-                best_strategy_id = strategy_ids[-1]  # Highest rate
-                best_count = recent.count(best_strategy_id)
+                # A selection counts when it went to the strategy that had the
+                # best observed success rate at that moment. This used to
+                # count only the strategy with the highest true rate.
+                # Strategies 0.08 to 0.10 apart, each sampled 150 to 300
+                # times, swap places by chance, and the lead can change
+                # inside the window: in a sweep of every input 12 of 604
+                # failed with the true best chosen 0 to 39 times while the
+                # optimizer correctly followed the strategy that had
+                # performed better.
+                best_count = sum(
+                    chosen == leader
+                    for chosen, leader in zip(recent, leaders[-100:])
+                )
 
                 # Should select best strategy at least 40% of the time with epsilon=0.05
                 # With 3-6 strategies and epsilon-greedy exploration:
