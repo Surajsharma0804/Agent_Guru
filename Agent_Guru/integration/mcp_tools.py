@@ -772,6 +772,20 @@ class MCPToolbox:
         ask = getattr(provider, "missing_target", None)
         return ask(tool, arguments) if ask is not None else None
 
+    def describe(self, server: str, tool: str, arguments: Any) -> str | None:
+        """For an in-process tool: what a call will do, in words the owner can say yes to; else None."""
+        entry = self._servers.get(server)
+        provider = getattr(getattr(entry, "config", None), "local", None)
+        say = getattr(provider, "describe", None)
+        if say is None:
+            return None
+        try:
+            text = say(tool, arguments)
+        except Exception:
+            logger.debug("describe() of %s on %s failed", tool, server, exc_info=True)
+            return None
+        return text.strip()[:300] if isinstance(text, str) and text.strip() else None
+
     async def close(self) -> None:
         """End every server this toolbox started."""
         await asyncio.gather(*(s.close() for s in self._servers.values()), return_exceptions=True)
