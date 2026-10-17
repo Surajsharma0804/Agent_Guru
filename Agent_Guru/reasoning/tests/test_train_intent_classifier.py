@@ -1589,16 +1589,47 @@ class TestDataAugmenterNLTKInitialization:
         assert mock_download.call_count >= 3  # averaged_perceptron_tagger, wordnet, omw-1.4  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", False)
+    @patch("nlpaug.augmenter.word.SynonymAug")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier._original_download")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.data.find")
-    def test_nltk_initialization_skips_existing_data(self, mock_find):
+    def test_nltk_initialization_skips_existing_data(self, mock_find, mock_server, mock_synonym_aug):
         """Test that NLTK data is not re-downloaded if it exists."""
-        # Simulate existing data
-        mock_find.return_value = True
+        # The faked find() used to reach nlpaug, which built a wordnet
+        # reader from its return value and failed with a TypeError. The test
+        # passed in the full suite only because an earlier test had already
+        # loaded the real wordnet, and failed when run alone. SynonymAug is
+        # stubbed so only the download decision is under test, and the
+        # download the test is named for is now actually checked.
+        mock_find.return_value = "/nltk_data/present"
 
-        # This should not trigger downloads
         augmenter = DataAugmenter()
 
         assert augmenter is not None  # nosec B101
+        assert mock_server.call_args_list == []  # nosec B101
+
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", False)
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier._original_download")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.data.find")
+    def test_zipped_data_on_disk_is_not_downloaded_again(self, mock_find, mock_server):
+        """Data nltk left zipped must count as present, with no network call.
+
+        nltk 3.10.3 keeps wordnet and omw-1.4 as .zip files and its find()
+        matches "corpora/wordnet.zip" but not "corpora/wordnet". The script
+        checked only the unpacked name, so every new process went back to
+        the download server and, on a stalled connection, hung until a test
+        timed out after 30 s. The fake find() below behaves like that disk.
+        """
+
+        def zip_only(resource):
+            if resource.endswith(".zip"):
+                return f"/nltk_data/{resource}"
+            raise LookupError(resource)
+
+        mock_find.side_effect = zip_only
+
+        DataAugmenter()
+
+        assert mock_server.call_args_list == []  # nosec B101
 
 
 class TestIntentClassifierModuleValidationAndTest:
