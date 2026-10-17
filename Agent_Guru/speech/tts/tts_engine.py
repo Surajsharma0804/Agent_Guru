@@ -27,14 +27,12 @@ Version: 2.0.0  (replaces Coqui VCTK implementation)
 
 from __future__ import annotations
 
-import hashlib
 import io
 import logging
 import os
 import re
 import sys
 import threading
-import urllib.request
 import wave
 from pathlib import Path
 from typing import Any
@@ -43,6 +41,7 @@ import numpy as np
 
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import EmotionType, PersonalityType
+from Agent_Guru.utils.verified_files import PinnedFile
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +61,18 @@ _VOICES_URL = (
     "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 )
 
-# SHA-256 hashes for integrity verification.
-# To update after a legitimate upstream release:
-#   python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('kokoro-v1.0.onnx').read_bytes()).hexdigest())"
-_MODEL_SHA256: str | None = None   # TODO: pin after first verified download
-_VOICES_SHA256: str | None = None  # TODO: pin after first verified download
+# The two files, pinned. The GitHub release has no published checksum (its
+# assets predate GitHub's per-asset digests), so the anchor is a second,
+# independent publication of the same files: Hugging Face's upload-time
+# SHA-256 for fastrtc/kokoro-onnx at revision 8d07950c9b6c87ce6809e9bba7bd494336217c2a
+# (same names, same byte sizes as the release). Copies fetched from the
+# GitHub release on 2026-09-30 hash to the same values. Before, both hashes
+# were None and any bytes that arrived were loaded.
+KOKORO_PINS: tuple[PinnedFile, ...] = (
+    PinnedFile("kokoro-v1.0.onnx", 325532387, "7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5"),
+    PinnedFile("voices-v1.0.bin", 28214398, "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d"),
+)
+_PINS_BY_NAME = {pin.name: pin for pin in KOKORO_PINS}
 
 # ---------------------------------------------------------------------------
 # Voice configuration
@@ -123,38 +129,20 @@ class TTSError(GuruSpeechError):
 # Integrity verification
 # ---------------------------------------------------------------------------
 
-def _sha256_file(path: Path) -> str:
-    """Return hex SHA-256 digest of *path* (streams in 8 KB chunks)."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(8192):
-            h.update(chunk)
-    return h.hexdigest()
+def verify_kokoro_files(directory: Path | None = None) -> None:
+    """Raise TTSError unless the two Kokoro files in *directory* are the pinned ones.
 
-
-def _verify_hash(path: Path, expected: str | None) -> None:
-    """Verify *path* against *expected* SHA-256. Delete and raise on mismatch.
-
-    If *expected* is ``None`` the check is skipped (hash not yet pinned).
+    A full hash runs the first time and after any change; otherwise the
+    stamp from the last check is enough, so a normal start does not
+    re-hash 354 MB and works offline.
     """
-    if expected is None:
-        actual = _sha256_file(path)
-        logger.warning(
-            "No pinned SHA-256 for %s - actual hash is %s. "
-            "Pin this value in _MODEL_SHA256 / _VOICES_SHA256 for production.",
-            path.name, actual,
-        )
-        return
-    actual = _sha256_file(path)
-    if actual != expected:
-        path.unlink(missing_ok=True)
-        msg = (
-            f"Integrity check FAILED for {path.name}: "
-            f"expected {expected[:16]}…, got {actual[:16]}…. "
-            f"File deleted. Re-run to re-download."
-        )
-        raise TTSError(msg)
-    logger.debug("Integrity OK: %s (%s…)", path.name, actual[:16])
+    from Agent_Guru.utils.verified_files import VerificationError, ensure_verified
+
+    try:
+        ensure_verified(directory or _CACHE_DIR, KOKORO_PINS)
+    except VerificationError as exc:
+        msg = f"Kokoro model files failed verification: {exc}"
+        raise TTSError(msg, exc) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -194,8 +182,10 @@ def downloads_disabled() -> bool:
     return os.environ.get(_NO_DOWNLOAD_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _download(url: str, dest: Path, expected_hash: str | None = None) -> None:
-    """Download *url* to *dest*, logging progress. Raises on failure."""
+def _download(url: str, dest: Path) -> None:
+    """Download *url* to *dest*, verified against its pin before it gets its real name; raises TTSError."""
+    from Agent_Guru.utils.verified_files import VerificationError, download
+
     if downloads_disabled():
         msg = (
             f"{dest.name} is missing and {_NO_DOWNLOAD_ENV} is set, so it will "
@@ -203,54 +193,23 @@ def _download(url: str, dest: Path, expected_hash: str | None = None) -> None:
             f"or unset {_NO_DOWNLOAD_ENV}."
         )
         raise TTSError(msg)
+    last = {"step": -1}
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(".tmp")
+    def progress(name: str, done: int, size: int) -> None:
+        step = done * 10 // size
+        if step != last["step"]:
+            last["step"] = step
+            logger.info("Downloading %s: %d%%", name, step * 10)
 
     try:
-        # urlretrieve() cannot be given a timeout; urlopen() can. The old call
-        # also passed a reporthook whose body was `min(100, ...)` with the
-        # result thrown away - it computed a percentage and reported nothing,
-        # so the "progress bar" in this function's docstring did not exist.
-        request = urllib.request.Request(url, headers={"User-Agent": "Agent_Guru"})  # noqa: S310
-        with (
-            urllib.request.urlopen(request, timeout=_DOWNLOAD_TIMEOUT_S) as response,  # noqa: S310  # nosec B310
-            tmp.open("wb") as handle,
-        ):
-            total = int(response.headers.get("Content-Length") or 0)
-            downloaded = 0
-            next_report = 10
-            while True:
-                chunk = response.read(_DOWNLOAD_CHUNK)
-                if not chunk:
-                    break
-                handle.write(chunk)
-                downloaded += len(chunk)
-                if total > 0:
-                    percent = downloaded * 100 // total
-                    if percent >= next_report:
-                        logger.info("Downloading %s: %d%%", dest.name, percent)
-                        next_report = percent - percent % 10 + 10
-
-        if total > 0 and downloaded != total:
-            msg = (
-                f"Truncated download of {dest.name}: got {downloaded} of "
-                f"{total} bytes"
-            )
-            raise TTSError(msg)
-
-        tmp.rename(dest)
-        logger.info("Downloaded %s → %s (%d bytes)", url, dest, downloaded)
-    except TTSError:
-        tmp.unlink(missing_ok=True)
-        raise
-    except Exception as exc:
-        tmp.unlink(missing_ok=True)
+        download(url, dest, _PINS_BY_NAME[dest.name], timeout=_DOWNLOAD_TIMEOUT_S, progress=progress)
+    except VerificationError as exc:
+        raise TTSError(str(exc), exc) from exc
+    except OSError as exc:
         msg = f"Failed to download {dest.name}: {exc}"
         raise TTSError(msg, exc) from exc
+    logger.info("Downloaded and verified %s", dest)
 
-    # Verify integrity immediately after download
-    _verify_hash(dest, expected_hash)
 
 # ---------------------------------------------------------------------------
 # KokoroTTSEngine  (primary engine)
@@ -422,19 +381,17 @@ class KokoroTTSEngine:
         if self._loaded:
             return
 
-        # Auto-download model files if missing
-        if not _MODEL_PATH.exists():
-            logger.info("Kokoro model not found - downloading (~326 MB, one-time)...")
-            _download(_MODEL_URL, _MODEL_PATH, _MODEL_SHA256)
-        else:
-            # Verify cached file hasn't been tampered with
-            _verify_hash(_MODEL_PATH, _MODEL_SHA256)
+        # Fetch what is missing, replace what fails its pin (only ever with a
+        # verified download), then load nothing that is not the pinned file.
+        from Agent_Guru.utils.verified_files import problems, stamp_matches
 
-        if not _VOICES_PATH.exists():
-            logger.info("Kokoro voices not found - downloading (~3 MB, one-time)...")
-            _download(_VOICES_URL, _VOICES_PATH, _VOICES_SHA256)
-        else:
-            _verify_hash(_VOICES_PATH, _VOICES_SHA256)
+        if not stamp_matches(_CACHE_DIR, KOKORO_PINS):
+            for url, path in ((_MODEL_URL, _MODEL_PATH), (_VOICES_URL, _VOICES_PATH)):
+                found = problems(path, _PINS_BY_NAME[path.name])
+                if found:
+                    logger.warning("Kokoro: %s; fetching the pinned file", found)
+                    _download(url, path)
+        verify_kokoro_files()
 
         try:
             from kokoro_onnx import Kokoro
