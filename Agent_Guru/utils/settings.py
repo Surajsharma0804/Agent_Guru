@@ -101,6 +101,8 @@ KNOWN_SETTINGS: dict[str, str] = {
     "CARTESIA_VOICE_MAYA": "text",
     "CARTESIA_MODEL": "text",
     "DEEPGRAM_MODEL": "text",
+    "AGENT_GURU_IMAGES_DIR": "path",
+    "AGENT_GURU_IMAGE_MODEL": "text",
     "AGENT_GURU_BROWSER_CHANNEL": "text",
     "AGENT_GURU_LOG_DIR": "path",
     "AGENT_GURU_VQA_MODEL": "text",
