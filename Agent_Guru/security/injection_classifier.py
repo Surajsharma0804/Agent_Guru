@@ -26,10 +26,8 @@ import json
 import logging
 import os
 import re
-import shutil
 import threading
 import time
-import urllib.request
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -163,84 +161,38 @@ def timeout_s() -> float:
 # ---------------------------------------------------------------------------
 
 
-def _digest(path: Path, kind: str) -> str:
-    if kind == "sha256":
-        h = hashlib.sha256()
-    else:  # git blob id: sha1 over "blob <size>\0" and the content
-        h = hashlib.sha1(f"blob {path.stat().st_size}\0".encode(), usedforsecurity=False)
-    with path.open("rb") as fh:
-        while chunk := fh.read(1 << 20):
-            h.update(chunk)
-    return h.hexdigest()
-
-
 def _local_name(upstream: str) -> str:
     return upstream.rsplit("/", 1)[-1]
 
 
+def _pins() -> list[Any]:
+    """MODEL_FILES as the shared verifier's pins (read each time, so tests can replace MODEL_FILES)."""
+    from Agent_Guru.utils.verified_files import PinnedFile
+
+    return [PinnedFile(_local_name(u), size, digest, kind) for u, (kind, digest, size) in MODEL_FILES.items()]
+
+
+_STAMP_EXTRA = {"model": MODEL_ID, "revision": MODEL_REVISION}
+
+
 def verify(directory: Path | None = None) -> list[str]:
     """Every problem with the installed files, empty when all match the pinned hashes."""
-    directory = directory or model_dir()
-    problems = []
-    for upstream, (kind, digest, size) in MODEL_FILES.items():
-        path = directory / _local_name(upstream)
-        if not path.is_file():
-            problems.append(f"{path.name} is missing")
-        elif path.stat().st_size != size:
-            problems.append(f"{path.name} is {path.stat().st_size} bytes, expected {size}")
-        elif _digest(path, kind) != digest:
-            problems.append(f"{path.name} does not match its pinned {kind} hash")
-    return problems
+    from Agent_Guru.utils.verified_files import verify as verify_files
 
-
-def _stamp_path(directory: Path) -> Path:
-    return directory / "verified.json"
+    return verify_files(directory or model_dir(), _pins())
 
 
 def _write_stamp(directory: Path) -> None:
-    stamp = {
-        "model": MODEL_ID, "revision": MODEL_REVISION,
-        "files": {_local_name(u): [(directory / _local_name(u)).stat().st_size,
-                                   (directory / _local_name(u)).stat().st_mtime_ns] for u in MODEL_FILES},
-    }
-    _stamp_path(directory).write_text(json.dumps(stamp), encoding="utf-8")
+    from Agent_Guru.utils.verified_files import write_stamp
+
+    write_stamp(directory, _pins(), _STAMP_EXTRA)
 
 
 def _stamp_matches(directory: Path) -> bool:
-    """True if the files are the ones last verified (same size and modification time)."""
-    try:
-        stamp = json.loads(_stamp_path(directory).read_text(encoding="utf-8"))
-        if stamp.get("revision") != MODEL_REVISION:
-            return False
-        for name, (size, mtime) in stamp["files"].items():
-            st = (directory / name).stat()
-            if st.st_size != size or st.st_mtime_ns != mtime:
-                return False
-        return set(stamp["files"]) == {_local_name(u) for u in MODEL_FILES}
-    except (OSError, ValueError, KeyError, TypeError):
-        return False
+    """True if the files are the ones last verified (same size, modification time and pin)."""
+    from Agent_Guru.utils.verified_files import stamp_matches
 
-
-def _fetch(url: str, dest: Path, kind: str, digest: str, size: int, progress: Any) -> None:
-    part = dest.with_name(dest.name + ".part")
-    request = urllib.request.Request(url, headers={"User-Agent": "Agent_Guru"})  # noqa: S310
-    try:
-        with urllib.request.urlopen(request, timeout=_DOWNLOAD_TIMEOUT_S) as response, part.open("wb") as fh:  # noqa: S310  # nosec B310
-            done = 0
-            while chunk := response.read(1 << 20):
-                done += len(chunk)
-                if done > size:
-                    msg = f"{dest.name}: more data than the pinned {size} bytes"
-                    raise ClassifierUnavailable(msg)
-                fh.write(chunk)
-                if progress:
-                    progress(dest.name, done, size)
-        if part.stat().st_size != size or _digest(part, kind) != digest:
-            msg = f"{dest.name} failed verification against the pinned hash"
-            raise ClassifierUnavailable(msg)
-        os.replace(part, dest)
-    finally:
-        part.unlink(missing_ok=True)
+    return stamp_matches(directory, _pins(), _STAMP_EXTRA)
 
 
 def install(directory: Path | None = None, source: Path | None = None, progress: Any = None) -> Path:
@@ -250,33 +202,30 @@ def install(directory: Path | None = None, source: Path | None = None, progress:
     is replaced; one that fails verification after download is deleted and
     the install fails, so a half-installed model never passes verify().
     """
+    from Agent_Guru.utils.verified_files import STAMP_NAME, VerificationError, copy_in, download, problems
+
     directory = directory or model_dir()
     directory.mkdir(parents=True, exist_ok=True)
-    _stamp_path(directory).unlink(missing_ok=True)
-    for upstream, (kind, digest, size) in MODEL_FILES.items():
-        dest = directory / _local_name(upstream)
-        if dest.is_file() and dest.stat().st_size == size and _digest(dest, kind) == digest:
+    (directory / STAMP_NAME).unlink(missing_ok=True)
+    for upstream, pin in zip(MODEL_FILES, _pins(), strict=True):
+        dest = directory / pin.name
+        if not problems(dest, pin):
             continue
-        if source is not None:
-            candidate = next((p for p in (source / upstream, source / _local_name(upstream)) if p.is_file()), None)
-            if candidate is None:
-                msg = f"{_local_name(upstream)} is not in {source}"
-                raise ClassifierUnavailable(msg)
-            part = dest.with_name(dest.name + ".part")
-            try:
-                shutil.copyfile(candidate, part)
-                if part.stat().st_size != size or _digest(part, kind) != digest:
-                    msg = f"{candidate} does not match the pinned hash"
+        try:
+            if source is not None:
+                candidate = next((c for c in (source / upstream, source / pin.name) if c.is_file()), None)
+                if candidate is None:
+                    msg = f"{pin.name} is not in {source}"
                     raise ClassifierUnavailable(msg)
-                os.replace(part, dest)
-            finally:
-                part.unlink(missing_ok=True)
-        else:
-            url = f"https://huggingface.co/{MODEL_ID}/resolve/{MODEL_REVISION}/{upstream}"
-            _fetch(url, dest, kind, digest, size, progress)
-    problems = verify(directory)
-    if problems:
-        raise ClassifierUnavailable("; ".join(problems))
+                copy_in(candidate, dest, pin)
+            else:
+                url = f"https://huggingface.co/{MODEL_ID}/resolve/{MODEL_REVISION}/{upstream}"
+                download(url, dest, pin, timeout=_DOWNLOAD_TIMEOUT_S, progress=progress)
+        except VerificationError as exc:
+            raise ClassifierUnavailable(str(exc)) from exc
+    found = verify(directory)
+    if found:
+        raise ClassifierUnavailable("; ".join(found))
     _write_stamp(directory)
     return directory
 

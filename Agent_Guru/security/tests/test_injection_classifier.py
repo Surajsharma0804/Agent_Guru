@@ -73,7 +73,9 @@ def test_a_bad_download_leaves_nothing_behind(tmp_path, monkeypatch):
         def __exit__(self, *a):
             return False
 
-    monkeypatch.setattr(ic.urllib.request, "urlopen", lambda *a, **k: Response(b"not the model at all"))
+    from Agent_Guru.utils import verified_files
+
+    monkeypatch.setattr(verified_files.urllib.request, "urlopen", lambda *a, **k: Response(b"not the model at all"))
     with pytest.raises(ic.ClassifierUnavailable):
         ic.install(tmp_path / "model")
     assert not [p for p in (tmp_path / "model").iterdir() if p.name != "verified.json"]  # nosec B101
