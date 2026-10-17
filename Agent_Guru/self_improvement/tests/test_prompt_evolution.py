@@ -2271,3 +2271,44 @@ class TestMonotonicPromptQualityImprovement:
                 os.unlink(db_path)
             except (PermissionError, FileNotFoundError):
                 pass
+
+
+def test_outcomes_recorded_at_the_same_time_are_all_counted(temp_db):
+    """record_prompt_outcome read the counts, added in Python and wrote them back.
+
+    Two outcomes recorded at once read the same counts and one increment
+    was lost: 8 threads recording 250 outcomes each stored 1,000 of 2,000.
+    """
+    import threading
+
+    # Enough connections that the threads really overlap, as in the
+    # measurement that lost half the counts.
+    pool = ConnectionPool(temp_db, min_size=2, max_size=8)
+    system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
+    prompt_id = system.register_prompt("concurrent", "content")
+
+    def record() -> None:
+        for i in range(250):
+            system.record_prompt_outcome(prompt_id, i % 2 == 0, False)
+
+    try:
+        threads = [threading.Thread(target=record) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        with pool.connection() as conn:
+            total, wins, losses, rate = conn.execute(
+                "SELECT total_uses, success_count, failure_count, success_rate FROM prompts WHERE prompt_id = ?",
+                (prompt_id,),
+            ).fetchone()
+    finally:
+        # Closed before the folder is deleted, also when an assertion fails.
+        pool.close_all()
+    assert (total, wins, losses) == (2000, 1000, 1000)  # nosec B101
+    assert rate == 0.5  # nosec B101
+
+
+def test_an_outcome_for_an_unknown_prompt_is_refused(system):
+    with pytest.raises(ValueError, match="not found"):
+        system.record_prompt_outcome("no-such-prompt", True, False)
