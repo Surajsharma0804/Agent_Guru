@@ -156,3 +156,21 @@ async def test_the_real_sandbox_computes_the_answer(monkeypatch, build):
     done = await orch.run_text_turn("yes")
     shown = " ".join(m.content for m in model.requests[-1].messages if m.role == "tool")
     assert ANSWER in shown and done.action_status is ActionStatus.SUCCESS  # nosec B101
+
+
+async def test_a_shell_script_is_read_back_and_runs_only_after_yes(monkeypatch, build):
+    monkeypatch.setenv(code_tools.ENABLE_ENV, "1")
+    monkeypatch.setattr(wsl_sandbox, "check", lambda *a, **k: [])
+    scripts = []
+
+    async def fake_shell(script, *, seconds=10, memory_mb=256):
+        scripts.append(script)
+        return SandboxRun("success", 0, "3\n", "", 0.1)
+
+    monkeypatch.setattr(wsl_sandbox, "run_shell", fake_shell)
+    call = ToolCall(name="code__run_shell", arguments={"script": "printf 'a\nb\nc\n' | wc -l"})
+    orch, _ = await build(("", [call]), ("Three lines.", []))
+    asked = await orch.run_text_turn("count these lines")
+    assert asked.awaiting_reply and "shell script in the sandbox" in asked.llm_response and scripts == []  # nosec B101
+    done = await orch.run_text_turn("yes")
+    assert scripts and done.action_status is ActionStatus.SUCCESS  # nosec B101
