@@ -503,6 +503,18 @@ async def run() -> None:
         install_mcp_policies(policy, [media])
     except Exception as e:
         logger.warning("Media tools unavailable (%s)", e)
+    # A long document read passage by passage by the local model; the cloud
+    # plans and answers only when allowed (integration/hybrid.py).
+    try:
+        from Agent_Guru.integration.hybrid import LongDocumentTools, longdoc_server
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+        longdoc = longdoc_server()
+        longdoc.local = LongDocumentTools()
+        mcp_servers = [*mcp_servers, longdoc]
+        install_mcp_policies(policy, [longdoc])
+    except Exception as e:
+        logger.warning("Long-document tool unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
