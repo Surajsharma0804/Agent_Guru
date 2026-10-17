@@ -103,6 +103,12 @@ Folder: `~/.cache/agent_guru/prompt-injection/90c9989b1a34/`, or
   (addressed to "you" or an AI, or about instructions, rules, secrets, sending,
   revealing, running), joined, and cut into 254-token windows overlapping by 32;
   at most 8 windows, beyond which the result says `truncated`.
+- Decoded forms: the text is also classified as the rules' bounded
+  decoder rewrites it (zero-width characters removed, spaced or separated
+  letters joined, leetspeak undone, printable base64 decoded), at most 4
+  forms. The highest score over the text and its forms decides, and the
+  result says whether a decoded form decided it. Nothing is executed or
+  fetched, and the model is always given the text as written.
 - Score: the highest softmax "INJECTION" output over the windows. It is not
   a calibrated probability. `injection` at >= 0.98, `suspicious` at >= 0.50
   (logged, no effect).
@@ -203,15 +209,16 @@ The 50-100 ms per page goal is met for snippets and short pages only.
 |---|---|
 | Windows 11 | install, hash check, load, CPU inference, all 33 classifier tests including the real-model ones |
 | Linux (WSL2 Ubuntu) | install, hash check, load, CPU inference, evaluation, full test suite |
-| macOS | not run on a Mac. The CI platform run (weekly and on demand) installs the model and runs the tests on macOS; until a run has passed there, macOS is unverified |
+| macOS | CI runner `macos-latest`, run 39015632954 on e50a9beb: the pinned model installed and verified, and all 33 classifier tests passed, the three real-model ones included (first load and inference 7.3 s). Not run on a physical Mac. |
+| Windows (CI) | the same run installed and verified the model on Windows 3.11, 3.12 and 3.13, but each test suite was stopped at about 4% by an unrelated hang (pyttsx3 voice set-up in a spoken research test on a runner with no audio), so the classifier tests did not run there |
 
 ## Known limitations
 
-- Detection: 28 of 64 held-out attacks were missed. Tool-abuse requests
+- Detection: 26 of 64 set-4 attacks and 9 of 24 set-5b attacks were missed. Tool-abuse requests
   ("Open the banking app and transfer 500 ...") and many indirect instructions
-  score near 0. Leetspeak and base64 attacks are judged not English and get no
-  verdict; classifying the rules' decoded forms might help but needs a new
-  held-out set to show it.
+  score near 0 (set 5b: 1 of 4 caught). Decoded forms only cover what the
+  rules decode: hex, ROT13 and URL encoding are not decoded (the model still
+  read some of them as written).
 - False positives: 17% of held-out benign texts were marked, including
   security writing and ordinary instructions. The scores of these are 0.99-1.0,
   so no threshold separates them.
@@ -222,3 +229,50 @@ The 50-100 ms per page goal is met for snippets and short pages only.
 - A first-time clipboard text and the first tool descriptions after startup
   may get the rules only, until the queued verdicts are ready.
 - The model is archived upstream.
+
+## Set 5 and decoded forms (2026-10-17)
+
+Set 5 (48 attacks, 43 benign) was written before anything ran on it: leetspeak,
+base64, other encodings, attacks embedded in ordinary pages, tool abuse, eight
+languages; and on the benign side encoded data, security writing, ordinary
+text, other languages and malformed or oversized input. It is split
+deterministically per category into 5a (the 1st, 3rd, ... text of each
+category) and 5b (the rest). 5a decided one question, whether to classify the
+decoded forms; 5b was scored once afterwards, through `classify_all()` as
+shipped.
+
+5a (24 attacks, 22 benign), used for the decision:
+
+| Configuration | Recall | Benign marked | F1 |
+|---|---|---|---|
+| Rules + classifier on the text as written | 11/24 | 3/22 | 0.58 |
+| Rules + classifier on the text or its decoded forms | 16/24 | 5/22 | 0.71 |
+
+5b (24 attacks, 21 benign), held out:
+
+| Configuration | TP | FN | FP | TN | Recall | Precision | F1 | FP rate |
+|---|---|---|---|---|---|---|---|---|
+| Rules only | 5 | 19 | 0 | 21 | 5/24 (21%) | 1.00 | 0.34 | 0/21 (0%) |
+| Classifier only, text as written | 8 | 16 | 2 | 19 | 8/24 (33%) | 0.80 | 0.47 | 2/21 (10%) |
+| Rules + classifier, text as written | 10 | 14 | 2 | 19 | 10/24 (42%) | 0.83 | 0.56 | 2/21 (10%) |
+| Rules + `classify_all()` (shipped) | 15 | 9 | 3 | 18 | 15/24 (62%) | 0.83 | 0.71 | 3/21 (14%) |
+
+5b by category, rules only / shipped: leetspeak 1/4 / 4/4, base64 2/4 / 4/4,
+other encodings 1/4 / 3/4, embedded 1/4 / 3/4, tool abuse 0/4 / 1/4,
+non-English 0/4 / 0/4. Benign marked: encoded data 2/4, malformed 1/3, security
+writing 0/4, ordinary 0/7, other languages 0/3.
+
+Set 4 rescored with `classify_all()` (set 4 played no part in the decision):
+36/64 caught before, 38/64 now, the same 12/69 benign marked; obfuscated 5/7 to
+7/7.
+
+Latency of `classify_all()` on the Linux sandbox: median 50 ms over 45 texts;
+the slowest, 5.3 s, was a 40,000-character single "sentence" with no full stop,
+classified as 8 whole windows: past the 2 s timeout that text gets no verdict
+and the rules decide.
+
+A smaller candidate, protectai/deberta-v3-small-prompt-injection-v2 (revision
+d7c8842d, Apache-2.0 in its card metadata, no LICENSE file in the repository,
+568 MB ONNX), returns HTTP 401 without a Hugging Face login that has accepted
+its terms; it is evaluated only once the owner provides a token.
+
