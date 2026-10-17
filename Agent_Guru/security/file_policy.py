@@ -49,7 +49,18 @@ _SECRET_NAMES = (
     ("login data", "browser saved passwords"), ("login data-journal", "browser saved passwords"),
     ("cookies", "browser cookies"), ("key4.db", "browser saved passwords"), ("logins.json", "browser saved passwords"),
     ("local state", "browser encryption key"),
+    # Found missing in a side-by-side run: database and cloud tool logins
+    # that are plain text and sit in the home folder.
+    (".pgpass", "PostgreSQL passwords"), ("pgpass.conf", "PostgreSQL passwords"),
+    (".my.cnf", "MySQL credentials"), (".s3cfg", "S3 credentials"), (".boto", "cloud credentials"),
+    (".vault-token", "Vault token"), (".terraformrc", "Terraform token"), ("terraform.rc", "Terraform token"),
+    ("application_default_credentials.json", "Google Cloud credentials"),
 )
+
+#: A public key holds nothing secret. Inside .ssh the whole folder is still
+#: refused (writing authorized_keys there would let anyone in); elsewhere a
+#: "id_rsa.pub" matched the private-key names and was refused for no reason.
+_PUBLIC_KEY_SUFFIX = ".pub"
 
 #: Path fragments (lower case, forward slashes) that mark operating-system secret stores.
 _SECRET_FRAGMENTS = (
@@ -61,6 +72,8 @@ _SECRET_FRAGMENTS = (
     ("/library/keychains/", "macOS keychain"),
     ("/etc/shadow", "system password hashes"),
     ("/etc/sudoers", "system privileges"),
+    ("/.config/gh/hosts.yml", "GitHub CLI token"),
+    ("/appdata/roaming/github cli/hosts.yml", "GitHub CLI token"),
 )
 
 #: Files in the assistant's own data folder that steer or prove what it does.
@@ -105,7 +118,7 @@ def _reason_for(path: PurePath) -> str:
     for pattern, reason in _SECRET_NAMES:
         if fnmatch.fnmatchcase(name, pattern):
             # A template is meant to be shared and holds no secret.
-            if name.endswith((".example", ".sample", ".template", ".dist")):
+            if name.endswith((".example", ".sample", ".template", ".dist", _PUBLIC_KEY_SUFFIX)):
                 return ""
             return reason
     joined = "/" + "/".join(parts).replace("\\", "/")
