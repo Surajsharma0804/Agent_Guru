@@ -558,10 +558,326 @@ class IrcChannel(Channel):
         return Delivery(True)
 
 
+def oauth1_header(method: str, url: str, query: dict[str, str], keys: dict[str, str],
+                  nonce: str, timestamp: str) -> str:
+    """The OAuth 1.0a (HMAC-SHA1) Authorization header X's user-context API requires.
+
+    *query* holds the URL's query and any form fields; a JSON body is not
+    signed. Checked against the worked example in X's documentation.
+    """
+    import base64
+    import hashlib
+    import hmac
+    import urllib.parse
+
+    def enc(value: str) -> str:
+        return urllib.parse.quote(value, safe="-._~")
+
+    oauth = {"oauth_consumer_key": keys["consumer_key"], "oauth_nonce": nonce,
+             "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": timestamp,
+             "oauth_token": keys["token"], "oauth_version": "1.0"}
+    pairs = sorted((enc(k), enc(v)) for k, v in {**query, **oauth}.items())
+    base = "&".join([method.upper(), enc(url), enc("&".join(f"{k}={v}" for k, v in pairs))])
+    key = f"{enc(keys['consumer_secret'])}&{enc(keys['token_secret'])}"
+    oauth["oauth_signature"] = base64.b64encode(hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()).decode()
+    return "OAuth " + ", ".join(f'{enc(k)}="{enc(v)}"' for k, v in sorted(oauth.items()))
+
+
+class XChannel(Channel):
+    """X (formerly Twitter), with the owner's app keys (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET).
+
+    "public" posts on the owner's timeline; @name sends a direct message,
+    which X allows only where that account accepts messages from the owner.
+    """
+
+    name = "x"
+    api = "https://api.x.com/2"
+
+    def _keys(self) -> dict[str, str]:
+        return {"consumer_key": _env("X_API_KEY"), "consumer_secret": _env("X_API_SECRET"),
+                "token": _env("X_ACCESS_TOKEN"), "token_secret": _env("X_ACCESS_SECRET")}
+
+    def configured(self) -> bool:
+        return all(self._keys().values())
+
+    def accepts(self, contact: str) -> bool:
+        return contact.strip() == "public" or bool(re.fullmatch(r"@?[A-Za-z0-9_]{1,15}", contact.strip()))
+
+    def _auth(self, method: str, url: str) -> dict[str, str]:
+        import secrets
+        import time
+
+        return {"Authorization": oauth1_header(method, url, {}, self._keys(), secrets.token_hex(16), str(int(time.time())))}
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        import httpx
+
+        target = contact.strip()
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+                if target == "public":
+                    url = f"{self.api}/tweets"
+                    response = await client.post(url, json={"text": text[:280]}, headers=self._auth("POST", url))
+                    data = response.json().get("data") or {}
+                    sent_id = data.get("id", "")
+                else:
+                    who = f"{self.api}/users/by/username/{target.lstrip('@')}"
+                    found = await client.get(who, headers=self._auth("GET", who))
+                    user = (found.json().get("data") or {}).get("id")
+                    if found.status_code >= 300 or not user:
+                        return Delivery(False, error=f"X has no account {target} ({found.status_code})")
+                    url = f"{self.api}/dm_conversations/with/{user}/messages"
+                    response = await client.post(url, json={"text": text[:10000]}, headers=self._auth("POST", url))
+                    sent_id = (response.json().get("data") or {}).get("dm_event_id", "")
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        if response.status_code < 300 and sent_id:
+            return Delivery(True, message_id=str(sent_id))
+        return Delivery(False, error=f"X answered {response.status_code}: {response.text[:200]}")
+
+
+class XmppChannel(Channel):
+    """XMPP (Jabber) as XMPP_JID with XMPP_PASSWORD; XMPP_SERVER host:port if not the JID's domain on 5222.
+
+    STARTTLS is required before the password is sent (SASL PLAIN only over
+    TLS); XMPP_CA_FILE trusts a server certificate the system does not.
+    XMPP has no delivery receipt a server must give, so after the message
+    the server is pinged: it handles a stream in order, so a message it
+    refused comes back as an error before the pong, and "sent" means the
+    server took it. One connection per message, closed after.
+    """
+
+    name = "xmpp"
+
+    def configured(self) -> bool:
+        return bool(re.fullmatch(r"[^@\s/]+@[^@\s/]+", _env("XMPP_JID")) and _env("XMPP_PASSWORD"))
+
+    def accepts(self, contact: str) -> bool:
+        return bool(re.fullmatch(r"[^@\s/<>&'\"]+@[^@\s/<>&'\"]+", contact.strip()))
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        try:
+            return await asyncio.wait_for(self._send(contact.strip(), text), _TIMEOUT_S * 2)
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    async def _send(self, contact: str, text: str) -> Delivery:
+        import base64
+        from xml.sax.saxutils import escape  # nosec B406 - escapes outgoing text; nothing is parsed with it
+
+        user, domain = _env("XMPP_JID").split("@", 1)
+        host, _, port = (_env("XMPP_SERVER") or domain).partition(":")
+        reader, writer = await asyncio.open_connection(host, int(port or 5222))
+        buffer = b""
+
+        async def until(*patterns: bytes) -> bytes:
+            nonlocal buffer
+            while True:
+                for pattern in patterns:
+                    found = re.search(pattern, buffer, re.DOTALL)
+                    if found:
+                        buffer = buffer[found.end():]
+                        return found.group(0)
+                chunk = await reader.read(65536)
+                if not chunk:
+                    msg = "the XMPP server closed the connection"
+                    raise ConnectionError(msg)
+                buffer += chunk
+
+        def open_stream() -> None:
+            writer.write((f"<?xml version='1.0'?><stream:stream to='{escape(domain)}' xmlns='jabber:client' "
+                          "xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>").encode())
+
+        try:
+            open_stream()
+            features = await until(rb"<stream:features.*?</stream:features>")
+            if b"urn:ietf:params:xml:ns:xmpp-tls" not in features:
+                return Delivery(False, error="the XMPP server does not offer TLS; the password is not sent")
+            writer.write(b"<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")
+            if b"<failure" in await until(rb"<proceed[^>]*/>", rb"<failure[^>]*/?>"):
+                return Delivery(False, error="the XMPP server refused STARTTLS")
+            context = ssl.create_default_context(cafile=_env("XMPP_CA_FILE") or None)
+            await writer.start_tls(context, server_hostname=domain)
+            buffer = b""
+            open_stream()
+            features = await until(rb"<stream:features.*?</stream:features>")
+            if b">PLAIN<" not in features:
+                return Delivery(False, error="the XMPP server offers no PLAIN sign-in over TLS")
+            token = base64.b64encode(f"\0{user}\0{_env('XMPP_PASSWORD')}".encode()).decode()
+            writer.write(f"<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>{token}</auth>".encode())
+            if b"<failure" in await until(rb"<success[^>]*(/>|>.*?</success>)", rb"<failure.*?</failure>"):
+                return Delivery(False, error="the XMPP server refused the sign-in")
+            buffer = b""
+            open_stream()
+            await until(rb"<stream:features.*?</stream:features>")
+            writer.write(b"<iq type='set' id='bind1'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
+                         b"<resource>agent-guru</resource></bind></iq>")
+            await until(rb"<iq[^>]*id=['\"]bind1['\"][^>]*>.*?</iq>")
+            writer.write(f"<message to='{escape(contact)}' type='chat' id='msg1'><body>{escape(text[:_MAX_CHARS])}</body></message>"
+                         f"<iq type='get' id='ping1' to='{escape(domain)}'><ping xmlns='urn:xmpp:ping'/></iq>".encode())
+            answer = await until(rb"<message[^>]*type=['\"]error['\"].*?</message>",
+                                 rb"<iq[^>]*id=['\"]ping1['\"][^>]*(/>|>.*?</iq>)")
+            writer.write(b"</stream:stream>")
+            await writer.drain()
+        finally:
+            writer.close()
+        if answer.startswith(b"<message"):
+            return Delivery(False, error=f"the XMPP server refused the message: {answer[:200].decode(errors='replace')}")
+        return Delivery(True, message_id="msg1")
+
+
+def _bech32_decode(text: str, prefix: str) -> bytes:
+    """The 32-byte payload of a Nostr npub or nsec (BIP173 bech32, checksum checked)."""
+    alphabet = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    text = text.strip().lower()
+    hrp, _, data = text.rpartition("1")
+    if hrp != prefix or len(data) < 7 or any(c not in alphabet for c in data):
+        msg = f"not a {prefix} key"
+        raise ValueError(msg)
+    values = [alphabet.index(c) for c in data]
+    check = 1
+    for v in [ord(c) >> 5 for c in hrp] + [0] + [ord(c) & 31 for c in hrp] + values:
+        top = check >> 25
+        check = (check & 0x1FFFFFF) << 5 ^ v
+        for i, g in enumerate((0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3)):
+            check ^= g if (top >> i) & 1 else 0
+    if check != 1:
+        msg = f"the {prefix} key's checksum is wrong"
+        raise ValueError(msg)
+    acc, bits, out = 0, 0, bytearray()
+    for v in values[:-6]:
+        acc, bits = (acc << 5) | v, bits + 5
+        while bits >= 8:
+            bits -= 8
+            out.append((acc >> bits) & 0xFF)
+    if len(out) != 32:
+        msg = f"the {prefix} key is not 32 bytes"
+        raise ValueError(msg)
+    return bytes(out)
+
+
+def _nostr_key(text: str, prefix: str) -> bytes:
+    text = text.strip()
+    if re.fullmatch(r"[0-9a-fA-F]{64}", text):
+        return bytes.fromhex(text)
+    return _bech32_decode(text, prefix)
+
+
+def nostr_event(secret: bytes, kind: int, content: str, tags: list[list[str]], created_at: int,
+                aux: bytes) -> dict[str, Any]:
+    """A signed Nostr event (NIP-01): id is the SHA-256 of its canonical JSON, sig BIP340 over the id."""
+    import hashlib
+
+    from Agent_Guru.platform.channels import secp256k1
+
+    pubkey = secp256k1.public_key(secret).hex()
+    serial = json.dumps([0, pubkey, created_at, kind, tags, content], separators=(",", ":"), ensure_ascii=False)
+    event_id = hashlib.sha256(serial.encode()).digest()
+    return {"id": event_id.hex(), "pubkey": pubkey, "created_at": created_at, "kind": kind, "tags": tags,
+            "content": content, "sig": secp256k1.sign(event_id, secret, aux).hex()}
+
+
+def nip04_encrypt(secret: bytes, peer: bytes, text: str, iv: bytes) -> str:
+    """NIP-04 direct-message content: AES-256-CBC under the ECDH x coordinate, "<ciphertext>?iv=<iv>"."""
+    import base64
+
+    from cryptography.hazmat.primitives import padding
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+    from Agent_Guru.platform.channels import secp256k1
+
+    padder = padding.PKCS7(128).padder()
+    plain = padder.update(text.encode()) + padder.finalize()
+    encryptor = Cipher(algorithms.AES(secp256k1.shared_x(secret, peer)), modes.CBC(iv)).encryptor()
+    sealed = encryptor.update(plain) + encryptor.finalize()
+    return f"{base64.b64encode(sealed).decode()}?iv={base64.b64encode(iv).decode()}"
+
+
+def nip04_decrypt(secret: bytes, peer: bytes, content: str) -> str:
+    import base64
+
+    from cryptography.hazmat.primitives import padding
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+    from Agent_Guru.platform.channels import secp256k1
+
+    sealed, _, iv = content.partition("?iv=")
+    decryptor = Cipher(algorithms.AES(secp256k1.shared_x(secret, peer)), modes.CBC(base64.b64decode(iv))).decryptor()
+    plain = decryptor.update(base64.b64decode(sealed)) + decryptor.finalize()
+    unpadder = padding.PKCS7(128).unpadder()
+    return (unpadder.update(plain) + unpadder.finalize()).decode()
+
+
+class NostrChannel(Channel):
+    """Nostr, signed with the owner's key (NOSTR_SECRET, nsec or hex) and sent to NOSTR_RELAYS (wss URLs, comma separated).
+
+    "public" posts a note (kind 1); an npub or hex key gets an encrypted
+    direct message (NIP-04, kind 4: the text is encrypted, who wrote to
+    whom is visible on the relay). "Sent" means at least one relay
+    answered OK for the event.
+    """
+
+    name = "nostr"
+
+    def _relays(self) -> list[str]:
+        return [r.strip() for r in _env("NOSTR_RELAYS").split(",") if r.strip().startswith(("wss://", "ws://"))]
+
+    def configured(self) -> bool:
+        try:
+            _nostr_key(_env("NOSTR_SECRET"), "nsec")
+        except ValueError:
+            return False
+        return bool(self._relays())
+
+    def accepts(self, contact: str) -> bool:
+        if contact.strip() == "public":
+            return True
+        try:
+            _nostr_key(contact, "npub")
+        except ValueError:
+            return False
+        return True
+
+    async def send(self, contact: str, text: str) -> Delivery:
+        import secrets
+        import time
+
+        try:
+            secret = _nostr_key(_env("NOSTR_SECRET"), "nsec")
+            if contact.strip() == "public":
+                event = nostr_event(secret, 1, text[:_MAX_CHARS], [], int(time.time()), secrets.token_bytes(32))
+            else:
+                peer = _nostr_key(contact, "npub")
+                content = nip04_encrypt(secret, peer, text[:_MAX_CHARS], secrets.token_bytes(16))
+                event = nostr_event(secret, 4, content, [["p", peer.hex()]], int(time.time()), secrets.token_bytes(32))
+        except Exception as exc:
+            return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        answers = await asyncio.gather(*(self._publish(r, event) for r in self._relays()))
+        if any(ok for ok, _ in answers):
+            return Delivery(True, message_id=event["id"])
+        return Delivery(False, error="; ".join(why for _, why in answers)[:200] or "no relay")
+
+    async def _publish(self, relay: str, event: dict[str, Any]) -> tuple[bool, str]:
+        try:
+            from websockets.asyncio.client import connect
+        except ImportError:
+            return False, "the websockets package is not installed"
+        try:
+            async with asyncio.timeout(_TIMEOUT_S):
+                async with connect(relay, open_timeout=_TIMEOUT_S, max_size=1 << 20) as ws:
+                    await ws.send(json.dumps(["EVENT", event]))
+                    while True:
+                        reply = json.loads(await ws.recv())
+                        if isinstance(reply, list) and reply[:2] == ["OK", event["id"]]:
+                            return bool(reply[2]), f"{relay}: {reply[3] if len(reply) > 3 else ''}"
+        except Exception as exc:
+            return False, f"{relay}: {type(exc).__name__}: {exc}"
+
+
 CHANNELS: dict[str, Channel] = {c.name: c for c in (
     TelegramChannel(), SlackChannel(), EmailChannel(), DiscordChannel(), SignalChannel(), TwilioSmsChannel(),
     MatrixChannel(), ZulipChannel(), MastodonChannel(), LineChannel(), ViberChannel(), MessengerChannel(),
-    RedditChannel(), IrcChannel(), IrcChannel("twitch", "TWITCH"),
+    RedditChannel(), IrcChannel(), IrcChannel("twitch", "TWITCH"), XChannel(), XmppChannel(), NostrChannel(),
     *(WebhookChannel(n) for n in ("teams", "google_chat", "mattermost", "rocketchat", "feishu", "webhook")),
 )}
 
@@ -570,6 +886,7 @@ ALIASES = {
     "microsoft teams": "teams", "ms teams": "teams", "google chat": "google_chat", "googlechat": "google_chat",
     "rocket chat": "rocketchat", "rocket.chat": "rocketchat", "lark": "feishu", "text": "sms",
     "text message": "sms", "twilio": "sms", "element": "matrix",
+    "twitter": "x", "jabber": "xmpp",
 }
 
 #: Apps with no desktop app to prefill: only a configured channel can reach them.
