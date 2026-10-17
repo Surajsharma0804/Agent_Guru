@@ -493,6 +493,15 @@ jobs:
       - name: Install project and declared test dependencies
         run: pip install -e ".[test]"
 
+      # The prompt-injection classifier's real-model tests are skipped when
+      # its 739 MB model is absent, and the gate run keeps it that way (its
+      # stand-in tests run everywhere). The platform run installs the pinned,
+      # hash-checked model, so model loading and CPU inference are also
+      # exercised on Windows and macOS, not only on the development machine.
+      - name: Install the injection classifier model (platform run)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python -m Agent_Guru injection-model install
+
       - name: Record the resolved environment
         run: |
           python -VV
