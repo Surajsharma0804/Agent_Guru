@@ -99,6 +99,30 @@ def installed(timeout: float = 10.0) -> list[ModelEntry]:
     return sorted(entries, key=lambda e: e.size_mb)
 
 
+def recommend(entries: list[ModelEntry]) -> tuple[ModelEntry | None, str]:
+    """The installed model to start with on this machine, and why; (None, reason) when none can serve.
+
+    Only models that can call tools are considered (the tool loop needs
+    them; an embedding model cannot answer at all). The largest that
+    fits the free GPU memory wins; failing that, the one that spills the
+    least to system RAM. A rule of thumb for a first start, not a
+    measurement of quality: on the development laptop gemma4 (9.6 GB)
+    is kept although smaller models fit, because it was the only one that
+    invented no facts in the evaluation.
+    """
+    usable = [e for e in entries if "tools" in e.capabilities and "completion" in e.capabilities]
+    if not usable:
+        return None, "no installed model can call tools; pull one, for example: ollama pull gemma4"
+    fitting = [e for e in usable if e.gpu_fit == "fits"]
+    if fitting:
+        best = max(fitting, key=lambda e: e.size_mb)
+        return best, f"the largest model that can call tools and fits the free GPU memory ({best.needs_mb:.0f} MB needed)"
+    best = min(usable, key=lambda e: e.size_mb)
+    if not any(e.gpu_fit for e in usable):
+        return best, "no NVIDIA GPU was found, so the smallest model that can call tools (it runs on the CPU)"
+    return best, "nothing fits the GPU's free memory; the smallest model that can call tools spills the least"
+
+
 def find(name: str) -> ModelEntry | None:
     """The installed model called *name* (with or without ":latest"), or None."""
     want = name if ":" in name else f"{name}:latest"
