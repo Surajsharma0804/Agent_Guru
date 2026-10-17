@@ -79,6 +79,16 @@ class CodeTools:
             }, "required": ["code"], "additionalProperties": False},
         }]
 
+    def describe(self, tool: str, arguments: dict[str, Any]) -> str | None:
+        """The confirmation question shows the program itself, so the owner hears what will run."""
+        code = str(arguments.get("code", "")) if isinstance(arguments, dict) else ""
+        if tool != "run_python" or not code.strip():
+            return None
+        lines = code.strip().splitlines()
+        shown = "; ".join(line.strip() for line in lines[:4])[:240]
+        more = f" (and {len(lines) - 4} more lines)" if len(lines) > 4 else ""
+        return f"run this Python in the sandbox: {shown}{more}"
+
     async def precheck(self, tool: str, arguments: dict[str, Any]) -> list[str]:
         """Before the owner is asked: a sandbox that cannot be trusted is not offered for a yes."""
         if tool != "run_python":

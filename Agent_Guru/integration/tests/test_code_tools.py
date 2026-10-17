@@ -112,7 +112,7 @@ async def test_a_call_without_a_trusted_sandbox_runs_nothing(monkeypatch):
 async def test_the_owner_is_asked_before_the_program_runs(boundary_ok, build):
     orch, _ = await build(("", [_call()]), (f"It is {ANSWER}.", []))
     asked = await orch.run_text_turn("what is 2 to the power 200?")
-    assert asked.awaiting_reply and "run_python" in asked.llm_response  # nosec B101
+    assert asked.awaiting_reply and "Python in the sandbox" in asked.llm_response  # nosec B101
     assert "2 ** 200" in asked.llm_response  # nosec B101  the program is read back
     assert boundary_ok == []  # nosec B101  nothing ran yet
     done = await orch.run_text_turn("yes")
