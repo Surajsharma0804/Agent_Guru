@@ -478,6 +478,17 @@ async def test_a_spoken_research_answer_is_said_without_ids_or_urls(fake_web):
     orch._streamable_tts_fn = lambda: (lambda text, pt: (b"", 22050))
     orch._speak_streaming = speak
 
+    async def no_filler(*a, **k):
+        return None
+
+    # Every other spoken-pipeline test replaces the filler; this one did not.
+    # The real filler cache was built on a worker thread, fell back to
+    # pyttsx3 on a CI runner with no Kokoro files, and on Windows runners
+    # with no audio device SAPI never returned: closing the event loop
+    # waited for that thread until pytest-timeout ended the whole run, so
+    # the Windows platform runs never finished (run 39015632954).
+    orch._play_filler = no_filler
+
     async def stt(*a, **k):
         return "who is the prime minister of india", "en"
 
