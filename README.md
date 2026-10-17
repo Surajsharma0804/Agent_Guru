@@ -488,9 +488,19 @@ Fork → Branch → Code → Test → PR
 
 <br>
 
-## 📝 License
+## 📝 Copyright, Licence and Attribution
 
-This project is licensed under the **Apache License 2.0** - see [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
+AGENT_GURU is an open-source project created by **Suraj Sharma**.
+
+Copyright © 2026 Suraj Sharma.
+Repository: https://github.com/Surajsharma0804/Agent_Guru
+
+The project is distributed under the **Apache License 2.0**; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Redistributions must comply with the licence and keep the copyright, licence and NOTICE texts.
+Contributions are accepted under the same licence (section 5 of the Apache License 2.0).
+
+The AGENT_GURU name and branding are not licensed for use as an endorsement or to imply
+official affiliation; the Apache License 2.0 grants no trademark rights (section 6).
 
 <br>
 
