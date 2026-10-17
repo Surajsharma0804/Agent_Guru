@@ -38,6 +38,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "eval": ("Agent_Guru.utils.commands", "evaluate", "score the assistant on its evaluation set"),
     "bench": ("Agent_Guru.utils.commands", "bench", "time every stage of spoken turns"),
     "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
+    "injection-model": ("Agent_Guru.security.injection_classifier", "run", "install, verify or check the local prompt-injection classifier"),
 }
 
 
