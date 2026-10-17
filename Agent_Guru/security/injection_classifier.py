@@ -449,9 +449,13 @@ class InjectionClassifier:
 
         main = self.classify(text)
         results = [main]
-        for form in _disguised_forms(text[:MAX_CHARS])[:MAX_DECODED_FORMS]:
-            if form.strip():
-                results.append(self.classify(form))
+        # A form that differs only in spacing hides nothing; classifying it
+        # again doubled the time of ordinary pages (1,000 characters: 251 ms
+        # instead of 107 ms), because joining letters also collapses double spaces.
+        plain = " ".join(text[:MAX_CHARS].split())
+        forms = [f for f in _disguised_forms(text[:MAX_CHARS]) if f.strip() and " ".join(f.split()) != plain]
+        for form in forms[:MAX_DECODED_FORMS]:
+            results.append(self.classify(form))
         scored = [r for r in results if r.score is not None]
         if not scored:
             best = main
