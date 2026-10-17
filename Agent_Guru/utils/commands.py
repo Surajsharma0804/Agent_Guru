@@ -175,6 +175,69 @@ def model(argv: list[str]) -> int:
     return config(["set", "OLLAMA_MODEL", argv[0]])
 
 
+def init(argv: list[str]) -> int:
+    """First start on a machine: what is here, which model to use, and what is switched on.
+
+    Writes OLLAMA_MODEL to settings.toml only with --yes and only when no
+    model is chosen yet (in settings.toml or the environment): an owner's
+    choice, often a measured one, is never replaced by a rule of thumb.
+    """
+    import os
+    import shutil
+
+    from Agent_Guru.llm import model_catalog
+
+    write = "--yes" in argv
+    print(f"Settings file: {_settings_file()}")  # noqa: T201
+    total, used = model_catalog._gpu_memory_mb()
+    print(f"GPU: {total:.0f} MB, {total - used:.0f} MB free" if total else "GPU: no NVIDIA GPU found")  # noqa: T201
+    try:
+        import psutil
+
+        memory_ = psutil.virtual_memory()
+        print(f"RAM: {memory_.total / 2**30:.1f} GB, {memory_.available / 2**30:.1f} GB free")  # noqa: T201
+    except ImportError:
+        pass
+    chosen = os.environ.get("OLLAMA_MODEL", "").strip()
+    try:
+        entries = model_catalog.installed()
+    except OSError as exc:
+        print(f"Ollama: not answering ({exc}). Start it, or install it from https://ollama.com")  # noqa: T201
+        entries = None
+    if entries is not None:
+        print(f"Ollama: {len(entries)} models installed")  # noqa: T201
+        best, why = model_catalog.recommend(entries)
+        if best is None:
+            print(f"Model: {why}")  # noqa: T201
+        elif chosen:
+            print(f"Model: {chosen} is chosen and kept. For this machine the rule of thumb would be {best.name}: {why}.")  # noqa: T201
+        elif write:
+            print(f"Model: {best.name}, {why}.")  # noqa: T201
+            config(["set", "OLLAMA_MODEL", best.name])
+        else:
+            print(f"Model: {best.name} is recommended: {why}. Run again with --yes to save it.")  # noqa: T201
+    print("Optional features:")  # noqa: T201
+    if shutil.which("wsl.exe") or shutil.which("wsl"):
+        from Agent_Guru.reasoning.tools.skills import wsl_sandbox
+
+        problems = wsl_sandbox.check()
+        state = "ready" if not problems else "not ready: " + "; ".join(problems)
+        print(f"  code sandbox (AGENT_GURU_CODE_SANDBOX): {state}")  # noqa: T201
+    else:
+        print("  code sandbox (AGENT_GURU_CODE_SANDBOX): needs WSL")  # noqa: T201
+    try:
+        import playwright  # noqa: F401
+
+        print("  browser tools (AGENT_GURU_BROWSER_TOOLS): Playwright installed")  # noqa: T201
+    except ImportError:
+        print("  browser tools (AGENT_GURU_BROWSER_TOOLS): need Playwright (pip install playwright)")  # noqa: T201
+    from Agent_Guru.security import vault
+
+    print(f"  credentials kept encrypted (vault): {len(vault.names())}")  # noqa: T201
+    print("Next: python -m Agent_Guru doctor checks the microphone, the speaker and a spoken round trip.")  # noqa: T201
+    return 0
+
+
 def memory(argv: list[str]) -> int:
     from Agent_Guru.platform.features.user_memory import get_user_memory
 
