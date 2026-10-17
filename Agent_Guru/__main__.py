@@ -29,6 +29,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "telegram": ("Agent_Guru.platform.channels.inbound", "run", "the Telegram bot: its state, or who has written to it"),
     "connect": ("Agent_Guru.connectors.oauth", "run", "sign in to Google or Microsoft for mail, calendar and contacts"),
     "learn": ("Agent_Guru.self_improvement.prompt_tuning", "run", "tune the prompt from mistakes, roll back, or export training data"),
+    "init": ("Agent_Guru.utils.commands", "init", "first start: this machine, the model to use, what is switched on"),
     "ask": ("Agent_Guru.utils.commands", "ask", "ask the running assistant one question, typed"),
     "chat": ("Agent_Guru.utils.commands", "chat", "a typed conversation with the running assistant"),
     "config": ("Agent_Guru.utils.commands", "config", "show or change settings.toml, checked"),
@@ -40,6 +41,8 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
     "injection-model": ("Agent_Guru.security.injection_classifier", "run", "install, verify or check the local prompt-injection classifier"),
     "sandbox": ("Agent_Guru.reasoning.tools.skills.wsl_sandbox", "run", "set up, check or try the WSL sandbox that runs the assistant's code"),
+    "vault": ("Agent_Guru.security.vault", "run", "keep service credentials encrypted for this account instead of in .env"),
+    "service": ("Agent_Guru.utils.service", "run", "run it in the background, stop it cleanly, or start it at log-in"),
 }
 
 
