@@ -787,11 +787,19 @@ class LanguageDetector:
 
         """
         scores: dict[Language, float] = {}
+        # Lower-cased here instead of matching with re.IGNORECASE. Under
+        # IGNORECASE the Turkish dotless "ı" in the pattern below matches
+        # the English "i" and "I" (all three fold to "I"), so any text with
+        # an i scored 1.0 for Turkish: "Set a timer for ten minutes." came
+        # back as Turkish. Every pattern is written in lower case, so for
+        # the other languages nothing changes; Turkish capitals (Ş, Ğ, Ç, Ö,
+        # Ü) still lower-case to the letters the pattern lists.
+        lowered = text.lower()
 
         for lang, patterns in self._patterns.items():
             matches = 0
             for pattern in patterns:
-                if re.search(pattern, text, re.IGNORECASE):
+                if re.search(pattern, lowered):
                     matches += 1
 
             if matches > 0:
