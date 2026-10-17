@@ -225,58 +225,32 @@ class PromptEvolutionSystem:
             ValueError: If prompt_id doesn't exist
 
         """
+        # One UPDATE that adds to the stored counts. This used to SELECT the
+        # counts, add in Python and UPDATE them back: two outcomes recorded at
+        # once both read the same counts and one increment was lost. 8 threads
+        # recording 250 outcomes each stored 1,000 of 2,000. The single
+        # statement runs under SQLite's write lock, so nothing is lost, and it
+        # is one query instead of two (CI timed out on the property tests that
+        # record about 25,000 outcomes).
+        win = 1 if success else 0
         with self.pool.connection() as conn:
-            cursor = conn.cursor()
-
-            # Get current stats
-            cursor.execute(
-                """
-                SELECT total_uses, success_count, failure_count,
-                       hallucination_count
-                FROM prompts
-                WHERE prompt_id = ?
-            """,
-                (prompt_id,),
-            )
-
-            row = cursor.fetchone()
-            if not row:
-                msg = f"Prompt '{prompt_id}' not found"
-                raise ValueError(msg)
-
-            total, success_count, failure_count, halluc_count = row
-
-            # Update stats
-            new_total = total + 1
-            new_success_count = success_count + (1 if success else 0)
-            new_failure_count = failure_count + (0 if success else 1)
-            new_halluc_count = halluc_count + (1 if hallucination_detected else 0)
-            new_success_rate = new_success_count / new_total if new_total > 0 else 0.0
-
-            now = datetime.now(tz=UTC).isoformat()
-
-            cursor.execute(
+            cursor = conn.execute(
                 """
                 UPDATE prompts
-                SET total_uses = ?,
-                    success_count = ?,
-                    failure_count = ?,
-                    hallucination_count = ?,
-                    success_rate = ?,
+                SET total_uses = total_uses + 1,
+                    success_count = success_count + ?,
+                    failure_count = failure_count + ?,
+                    hallucination_count = hallucination_count + ?,
+                    success_rate = CAST(success_count + ? AS REAL) / (total_uses + 1),
                     last_used = ?
                 WHERE prompt_id = ?
             """,
-                (
-                    new_total,
-                    new_success_count,
-                    new_failure_count,
-                    new_halluc_count,
-                    new_success_rate,
-                    now,
-                    prompt_id,
-                ),
+                (win, 1 - win, 1 if hallucination_detected else 0, win,
+                 datetime.now(tz=UTC).isoformat(), prompt_id),
             )
-
+            if cursor.rowcount == 0:
+                msg = f"Prompt '{prompt_id}' not found"
+                raise ValueError(msg)
             conn.commit()
 
     def get_active_prompt(self, prompt_type: str) -> PromptVersion | None:
