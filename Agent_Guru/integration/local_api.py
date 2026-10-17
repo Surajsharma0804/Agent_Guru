@@ -163,9 +163,9 @@ def create_app(orchestrator: Any) -> Any:
                                  "error": {"code": -32602, "message": f"a text part of 1 to {_MAX_TEXT} characters is needed"}})
         # Another agent's words are outside text: they are scanned like a
         # web page before they reach the model.
-        from Agent_Guru.llm.security import guard_external_text
+        from Agent_Guru.llm.security import guard_external_text_async
 
-        if not guard_external_text(text, "agent-to-agent message"):
+        if not await guard_external_text_async(text, "agent-to-agent message"):
             return JSONResponse({"jsonrpc": "2.0", "id": call_id,
                                  "error": {"code": -32602, "message": "the message tried to give the assistant instructions"}})
         answer = await run_turn(text, "a2a")
