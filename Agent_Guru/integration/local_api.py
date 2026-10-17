@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import secrets
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,9 @@ DEFAULT_PORT = 8765
 HOST = "127.0.0.1"
 _KEY_NAME = "api_key"
 _MAX_TEXT = 4000
+_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+#: What `documents add` reads (presentation.read_source_text).
+_DOCUMENT_SUFFIXES = frozenset({".txt", ".md", ".markdown", ".docx", ".pdf"})
 
 
 def enabled() -> bool:
@@ -275,6 +279,40 @@ def create_app(orchestrator: Any) -> Any:
         from Agent_Guru.platform.features.user_memory import get_user_memory
 
         return get_user_memory().get_all()
+
+    @app.get("/v1/documents")
+    async def documents_view(_user: dict = Depends(get_current_user)) -> list[dict[str, Any]]:  # noqa: B008
+        store = getattr(orchestrator, "_documents", None)
+        return [] if store is None else store.documents()
+
+    @app.post("/v1/documents")
+    async def documents_add(request: Request, name: str, _user: dict = Depends(get_current_user)) -> JSONResponse:  # noqa: B008
+        """Add a document to answer from: the file is the request body, its name in ?name=.
+
+        Documents could be added only with `documents add` at this computer.
+        The body is read raw (no multipart parser is installed), capped at
+        20 MB, saved under the data folder's uploads with a cleaned name,
+        then added exactly as `documents add` adds a file.
+        """
+        import re as _re
+
+        from Agent_Guru.utils.path_utils import app_data_dir
+
+        store = getattr(orchestrator, "_documents", None)
+        if store is None:
+            return JSONResponse({"error": "documents are not set up"}, status_code=503)
+        # No separators survive, and no run of dots, so the file stays in uploads.
+        clean = _re.sub(r"\.{2,}", ".", _re.sub(r"[^A-Za-z0-9._ -]+", "_", name)).strip(" ._")[:120]
+        if Path(clean).suffix.lower() not in _DOCUMENT_SUFFIXES:
+            return JSONResponse({"error": f"only {', '.join(sorted(_DOCUMENT_SUFFIXES))} files"}, status_code=415)
+        body = await request.body()
+        if not body or len(body) > _MAX_UPLOAD_BYTES:
+            return JSONResponse({"error": "the file is empty or larger than 20 MB"}, status_code=413)
+        target = app_data_dir("uploads", create=True) / clean
+        target.write_bytes(body)
+        added = await store.add(target)
+        orchestrator.events.publish("api.document", name=clean, status=added.status)
+        return JSONResponse({"name": added.name, "status": added.status, "passages": added.passages})
 
     @app.get("/", response_class=HTMLResponse)
     async def page() -> str:
