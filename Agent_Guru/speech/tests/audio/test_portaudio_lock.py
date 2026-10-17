@@ -81,6 +81,16 @@ class FakeSounddevice(types.ModuleType):
         self._record("rec")
         return np.zeros((frames, 1), np.float32)
 
+    def get_stream(self) -> Any:
+        # MicrophoneCapture polls the recording stream against a deadline
+        # instead of trusting sd.wait(), which never returned on a device
+        # that sent no frames. The fake recording is already finished.
+        self._record("get_stream")
+        return types.SimpleNamespace(active=False)
+
+    def stop(self) -> None:
+        self._record("stop")
+
     def query_devices(self, *_: Any, **__: Any) -> Any:
         self._record("query_devices")
         device = {"name": "fake mic", "max_input_channels": 1, "max_output_channels": 2,
@@ -234,7 +244,8 @@ class TestEveryPortAudioUserHoldsTheLock:
         mic.capture(0.1)
         MicrophoneCapture.list_devices()
 
-        assert [name for name, _ in sd.calls] == ["query_devices", "rec", "wait", "query_devices"]
+        assert [name for name, _ in sd.calls] == [
+            "query_devices", "rec", "get_stream", "wait", "query_devices"]
         assert sd.exposed_calls() == []
 
     def test_audio_pipeline_device_query(self, monkeypatch):

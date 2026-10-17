@@ -1,6 +1,7 @@
 """Audio capture from microphone and files."""
 
 import logging
+import time
 
 import numpy as np
 
@@ -8,6 +9,11 @@ from Agent_Guru.speech.audio.portaudio_lock import portaudio_in_use
 from Agent_Guru.speech.exceptions import AudioInputError
 
 logger = logging.getLogger(__name__)
+
+# Time a microphone may take to open and deliver its first frames on top of
+# the requested duration, generous enough for a slow device to wake (not
+# measured per device); past this the device is treated as stalled.
+_CAPTURE_START_GRACE_S = 3.0
 
 class AudioCapture:
     """Base class for audio capture."""
@@ -114,7 +120,24 @@ class MicrophoneCapture(AudioCapture):
                     device=self.device,
                     dtype="float32",
                 )
-                sd.wait()  # Wait for recording to complete  # type: ignore[attr-defined]
+                # sd.wait() has no timeout. A device that opens but never
+                # delivers frames kept it waiting forever: on the WSLg
+                # virtual source a 0.5 s recording was still blocked after
+                # 20 s, and the caller froze with no error. Any input that
+                # stalls after opening hits the same wait. The stream is
+                # now given its duration plus a start-up grace, then stopped.
+                deadline = time.monotonic() + duration + _CAPTURE_START_GRACE_S
+                while sd.get_stream().active:  # type: ignore[attr-defined]
+                    if time.monotonic() >= deadline:
+                        sd.stop()  # type: ignore[attr-defined]
+                        msg = (
+                            f"Microphone delivered no audio within "
+                            f"{duration + _CAPTURE_START_GRACE_S:.1f}s"
+                        )
+                        raise AudioInputError(msg)
+                    time.sleep(0.01)
+                # The stream has finished; wait() raises if its callback failed.
+                sd.wait()  # type: ignore[attr-defined]
 
             # Convert to mono if needed
             if self.channels > 1 and audio.ndim > 1:
