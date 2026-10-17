@@ -10,7 +10,7 @@ re-check before acting on a row.
 | | AGENT_GURU | Reference project |
 |---|---|---|
 | Snapshot | commit `30b0a327` (2026-10-06) | local copy under `reference/` (untracked, never committed, no `.git`); CHANGELOG top release `1.0.2` plus an Unreleased section; tree fingerprint sha256 `a48f8af83dea40c0...` over 2,169 files (node_modules excluded) |
-| License | MIT | Apache-2.0, copyright held by its authors, no NOTICE file |
+| License | Apache-2.0 (MIT until 2026-10-17) | Apache-2.0, copyright held by its authors, no NOTICE file |
 | Python source modules (tests excluded) | 705 | 683 (plus 18 Rust crates) |
 | Test files | 340 | 698 |
 

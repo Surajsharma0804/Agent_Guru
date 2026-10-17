@@ -24,9 +24,9 @@ as the code.
 |---|---|---|---|
 | Reference project | local copy under `reference/` (untracked, never committed or shipped) | Apache-2.0, copyright held by its authors, no NOTICE file | CHANGELOG top release 1.0.2 plus an Unreleased section; no `.git`; tree fingerprint sha256 `a48f8af83dea40c049b4b5837db782ecc68b8a3197131faef863901ce189cc61` (sha256 of the sorted `sha256sum` list of all 2,169 files, node_modules excluded) |
 
-AGENT_GURU is MIT-licensed. Apache-2.0 code may be included if each copied
-file keeps its copyright notice and a statement of changes, and the
-Apache-2.0 license text is distributed with it.
+AGENT_GURU is licensed under Apache-2.0 (since 2026-10-17; MIT before). Apache-2.0
+code may be included if each copied file keeps its copyright notice and a
+statement of changes, and any NOTICE it carries is passed on.
 
 ## Components
 

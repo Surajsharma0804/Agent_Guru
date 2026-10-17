@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-22c55e?style=for-the-badge" alt="Apache License 2.0"></a>
   <a href="https://github.com/Surajsharma0804/Agent_Guru"><img src="https://img.shields.io/badge/Status-Production_Ready-10b981?style=for-the-badge" alt="Production Ready"></a>
   <a href="https://github.com/Surajsharma0804/Agent_Guru/stargazers"><img src="https://img.shields.io/github/stars/Surajsharma0804/Agent_Guru?style=for-the-badge&color=f59e0b" alt="Stars"></a>
 </p>
@@ -490,7 +490,7 @@ Fork → Branch → Code → Test → PR
 
 ## 📝 License
 
-This project is licensed under the **MIT License** - see [LICENSE](LICENSE) for details.
+This project is licensed under the **Apache License 2.0** - see [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
 
 <br>
 
