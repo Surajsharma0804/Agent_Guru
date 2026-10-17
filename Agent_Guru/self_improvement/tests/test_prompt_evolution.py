@@ -1843,7 +1843,12 @@ class TestMonotonicPromptQualityImprovement:
             pool.close_all()
             del system
             del pool
-            gc.collect()
+            # No gc.collect() here. close_all() has already closed every
+            # connection, so the file deletes cleanly without one (checked on
+            # Windows: no .db, -wal or -shm left). A full collection walks
+            # every live object in the process, and late in a full run that
+            # cost 0.32 s per example: 16 of this test's 34 s, past the 30 s
+            # timeout on CI.
         finally:
             try:
                 os.unlink(db_path)
@@ -1961,7 +1966,7 @@ class TestMonotonicPromptQualityImprovement:
             pool.close_all()
             del system
             del pool
-            gc.collect()
+            # No gc.collect(): see test_property_prompt_quality_improves_monotonically.
         finally:
             try:
                 os.unlink(db_path)
@@ -2054,7 +2059,7 @@ class TestMonotonicPromptQualityImprovement:
             pool.close_all()
             del system
             del pool
-            gc.collect()
+            # No gc.collect(): see test_property_prompt_quality_improves_monotonically.
         finally:
             try:
                 os.unlink(db_path)
@@ -2169,7 +2174,7 @@ class TestMonotonicPromptQualityImprovement:
             pool.close_all()
             del system
             del pool
-            gc.collect()
+            # No gc.collect(): see test_property_prompt_quality_improves_monotonically.
         finally:
             try:
                 os.unlink(db_path)
@@ -2265,7 +2270,7 @@ class TestMonotonicPromptQualityImprovement:
             pool.close_all()
             del system
             del pool
-            gc.collect()
+            # No gc.collect(): see test_property_prompt_quality_improves_monotonically.
         finally:
             try:
                 os.unlink(db_path)
