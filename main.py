@@ -515,6 +515,20 @@ async def run() -> None:
         install_mcp_policies(policy, [longdoc])
     except Exception as e:
         logger.warning("Long-document tool unavailable (%s)", e)
+    # Working on a code project: read, try in the sandbox, apply after a yes
+    # (integration/coding_tools.py). Off unless AGENT_GURU_CODING_TOOLS is on.
+    try:
+        from Agent_Guru.integration.coding_tools import CodingTools, coding_server
+        from Agent_Guru.integration.coding_tools import enabled as coding_enabled
+        from Agent_Guru.integration.mcp_tools import install_mcp_policies
+
+        if coding_enabled():
+            coding = coding_server()
+            coding.local = CodingTools()
+            mcp_servers = [*mcp_servers, coding]
+            install_mcp_policies(policy, [coding])
+    except Exception as e:
+        logger.warning("Coding tools unavailable (%s)", e)
     from Agent_Guru.utils.path_utils import app_data_dir
     # Pending reminders are kept here between runs; one missed while the app
     # was off is said on the next start, with how late it is.
