@@ -25,10 +25,10 @@ States:
 | Deep research, research loop | `integration/research.py` | Present | sources numbered and answers held to them; `scripts/research_eval.py` 6/6 |
 | Morning digest, digest store | `platform/features/briefing.py` | Built 2026-10-17 | local clock (it spoke UTC), today's reminders, calendar and tasks from connected accounts; "good morning" reached the briefing for the first time (it was answered "Sorry, I couldn't do that") |
 | Proactive agent, operators, monitor operative, scheduler | reminder manager scheduled checks and actions | Partial | checks repeat a read-only tool and speak; actions run on an approval bound to the exact call. The monitor operative's strategy axes are a benchmark harness, not taken |
-| Channel agent | `platform/channels/inbound.py` | Partial | the owner's Telegram chats as typed turns; other services send only |
+| Channel agent | `platform/channels/inbound.py` | Built 2026-10-18 | Telegram, Slack, Discord, Matrix and email, each by polling with an allow list; strangers get no reply; messages from before the start are skipped |
 | Code interpreter, REPL, shell | `integration/code_tools.py` on `reasoning/tools/skills/wsl_sandbox.py` | Built 2026-10-17 | run_python and run_shell in a WSL boundary attacked 18 ways from Python and 5 from a shell (reasoning/tools/tests/test_wsl_sandbox_boundary.py), owner's yes before every run. A persistent REPL is not kept: each run starts empty by design |
-| Coding agents that wrap other products (Claude Code, OpenCode, OpenHands, RLM) | none | Not built | they drive external tools and accounts and edit a workspace; the sandbox now exists to host one, but a 4 GB GPU model writing and editing code unattended was not judged useful enough to build blind |
-| Hybrid local plus cloud agents (Minions, Archon, Conductor, SkillOrchestra, ToolOrchestra, mini SWE agent) | model routing with cloud only for hard questions (`llm/model_router`) | Not built | research protocols that need cloud model keys; nothing here can measure them without the owner's keys |
+| Coding agents (Claude Code, OpenCode, OpenHands, RLM) | `integration/coding_tools.py`, `utils/patching.py` | Built 2026-10-18 | read a project, try a unified diff on a sandbox copy and run its tests there, apply it to the real files after the owner's yes with backups; tried end to end in the real sandbox. External coding products are not wrapped: the loop runs on Agent Guru's own tools |
+| Hybrid local plus cloud agents (Minions and the like) | `integration/hybrid.py` (read_long_document) | Built 2026-10-18 | the local model reads every passage, the cloud (when allowed) or the local model plans and answers from the findings; the document never leaves the machine; gemma4 found a clause among 59 in 59 s. The other research protocols (Archon, Conductor, SkillOrchestra, ToolOrchestra) are not built: they need cloud keys to measure |
 
 ## Tools
 
@@ -37,14 +37,14 @@ States:
 | Browser (Playwright), accessibility tree | `integration/browser_tools.py` | Built 2026-10-17 | numbered elements, owner's yes naming the element and site, fresh profile, private-address guard; tests against real Edge or Chrome |
 | Web search, HTTP GET of pages | `platform/features/web_search.py`, `web_fetch.py` | Present, built further | news provider added 2026-10-17 for questions about now (it answered "not found"); every page hop checked for private addresses |
 | General HTTP requests (POST and others) | none | Rejected | a model-driven POST tool can change things anywhere on the web; page reading is GET only through the guard |
-| File read and write, apply_patch | `reasoning/tools/system/file_operations.py`, sensitive-file policy | Partial | file operations exist behind the policy; patch application to source files is not offered |
-| Git tool | none | Not built | belongs to a coding agent (above) |
+| File read and write, apply_patch | file operations behind the policy; `utils/patching.py` | Present | diffs apply all or nothing, through the coding tools |
+| Git tool | project_git (status, diff, log) | Built 2026-10-18 | read-only |
 | Database queries, knowledge SQL, chunk scanning | none | Rejected | the documents and memory searches answer questions about the owner's data; raw SQL against them adds a path around those checks |
 | PDF text | `platform/features/documents.py` (.pdf) | Present | passages searchable after `documents add` |
 | Memory and profile management, retrieval | `memory/`, `platform/features/user_memory.py`, `memory` command, search_memory tool | Present | facts quarantined when flagged |
 | Text to speech | Kokoro, pyttsx3 fallback | Present | Kokoro files pinned and verified |
 | Calculator, think, LLM sub-call | calculator tool; routing and fallback engine | Present | think is not needed with thinking off |
-| Image generation (cloud), audio transcription (cloud) | none | Not built | cloud only; needs the owner's keys to verify |
+| Image generation, audio transcription | `integration/media_tools.py` | Built 2026-10-18 | transcription with the local Whisper (tried live); image generation through OpenAI only with cloud allowed and a key (request shape tested, not tried live: no key) |
 | MCP client and server, adapter | `integration/mcp_tools.py` | Present | owner-allowed tools with declared risk only |
 
 ## Channels
@@ -58,7 +58,7 @@ States:
 | Web chat | the local API's chat page | Present |
 | WhatsApp (Cloud API, unofficial web protocol) | WhatsApp Desktop with read-back and delivery status | Present, stronger for the owner's own account |
 | iMessage, BlueBubbles, Sendblue | none | Not applicable (Apple) |
-| Inbound bots for every channel | Telegram inbound | Partial: other services send only |
+| Inbound bots for every channel | `platform/channels/inbound.py` | Built 2026-10-18: Telegram, Slack, Discord, Matrix, email |
 
 ## Connectors
 
@@ -66,8 +66,8 @@ States:
 |---|---|---|
 | Gmail, Outlook, IMAP, Google Calendar, contacts, Drive, Tasks, Notion, Obsidian, Dropbox, GitHub notifications, Oura, Strava, Spotify, news and Hacker News, OAuth | `connectors/` | Present; accounts not tried live (no credentials here) |
 | Weather | briefing and weather tools (wttr.in) | Present |
-| Slack as a data source | none | Not built: Slack sends only |
-| Granola meeting notes | none | Not built: needs the owner's Granola account |
+| Slack as a data source | slack_search | Built 2026-10-18 (user token; not tried live) |
+| Granola meeting notes | meetings_search, meeting_read | Built 2026-10-18 (Granola public API; not tried live) |
 | Apple Calendar, Contacts, Health, Music, Notes, iMessage | none | Not applicable (Apple) |
 | Sync engine, chunker, embeddings, hybrid search, store | `platform/features/documents.py`, memory search | Partial: Agent Guru queries accounts when asked instead of copying them into a store |
 
@@ -77,11 +77,11 @@ States:
 |---|---|---|
 | Ollama, cloud (OpenAI, Anthropic, Gemini), LiteLLM, multi-engine | `llm/`, OpenAI-compatible adapter, fallback engine | Present; cloud only with AGENT_GURU_ALLOW_CLOUD |
 | vLLM, SGLang, llama.cpp, NVIDIA NIM | the OpenAI-compatible adapter (`engine:<model>`) | Present (they serve the same API) |
-| gemma.cpp, Nexa | none | Not built: no server API on this machine and not installed |
+| gemma.cpp, Nexa | none | Not applicable: neither serves an API on this machine; a server that speaks the OpenAI API is reached through `engine:` |
 | Apple Foundation Models, MLX | none | Not applicable (Apple) |
 | Model catalog, hardware detection, recommendation | `llm/model_catalog.py`, `init` | Built 2026-10-17 (recommendation); catalog present |
 | faster-whisper, Kokoro | speech engine | Present |
-| Deepgram, Cartesia, OpenAI speech | none | Not built: cloud keys needed to verify |
+| Deepgram, Cartesia, OpenAI speech | `speech/cloud_speech.py` | Built 2026-10-18: cloud voices and recognition before the local ones, only when allowed and chosen; request shapes tested, not tried live (no keys) |
 
 ## Security
 
@@ -97,11 +97,11 @@ States:
 | Reference | Agent Guru | State |
 |---|---|---|
 | Traces, analyzer, feedback | turn records, `learn`, spoken "that was wrong" | Present |
-| Evaluation runner and benchmarks | `eval`, `bench`, eval scripts | Partial: real turns and the owner's rated turns, not the reference's third-party benchmark datasets |
-| Prompt optimisation (DSPy, GEPA, ACE, agent evolver, spec search) | `self_improvement/prompt_tuning.py` with an evaluation gate | Partial: rules and demonstrations behind a gate; the reflective search optimisers need many model runs, not done without Ollama running |
+| Evaluation runner and benchmarks | `eval`, `bench`, eval scripts | Partial by choice: real turns and the owner's rated turns; the reference's third-party benchmark datasets compare research agents, not a personal assistant |
+| Prompt optimisation (DSPy, GEPA, ACE, agent evolver, spec search) | `self_improvement/prompt_tuning.py` | Built 2026-10-18 | `learn tune --strategy evolve`: rounds of reflective rewriting over a Pareto front, adopted only through the gate; also rules and demonstrations |
 | SFT, GRPO, LoRA training | dataset export; A100 plan | Partial: training needs a larger GPU |
 | Routing (heuristic, learned) | `llm/model_router` | Present |
-| Skill discovery, skill import and sources | `reasoning/tools/skills` | Present; Hermes and OpenClaw catalogs are not wired, git, zip and folder are |
+| Skill discovery, skill import and sources | `reasoning/tools/skills`, `instruction_skills.py` | Built 2026-10-18 | Hermes and OpenClaw catalogs listed and learned live (Markdown only, scripts never copied), offered as use_skill |
 | Telemetry: tokens, TTFT, inter-token latency, NVIDIA energy and GPU | turn records, NVML | Present |
 | AMD, Apple and RAPL energy | none | Not applicable on this hardware |
 | Usage analytics sent off the device | none | Rejected: the owner's data stays local |
@@ -110,7 +110,7 @@ States:
 
 | Reference | Agent Guru | State |
 |---|---|---|
-| OpenAI-compatible server, A2A, API keys, dashboard, uploads | `integration/local_api.py`, `api` command | Present except uploads (documents are added from the command line) |
+| OpenAI-compatible server, A2A, API keys, dashboard, uploads | `integration/local_api.py`, `api` command | Present; uploads built 2026-10-18 (POST /v1/documents) |
 | Daemon, gateway, start, stop, status, service files | `utils/service.py`, `service` command | Built 2026-10-17: clean stop through the assistant's own shutdown, start at log-in |
 | init, quickstart, doctor | `init`, `doctor` | Built 2026-10-17 (init) |
 | self-update | `update` | Built 2026-10-17: fast-forward only |
@@ -118,15 +118,25 @@ States:
 | Tunnel (public URL to the local server) | none | Rejected: it would put an assistant that controls this computer on the public internet; Telegram inbound gives remote use with no open port |
 | Host (download and serve a model) | Ollama, `model` command | Present |
 | Workflow engine, compose, recipes, templates, registries, event bus | `utils/recipes.py`, `integration/events.py` | Present where used; the workflow engine is unused in both projects |
-| Terminal dashboard, GUI | the local API dashboard page | Partial: a web page instead of a terminal UI |
+| Terminal dashboard, GUI | `dashboard` command, the local API page | Built 2026-10-18 (terminal view) |
 | Crypto mining | none | Rejected: it would compete with the voice loop for the GPU |
 
 ## What is still open
 
-Each of these needs something this machine does not have today: the owner's
-cloud keys (cloud speech, image generation, hybrid agents), the owner's
-accounts (Granola, Slack as a source), Ollama running for many model runs
-(reflective prompt optimisers, the two-tool chaining limit of the tool loop),
-or a decision that it is wanted (a coding agent that edits files, inbound
-messages on channels other than Telegram). None of them needs the reference
-copy to be built later: the design notes above are enough.
+Built on 2026-10-18 and tested here, but not tried against the real
+service, because no keys or accounts are on this machine: cloud voices and
+recognition (OpenAI, Cartesia, Deepgram), image generation, Slack search,
+Granola notes, and inbound Slack, Discord, Matrix and email. Their request
+formats follow each provider's documentation and are pinned by tests;
+the first real use with the owner's keys is their live check.
+
+The two-tool chaining limit of the tool loop is fixed: over four runs of
+`scripts/tool_loop_eval.py` on gemma4 every answer was right (11 of 11),
+where both chains were wrong before.
+
+Left out on purpose, with the reasons above: a public tunnel, a model-driven
+POST tool, raw SQL over the owner's data, off-device analytics, mining, a
+persistent REPL (sandbox runs start empty by design), the third-party
+benchmark datasets, the research protocols that need cloud keys to measure,
+and what needs Apple hardware or another GPU vendor. None of them needs the
+reference copy: the design notes above are enough.
