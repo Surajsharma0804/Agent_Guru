@@ -39,6 +39,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "bench": ("Agent_Guru.utils.commands", "bench", "time every stage of spoken turns"),
     "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
     "injection-model": ("Agent_Guru.security.injection_classifier", "run", "install, verify or check the local prompt-injection classifier"),
+    "sandbox": ("Agent_Guru.reasoning.tools.skills.wsl_sandbox", "run", "set up, check or try the WSL sandbox that runs the assistant's code"),
 }
 
 
