@@ -531,6 +531,21 @@ def test_property_24_configuration_validation(threshold: float, fps: int) -> Non
 _prop26_system: GuruAvatarSystem | None = None
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _stop_prop26_system():
+    """Stop the shared system when this module's tests are done.
+
+    It was never stopped, so its avatar-perf-monitor thread and everything
+    the system holds stayed alive for the rest of the test session. Late in
+    a full run every gc.collect() in later tests walked those objects too.
+    """
+    global _prop26_system
+    yield
+    if _prop26_system is not None:
+        _prop26_system.stop()
+        _prop26_system = None
+
+
 def _get_prop26_system() -> GuruAvatarSystem:
     global _prop26_system
     if _prop26_system is None or not _prop26_system._initialized:
