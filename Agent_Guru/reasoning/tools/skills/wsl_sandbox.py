@@ -116,13 +116,19 @@ def service_properties(seconds: int, memory_mb: int) -> list[str]:
     return out
 
 
-def run_command(seconds: int, memory_mb: int, wsl: str = "wsl.exe", unit: str = "agent-guru-sandbox") -> list[str]:
-    """The wsl.exe argv for one run; the code goes on stdin. --exec: no shell anywhere."""
+#: The programs a run can be: each reads what to do from stdin.
+PYTHON = ("/usr/bin/python3", "-I", "-u", "-")
+SHELL = ("/bin/bash", "--noprofile", "--norc", "-s")
+
+
+def run_command(seconds: int, memory_mb: int, wsl: str = "wsl.exe", unit: str = "agent-guru-sandbox",
+                program: tuple[str, ...] = PYTHON) -> list[str]:
+    """The wsl.exe argv for one run; the code goes on stdin. --exec: no shell on the Windows side."""
     return [
         wsl, "-d", distro(), "-u", "root", "--exec",
         "systemd-run", f"--unit={unit}", "--pipe", "--wait", "--collect", "--service-type=exec",
         *service_properties(seconds, memory_mb),
-        "/usr/bin/python3", "-I", "-u", "-",
+        *program,
     ]
 
 
@@ -143,7 +149,16 @@ def parse_result(stderr: str) -> tuple[str, int | None, str]:
 
 
 async def run_python(code: str, *, seconds: int = 10, memory_mb: int = 256) -> SandboxRun:
-    """Run *code* in the boundary and return how it ended; never raises for a failed run."""
+    """Run Python *code* in the boundary and return how it ended; never raises for a failed run."""
+    return await _run(code, PYTHON, seconds, memory_mb)
+
+
+async def run_shell(script: str, *, seconds: int = 10, memory_mb: int = 256) -> SandboxRun:
+    """Run a bash *script* in the same boundary (no profile or rc files read)."""
+    return await _run(script, SHELL, seconds, memory_mb)
+
+
+async def _run(code: str, program: tuple[str, ...], seconds: int, memory_mb: int) -> SandboxRun:
     started = time.monotonic()
     if len(code) > MAX_CODE_CHARS:
         return SandboxRun("unavailable", None, "", f"code longer than {MAX_CODE_CHARS} characters", 0.0)
@@ -153,7 +168,7 @@ async def run_python(code: str, *, seconds: int = 10, memory_mb: int = 256) -> S
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     unit = f"agent-guru-sandbox-{uuid.uuid4().hex[:16]}"
     process = await asyncio.create_subprocess_exec(
-        *run_command(seconds, memory_mb, wsl, unit),
+        *run_command(seconds, memory_mb, wsl, unit, program),
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         creationflags=flags,
     )
