@@ -44,6 +44,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "vault": ("Agent_Guru.security.vault", "run", "keep service credentials encrypted for this account instead of in .env"),
     "service": ("Agent_Guru.utils.service", "run", "run it in the background, stop it cleanly, or start it at log-in"),
     "update": ("Agent_Guru.utils.update", "run", "fast-forward this checkout to its upstream (--check to look first)"),
+    "dashboard": ("Agent_Guru.utils.dashboard", "run", "a terminal view: running or not, recent turns, what is scheduled"),
 }
 
 
