@@ -131,7 +131,11 @@ async def _evaluate(guidance: str) -> dict[str, Any]:
         os.environ.pop(OVERRIDE_ENV, None)
     summary = module.summarize(rows)
     return {"passed": summary["passed"], "judged": summary["judged"], "median_turn_s": summary["median_s"]["turn"],
-            "passing": sorted(" | ".join(r["said"]) for r in rows if r["passed"])}
+            "passing": sorted(" | ".join(r["said"]) for r in rows if r["passed"]),
+            # What the reflective search learns from: each failed case as the model saw it.
+            "failing": [f"Owner said: {' | '.join(r['said'])!r}\nAssistant answered: {str(r['reply'])[:300]!r}\n"
+                        f"Failed: {', '.join(k for k, v in r['checks'].items() if v is False)}"
+                        for r in rows if r["passed"] is False]}
 
 
 def gate(baseline: dict[str, Any], candidate: dict[str, Any]) -> tuple[bool, str]:
@@ -145,6 +149,64 @@ def gate(baseline: dict[str, Any], candidate: dict[str, Any]) -> tuple[bool, str
     if before and after and after > before * 1.2:
         return False, f"median turn {after:.1f}s against {before:.1f}s"
     return True, f"passed {candidate['passed']} of {candidate['judged']} against {baseline['passed']}"
+
+
+def pareto_front(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The candidates no other candidate beats on every case: same or more cases passed, and some more.
+
+    Keeping only the best total would throw away a candidate that is the
+    only one to pass some case, which is the material the next rewrite
+    should build on (GEPA's selection).
+    """
+    front: list[dict[str, Any]] = []
+    for c in pool:
+        mine = set(c["scored"]["passing"])
+        dominated = any(
+            d is not c and mine <= set(d["scored"]["passing"])
+            and (mine < set(d["scored"]["passing"])
+                 or (d["scored"].get("median_turn_s") or 0) < (c["scored"].get("median_turn_s") or 0))
+            for d in pool
+        )
+        if not dominated and all(set(f["scored"]["passing"]) != mine for f in front):
+            front.append(c)
+    return front
+
+
+async def evolve(rounds: int = 3, *, propose: Any = None, evaluate: Any = None, current: str | None = None,
+                 mistakes: list[str] | None = None) -> dict[str, Any]:
+    """Several rounds of reflective rewriting over a Pareto front; the best is adopted only through gate().
+
+    Each round takes a parent from the front in turn, shows the model the
+    cases that parent fails (and the turns the owner marked wrong), adds the
+    rules it writes, and measures the child on the whole evaluation set.
+    """
+    propose = propose or _propose
+    evaluate = evaluate or _evaluate
+    current = current_guidance() if current is None else current
+    owner_marked = _mistakes() if mistakes is None else mistakes
+    baseline = await evaluate(current)
+    pool = [{"text": current, "scored": baseline, "round": 0}]
+    for r in range(1, rounds + 1):
+        front = pareto_front(pool)
+        parent = front[(r - 1) % len(front)]
+        failures = list(parent["scored"].get("failing") or [])[:10] + owner_marked[:5]
+        if not failures:
+            break
+        rules = await propose(failures, parent["text"])
+        if not rules:
+            continue
+        text = (parent["text"] + "\n" + rules).strip()[:_MAX_GUIDANCE]
+        if any(c["text"] == text for c in pool):
+            continue
+        pool.append({"text": text, "scored": await evaluate(text), "round": r})
+    front = pareto_front(pool)
+    best = max(front, key=lambda c: (c["scored"]["passed"], -(c["scored"].get("median_turn_s") or 0)))
+    if best["text"] == current:
+        return {"adopted": False, "reason": f"evolve: no rewrite beat the current guidance in {len(pool) - 1} tries",
+                "guidance": current, "tried": len(pool) - 1}
+    ok, why = gate(baseline, best["scored"])
+    return {"adopted": ok, "reason": f"evolve, round {best['round']} of {rounds}: {why}", "guidance": best["text"],
+            "scored": best["scored"], "baseline": baseline, "tried": len(pool) - 1}
 
 
 def _demonstrations(k: int = 3) -> str:
@@ -180,6 +242,19 @@ async def tune(strategy: str = "both") -> dict[str, Any]:
     """
     state = _load()
     current = current_guidance()
+    if strategy == "evolve":
+        result = await evolve()
+        if result.get("scored"):
+            version = {"id": len(state["versions"]) + 1, "text": result["guidance"], "created_at": time.time(),
+                       "adopted": result["adopted"], "reason": result["reason"],
+                       "baseline": {k: result["baseline"][k] for k in ("passed", "judged", "median_turn_s")},
+                       "score": {k: result["scored"][k] for k in ("passed", "judged", "median_turn_s")},
+                       "previous": state.get("current")}
+            state["versions"].append(version)
+            if result["adopted"]:
+                state["current"] = version["id"]
+            _save(state)
+        return result
     candidates: list[tuple[str, str]] = []
     if strategy in ("rules", "both"):
         mistakes = _mistakes()
@@ -230,8 +305,9 @@ def run(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="python -m Agent_Guru learn", description="Learn from the owner's turns.")
     parser.add_argument("action", choices=["tune", "show", "rollback", "export"])
     parser.add_argument("--out", default="", help="export: the JSONL file to write")
-    parser.add_argument("--strategy", choices=["rules", "examples", "both"], default="both",
-                        help="tune: rules from mistakes, examples from good answers, or both")
+    parser.add_argument("--strategy", choices=["rules", "examples", "both", "evolve"], default="both",
+                        help="tune: rules from mistakes, examples from good answers, both, or several rounds of "
+                             "rewriting over a Pareto front (evolve)")
     args = parser.parse_args(argv)
     if args.action == "export":
         from Agent_Guru.self_improvement.turn_dataset import export
