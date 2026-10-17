@@ -44,12 +44,13 @@ def code_server() -> ServerConfig:
     """The ServerConfig for the code tool; local is set by the caller."""
     # Not read-only: the tool loop reads the program back and waits for the
     # owner's yes before anything runs.
-    rules = {"run_python": ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)}
+    rules = {"run_python": ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE),
+             "run_shell": ToolRule(allow=True, risk=ToolRisk.LOW_RISK_WRITE)}
     return ServerConfig(name=SERVER_NAME, command="(in process)", timeout=MAX_SECONDS + 30.0, tools=rules)
 
 
 class CodeTools:
-    """The run_python tool (see the module docstring)."""
+    """The run_python and run_shell tools (see the module docstring)."""
 
     def __init__(self) -> None:
         self._problems: list[str] | None = None
@@ -65,7 +66,20 @@ class CodeTools:
     def tool_list(self) -> list[dict[str, Any]]:
         if not enabled() or self._boundary_problems():
             return []
-        return [{
+        shell = {
+            "name": "run_shell",
+            "description": (
+                "Run a short bash script in the same isolated Ubuntu sandbox and get what it prints: text "
+                "processing, date arithmetic, standard command-line tools. No internet, none of the owner's "
+                "files, nothing kept after the run. The owner confirms first."
+            ),
+            "annotations": {"readOnlyHint": False, "openWorldHint": False},
+            "inputSchema": {"type": "object", "properties": {
+                "script": {"type": "string", "minLength": 1, "maxLength": MAX_CODE_CHARS},
+                "seconds": {"type": "integer", "minimum": 1, "maximum": MAX_SECONDS},
+            }, "required": ["script"], "additionalProperties": False},
+        }
+        return [shell, {
             "name": "run_python",
             "description": (
                 "Run a short Python 3 program (standard library only) in an isolated sandbox and get what it "
@@ -81,26 +95,32 @@ class CodeTools:
 
     def describe(self, tool: str, arguments: dict[str, Any]) -> str | None:
         """The confirmation question shows the program itself, so the owner hears what will run."""
-        code = str(arguments.get("code", "")) if isinstance(arguments, dict) else ""
-        if tool != "run_python" or not code.strip():
+        key = {"run_python": "code", "run_shell": "script"}.get(tool)
+        code = str(arguments.get(key, "")) if key and isinstance(arguments, dict) else ""
+        if not code.strip():
             return None
         lines = code.strip().splitlines()
         shown = "; ".join(line.strip() for line in lines[:4])[:240]
         more = f" (and {len(lines) - 4} more lines)" if len(lines) > 4 else ""
-        return f"run this Python in the sandbox: {shown}{more}"
+        language = "Python" if tool == "run_python" else "shell script"
+        return f"run this {language} in the sandbox: {shown}{more}"
 
     async def precheck(self, tool: str, arguments: dict[str, Any]) -> list[str]:
         """Before the owner is asked: a sandbox that cannot be trusted is not offered for a yes."""
-        if tool != "run_python":
+        if tool not in ("run_python", "run_shell"):
             return [f"unknown tool {tool}"]
         return await asyncio.to_thread(self._boundary_problems)
 
     async def call(self, name: str, arguments: dict[str, Any]) -> tuple[str, bool, bool]:
-        if name != "run_python":
+        if name not in ("run_python", "run_shell"):
             return f"unknown tool {name}", True, False
         if self._boundary_problems():
             return "The sandbox is not available: " + "; ".join(self._problems or []), True, False
-        run = await wsl_sandbox.run_python(str(arguments.get("code", "")), seconds=int(arguments.get("seconds", 10)))
+        seconds = int(arguments.get("seconds", 10))
+        if name == "run_shell":
+            run = await wsl_sandbox.run_shell(str(arguments.get("script", "")), seconds=seconds)
+        else:
+            run = await wsl_sandbox.run_python(str(arguments.get("code", "")), seconds=seconds)
         return _report(run), not run.ok, run.result != "unavailable"
 
 
