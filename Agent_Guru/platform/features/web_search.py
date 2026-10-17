@@ -238,6 +238,69 @@ async def _ddg_instant_results(query: str) -> list[SearchResult]:
     )]
 
 
+_NEWS_RSS = "https://www.bing.com/news/search"
+#: Words that make a question about what is happening now, which an
+#: encyclopedia cannot answer: research said "not found" to "who won
+#: yesterday's match" because Wikipedia and DuckDuckGo were its only sources.
+_CURRENT = re.compile(
+    r"\b(news|latest|today|tonight|yesterday|this (week|month|morning|evening)|current(ly)?|recent(ly)?|now|"
+    r"breaking|live|score|scores|won|wins|result|results|election|price|prices|stock|stocks|update|updates|"
+    r"20[2-3]\d)\b",
+    re.IGNORECASE,
+)
+
+
+def is_current(query: str) -> bool:
+    """Whether *query* asks about something happening now, so news is searched and put first."""
+    return bool(_CURRENT.search(query))
+
+
+async def _get_text(url: str, params: dict[str, Any]) -> str:
+    import aiohttp
+
+    async with (
+        aiohttp.ClientSession(headers={"User-Agent": USER_AGENT}) as session,
+        session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=PROVIDER_TIMEOUT_S)) as resp,
+    ):
+        if resp.status != 200:
+            msg = f"HTTP {resp.status}"
+            raise RuntimeError(msg)
+        return await resp.text()
+
+
+async def _news_results(query: str, limit: int) -> list[SearchResult]:
+    """Recent news articles from Bing News's RSS feed (no key), each with its publisher's own address.
+
+    The feed's links go through bing.com/news/apiclick.aspx with the
+    article's address in its url parameter; that address is kept, so
+    reading the page reads the publisher, through the same guard as any page.
+    """
+    from email.utils import parsedate_to_datetime
+
+    from Agent_Guru.security.xml_utils import safe_xml_parse
+
+    root = safe_xml_parse(await _get_text(_NEWS_RSS, {"q": search_terms(query), "format": "rss"}))
+    now = time.time()
+    out = []
+    for item in root.findall(".//item"):
+        link = (item.findtext("link") or "").strip()
+        target = urllib.parse.parse_qs(urllib.parse.urlsplit(link).query).get("url", [link])[0]
+        url = normalize_url(target)
+        title = _clean_html(item.findtext("title") or "")
+        if url is None or not title:
+            continue
+        try:
+            updated = parsedate_to_datetime(item.findtext("pubDate") or "").isoformat()
+        except (TypeError, ValueError):
+            updated = None
+        out.append(SearchResult(title=title, url=url, snippet=_clean_html(item.findtext("description") or ""),
+                                provider="bing_news", retrieved_at=now, updated=updated))
+    # Newest first: the feed ranks by relevance, and for "who won yesterday"
+    # it put an article from June among October's.
+    out.sort(key=lambda r: r.updated or "", reverse=True)
+    return out[:limit]
+
+
 async def search_sources(query: str, limit: int = 5) -> SearchOutcome:
     """Search every provider at once and return their results with sources, duplicates merged.
 
@@ -248,10 +311,12 @@ async def search_sources(query: str, limit: int = 5) -> SearchOutcome:
     if not query.strip():
         outcome.status = "empty"
         return outcome
-    providers = {
-        "wikipedia": _wikipedia_results(query, limit),
-        "duckduckgo_instant": _ddg_instant_results(query),
-    }
+    providers: dict[str, Any] = {}
+    if is_current(query):
+        # First, so the articles lead the results for a question about now.
+        providers["bing_news"] = _news_results(query, limit)
+    providers["wikipedia"] = _wikipedia_results(query, limit)
+    providers["duckduckgo_instant"] = _ddg_instant_results(query)
     answers = await asyncio.gather(
         *(asyncio.wait_for(p, PROVIDER_TIMEOUT_S + 1) for p in providers.values()), return_exceptions=True,
     )
