@@ -1159,7 +1159,7 @@ class IntegrationOrchestrator:
             elif result.policy_allowed:
                 with _timed(result, "action"):
                     outcome = await self._stage_action(
-                        result.intent, pipeline_mode=result.pipeline_mode,
+                        result.intent, pipeline_mode=result.pipeline_mode, transcript=result.transcript or "",
                     )
                 result.action_result, result.action_status = outcome.text, outcome.status
             elif result.intent:
@@ -2877,7 +2877,7 @@ class IntegrationOrchestrator:
             logger.exception("Policy stage error - defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
-    async def _stage_action(self, intent: str, pipeline_mode: str = "full") -> ActionOutcome:
+    async def _stage_action(self, intent: str, pipeline_mode: str = "full", transcript: str = "") -> ActionOutcome:
         """Stage 7: Execute action via agent_orchestrator or OSController.
 
         Supports:
@@ -2924,7 +2924,7 @@ class IntegrationOrchestrator:
             return ActionOutcome(". ".join(results) if results else None, status)
 
         # ── Single action ─────────────────────────────────────────────────
-        return await self._execute_single_action(intent, pipeline_mode)
+        return await self._execute_single_action(intent, pipeline_mode, transcript=transcript)
 
     async def _confirm_destructive_action(self, action: str, safe_intent: str) -> bool:
         """Gate a destructive action behind verbal confirmation.
@@ -2985,7 +2985,9 @@ class IntegrationOrchestrator:
         )
         return False
 
-    async def _execute_single_action(self, intent: str, pipeline_mode: str = "full") -> ActionOutcome:
+    async def _execute_single_action(
+        self, intent: str, pipeline_mode: str = "full", transcript: str = "",
+    ) -> ActionOutcome:
         """Execute a single intent string. Returns a human-readable result or None.
 
         Args:
@@ -3042,6 +3044,14 @@ class IntegrationOrchestrator:
             raw_text = param or safe_intent
 
             # Universal feature detection (runs for ALL intent types)
+            # The intent for these two carries no parameter, only a label:
+            # "good morning" arrived here as "system_control:briefing" and
+            # "what's my battery level" as "system_control:system_status",
+            # which no feature check matches, so both fell through to
+            # platform control and were answered "Sorry, I couldn't do
+            # that." They are decided on the owner's own words instead.
+            if action in ("briefing", "system_status") and transcript:
+                raw_text = transcript
             feature_result = await self._detect_universal_features(
                 raw_text, pipeline_mode, intent_type,
             )
@@ -3134,7 +3144,14 @@ class IntegrationOrchestrator:
         if is_briefing_command(raw_text):
             from Agent_Guru.platform.features.user_memory import get_user_memory
             location = get_user_memory().get("location")
-            return await get_morning_briefing(location=location)
+            # Today's reminders and, where connected, calendar and tasks:
+            # the briefing used to promise reminders and say none.
+            connectors = next((s.local for s in self._mcp_servers if s.name == "connectors"), None)
+            try:
+                pending = self._reminders().list_reminders()
+            except Exception:
+                pending = []
+            return await get_morning_briefing(location=location, reminders=pending, connectors=connectors)
 
         # System status
         from Agent_Guru.platform.features.system_status import get_system_status, is_system_status_command
