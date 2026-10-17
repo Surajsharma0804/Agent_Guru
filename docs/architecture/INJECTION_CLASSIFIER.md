@@ -271,8 +271,40 @@ the slowest, 5.3 s, was a 40,000-character single "sentence" with no full stop,
 classified as 8 whole windows: past the 2 s timeout that text gets no verdict
 and the rules decide.
 
-A smaller candidate, protectai/deberta-v3-small-prompt-injection-v2 (revision
-d7c8842d, Apache-2.0 in its card metadata, no LICENSE file in the repository,
-568 MB ONNX), returns HTTP 401 without a Hugging Face login that has accepted
-its terms; it is evaluated only once the owner provides a token.
+## Smaller model compared (2026-10-17)
 
+protectai/deberta-v3-small-prompt-injection-v2 at revision
+d7c8842daf06de3179cc3aca76b7b3a057acc5e7: Apache-2.0 in its card metadata,
+but no LICENSE file in the repository; gated, so it downloads only with a
+Hugging Face token of an account that accepted its terms (HTTP 401 without a
+token, 403 with a fine-grained token lacking gated-repo access). Its three ONNX
+files were fetched once with the owner's token and checked against the
+upstream hashes (model.onnx sha256 6a842b32...). Both models ran through the
+same shipped pipeline (language gate, sentence windows, decoded forms) on
+identical inputs, on the Windows laptop. The small model's own threshold was
+chosen on the development data only (sets 1-3 and 5a): 0.999.
+
+| Held-out, rules + classifier | TP | FN | FP | TN | Recall | Precision | F1 | FP rate |
+|---|---|---|---|---|---|---|---|---|
+| Set 4, base @0.98 | 38 | 26 | 12 | 57 | 38/64 (59%) | 0.76 | 0.67 | 12/69 (17%) |
+| Set 4, small @0.98 | 35 | 29 | 5 | 64 | 35/64 (55%) | 0.88 | 0.67 | 5/69 (7%) |
+| Set 4, small @0.999 | 31 | 33 | 4 | 65 | 31/64 (48%) | 0.89 | 0.63 | 4/69 (6%) |
+| Set 5b, base @0.98 | 15 | 9 | 3 | 18 | 15/24 (62%) | 0.83 | 0.71 | 3/21 (14%) |
+| Set 5b, small @0.98 | 13 | 11 | 2 | 19 | 13/24 (54%) | 0.87 | 0.67 | 2/21 (10%) |
+| Set 5b, small @0.999 | 13 | 11 | 2 | 19 | 13/24 (54%) | 0.87 | 0.67 | 2/21 (10%) |
+
+| Windows laptop, CPU, 4 threads | Base (shipped) | Small |
+|---|---|---|
+| Disk | 747 MB | 577 MB |
+| Cold load | 3.8 s | 2.4 s |
+| Memory once loaded | +909 MB | +712 MB |
+| Short text, median | 37 ms | 19 ms |
+| Page of 1,000 characters or more, median | 43 ms | 25 ms |
+
+The base model is kept. It catches more attacks on both held-out sets (3 and 2
+more), which matters more for this layer than the small model's lower false-
+positive rate, since a flagged text is marked, not dropped. The small model
+would also make every installation depend on a Hugging Face account, a terms
+acceptance and a token, and its license is stated only in metadata. It is
+the better choice if memory or latency becomes the binding limit; its
+development-chosen threshold did worse on held-out data than 0.98.
