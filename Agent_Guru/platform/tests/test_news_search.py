@@ -71,3 +71,16 @@ async def test_a_question_about_the_past_does_not_wait_for_news(monkeypatch):
     monkeypatch.setattr(web_search, "_wikipedia_results", none)
     monkeypatch.setattr(web_search, "_ddg_instant_results", none)
     assert (await search_sources("who was Akbar")).status == "empty"  # nosec B101
+
+
+@pytest.mark.parametrize("query", [
+    "Who won yesterday's India cricket match?", "What were the election results?", "Who plays tonight?",
+])
+def test_a_question_about_what_just_happened_is_researched_first(query):
+    """These matched no live-data word, so the model answered from memory ("I don't know") without searching."""
+    assert web_search.needs_web_search(query)  # nosec B101
+
+
+@pytest.mark.parametrize("query", ["What is 17 times 23?", "Tell me a joke", "How do I boil an egg?"])
+def test_a_question_that_needs_no_web_is_not_sent_there(query):
+    assert not web_search.needs_web_search(query)  # nosec B101
