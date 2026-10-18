@@ -75,16 +75,37 @@ def project_files(root: Path) -> dict[str, Path]:
     from Agent_Guru.security.file_policy import sensitive_reason
 
     found: dict[str, Path] = {}
+    home = root.resolve()
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS and not d.startswith(".tox"))
+        # Links never count as part of the project: os.walk follows a
+        # Windows junction (it is not a symlink to it), and a junction to a
+        # folder outside the project let project_files read, and
+        # project_apply overwrite, a file there.
+        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS and not d.startswith(".tox")
+                             and not _linked(Path(dirpath) / d, home))
         for filename in sorted(filenames):
             path = Path(dirpath) / filename
-            if sensitive_reason(path) or path.stat().st_size > MAX_FILE_BYTES:
+            if _linked(path, home) or sensitive_reason(path) or path.stat().st_size > MAX_FILE_BYTES:
                 continue
             found[path.relative_to(root).as_posix()] = path
             if len(found) >= MAX_FILES:
                 return found
     return found
+
+
+def _linked(path: Path, home: Path) -> bool:
+    """Whether *path* is a symlink or junction, or resolves outside the project folder *home*."""
+    is_junction = getattr(path, "is_junction", lambda: False)
+    try:
+        return path.is_symlink() or is_junction() or not path.resolve().is_relative_to(home)
+    except OSError:
+        return True
+
+
+def _inside(root: Path, names: list[str]) -> list[str]:
+    """The names a change would write outside *root* (through a link, or by its path)."""
+    home = root.resolve()
+    return [n for n in names if not (root / n).resolve(strict=False).is_relative_to(home)]
 
 
 def _texts(files: dict[str, Path]) -> dict[str, str]:
@@ -240,7 +261,11 @@ class CodingTools:
             changed = apply_patch(_texts(files), patch)
         except PatchError as exc:
             return f"The change does not apply: {exc}. No file was changed.", True, False
-        backup = (self._backups or app_data_dir("project-backups", create=True)) / f"{root.name}-{time.strftime('%Y%m%d-%H%M%S')}"
+        outside = _inside(root, list(changed))
+        if outside:
+            return (f"The change would write outside the project ({', '.join(outside[:3])}). "
+                    "No file was changed."), True, False
+        backup =(self._backups or app_data_dir("project-backups", create=True)) / f"{root.name}-{time.strftime('%Y%m%d-%H%M%S')}"
         for name in changed:
             if name in files:
                 target = backup / name
