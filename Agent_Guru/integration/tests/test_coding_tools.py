@@ -137,3 +137,39 @@ async def test_the_real_sandbox_runs_the_projects_tests(project):
                                                               "command": "python3 -m pytest -q"})
     assert failed and "1 failed" in before  # nosec B101
     assert not failed_after and "1 passed" in after  # nosec B101
+
+
+def _link_out(project, outside):
+    """A folder link from the project to *outside*: a junction on Windows (no admin needed), a symlink elsewhere."""
+    import os
+    import subprocess  # nosec B404 - mklink with fixed arguments
+    import sys
+
+    link = project / "linkdir"
+    if sys.platform == "win32":
+        done = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],  # nosec B603 B607
+                              capture_output=True, check=False)
+        if done.returncode != 0:
+            pytest.skip("UNVERIFIED on this host: a junction could not be made")
+    else:
+        os.symlink(outside, link, target_is_directory=True)
+    return link
+
+
+async def test_a_link_out_of_the_project_is_neither_read_nor_written(project, tmp_path):
+    """A junction in the project let project_files read, and project_apply overwrite, a file outside it."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "private.txt").write_text("outside secret\n", encoding="utf-8")
+    _link_out(project, outside)
+    tools = CodingTools(backups=tmp_path / "backups")
+    listing, _, _ = await tools.call("project_files", {"path": str(project)})
+    assert "private.txt" not in listing  # nosec B101
+    _, is_error, _ = await tools.call("project_files", {"path": str(project), "file": "linkdir/private.txt"})
+    assert is_error  # nosec B101
+    overwrite = "--- a/linkdir/private.txt\n+++ b/linkdir/private.txt\n@@ -1 +1 @@\n-outside secret\n+overwritten\n"
+    plant = "--- /dev/null\n+++ b/linkdir/new.txt\n@@ -0,0 +1 @@\n+planted\n"
+    for diff in (overwrite, plant):
+        _, is_error, _ = await tools.call("project_apply", {"path": str(project), "patch": diff})
+        assert is_error  # nosec B101
+    assert (outside / "private.txt").read_text() == "outside secret\n" and not (outside / "new.txt").exists()  # nosec B101
