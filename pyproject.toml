@@ -214,6 +214,23 @@ gpu = [
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
 ]
 
+# The browser tools (integration/browser_tools.py) drive the installed Edge
+# or Chrome through Playwright; no browser download is needed. Without it the
+# tools say Playwright is missing. It was pinned only in the lock file, so a
+# normal install could not use them.
+#   pip install -e ".[browser]"
+browser = [
+    "playwright>=1.48",
+]
+
+# The Nostr channel (platform/channels) publishes to relays over WebSockets.
+# Without it a Nostr send fails with "the websockets package is not
+# installed"; it was not declared anywhere.
+#   pip install -e ".[nostr]"
+nostr = [
+    "websockets>=12",
+]
+
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
@@ -250,6 +267,8 @@ dev = [
 # wheel without CUDA, and dbus-python needs Linux system headers.
 test = [
     "agent-guru[dev]",
+    # So CI runs the browser and Nostr tests instead of skipping them.
+    "agent-guru[browser,nostr]",
     # Core runtime the suite touches. numpy 2: kokoro-onnx 0.5.0, the voice,
     # requires numpy>=2.0.2. This used to cap numpy below 2.0 on Python 3.11
     # and 3.12, so `pip install -e ".[test]"` could not resolve there and no
