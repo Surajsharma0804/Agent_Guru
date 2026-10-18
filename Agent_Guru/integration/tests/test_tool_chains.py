@@ -35,7 +35,8 @@ class Travel:
         return [tool("find_booking", "Find the owner's travel booking for a destination; gives the booking "
                      "reference and flight number.", "destination"),
                 tool("flight_status", "Departure time and status of a flight, by flight number such as 6E 523.", "flight"),
-                tool("get_weather", "Current weather for a city.", "city")]
+                tool("get_weather", "Current weather for a city.", "city"),
+                tool("read_source", "Read more of an earlier result by its source id.", "source")]
 
     async def call(self, name, arguments):
         self.calls.append((name, dict(arguments)))
@@ -44,7 +45,9 @@ class Travel:
         if name == "flight_status":
             ok = arguments.get("flight") == "6E 523"
             return ("6E 523 departs Pune at 7:40, on time." if ok else f"No flight {arguments.get('flight')}."), not ok
-        return "Delhi: 31 C, haze.", False
+        if name == "read_source":
+            return "More of S1.", False
+        return "Delhi: 31 C, haze. Source: S1 (weather service).", False
 
 
 class Model:
@@ -76,7 +79,7 @@ async def turn(tmp_path):
         travel = Travel()
         server = ServerConfig(name="travel", command="(in process)", timeout=10.0, local=travel,
                               tools={n: ToolRule(allow=True, risk=ToolRisk.READ_ONLY)
-                                     for n in ("find_booking", "flight_status", "get_weather")})
+                                     for n in ("find_booking", "flight_status", "get_weather", "read_source")})
         engine = PolicyEngine()
         install_default_policies(engine)
         install_mcp_policies(engine, [server])
@@ -146,3 +149,14 @@ async def test_the_loop_nudges_at_most_twice(turn):
     )
     # The failure, two nudges, then the reply stands.
     assert len(model.requests) == 4 and result.llm_response.startswith("Really, I can't.")  # nosec B101
+
+
+async def test_a_word_in_the_output_is_not_a_reason_to_call_another_tool(turn):
+    """Every research answer names its sources, and read_page's input is "source": an offer in the reply
+    was enough to send the model to read_page, twice, on a question about scheduling a weather check."""
+    result, model, travel = await turn(
+        ("", [_call("get_weather", city="Delhi")]),
+        ("It's 31 C in Delhi. Want me to check anything else?", []),
+    )
+    # read_source's input word is in the output, but the question is not about sources: no nudge.
+    assert len(model.requests) == 2 and [c[0] for c in travel.calls] == ["get_weather"]  # nosec B101
