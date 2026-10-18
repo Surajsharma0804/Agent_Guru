@@ -188,3 +188,54 @@ async def test_the_owner_hears_which_element_on_which_site(tools, site, tmp_path
 def test_not_offered_unless_switched_on(monkeypatch):
     monkeypatch.delenv(browser_tools.ENABLE_ENV, raising=False)
     assert BrowserTools().tool_list() == []  # nosec B101
+
+
+async def test_a_redirect_to_a_private_address_is_blocked(monkeypatch):
+    """The browser followed redirects past the guard: a public page redirecting to localhost loaded the local page.
+
+    Here 127.0.0.1 stands in for a public site (the check is told so) and
+    redirects to localhost, which the check refuses as it would any
+    private address; the second request must never arrive.
+    """
+    from Agent_Guru.platform.features import web_fetch
+
+    hits = []
+
+    class Redirector(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - the http.server API
+            hits.append(self.path)
+            if self.path == "/start":
+                self.send_response(302)
+                self.send_header("Location", f"http://localhost:{self.server.server_address[1]}/secret")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            body = b"<title>secret</title>local only"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    async def only_127(host, port):
+        if host != "127.0.0.1":
+            msg = f"{host} leads to a non-public address"
+            raise web_fetch.BlockedDestination(msg)
+        return host
+
+    monkeypatch.setattr(web_fetch, "resolve_public", only_127)
+    monkeypatch.setenv(browser_tools.ENABLE_ENV, "1")
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Redirector)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    guarded = BrowserTools()
+    try:
+        text, is_error, _ = await guarded.call("browser_open", {"url": f"http://127.0.0.1:{server.server_address[1]}/start"})
+        if "no browser could be started" in text:
+            pytest.skip("UNVERIFIED on this host: " + text)
+        assert is_error and "local only" not in text  # nosec B101
+        assert hits == ["/start"]  # nosec B101
+    finally:
+        await guarded.close()
+        server.shutdown()
