@@ -76,6 +76,7 @@ KNOWN_SETTINGS: dict[str, str] = {
     "MATRIX_INBOUND_ROOMS": "text",
     "MATRIX_ALLOWED_USERS": "text",
     "EMAIL_ALLOWED_SENDERS": "text",
+    "EMAIL_AUTHSERV_ID": "text",
     "IMAP_HOST": "text",
     "IMAP_PORT": "count",
     "IMAP_USER": "text",
