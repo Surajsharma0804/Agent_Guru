@@ -165,14 +165,6 @@ _PROMISED_LOOKUP = re.compile(
     re.IGNORECASE,
 )
 
-#: A reply that offers the next step instead of taking it ("Wanna know the
-#: actual departure time?", "I can check the status for you").
-_OFFERS_MORE = re.compile(
-    r"\b(?:wanna know|want (?:me )?to know|want me to|should i|shall i|do you want|"
-    r"i can (?:check|look|find|get|pull)|let me know if|you (?:should|could|can|might) (?:\w+ )?check)\b",
-    re.IGNORECASE,
-)
-
 #: Words too common to say what a question is about.
 _COMMON_WORDS = frozenset({
     "what", "when", "where", "which", "does", "with", "that", "this", "have", "from", "your", "about", "will",
@@ -747,9 +739,9 @@ class ToolLoop:
 
         Two kinds: a call failed and a tool that gives its input was named
         for it (see _producer_note); or a read-only tool returned text
-        naming another offered tool's required input ("flight 6E 523" for
-        flight_status's flight) and the reply offers to go on ("Wanna know
-        the departure time?") instead of going on.
+        giving another offered tool's required input with a value ("flight
+        6E 523" for flight_status's flight), on a question about what that
+        tool does, and the model stopped instead of calling it.
         """
         if self._chain_nudges >= 2:
             return ""
@@ -764,21 +756,25 @@ class ToolLoop:
                         f"{producers[0]} gives. Call {producers[0]} now.")
             return (f"Correction from the assistant's own checks: {done[0]} returned what {failed} needed. "
                     f"Call {failed} now with it, then answer the owner.")
-        offers = bool(_OFFERS_MORE.search(reply or "") or _PROMISED_LOOKUP.search(reply or ""))
         asked = {w for w in re.findall(r"[a-z]{4,}", self._owner_text.lower())} - _COMMON_WORDS
-        outputs = [(f"{c.server}__{c.tool}", (c.output or "").lower()) for c in self.outcome.calls
+        outputs = [(f"{c.server}__{c.tool}", c.output or "") for c in self.outcome.calls
                    if c.status is ActionStatus.SUCCESS]
         for offered, other in self._tools.items():
             if offered in succeeded or other.risk is not ToolRisk.READ_ONLY:
                 continue
-            # The owner's question is about what this tool does, or the reply
-            # offers to do it: without either, a tool that could take the
-            # output is not the owner's business this turn.
-            if not offers and not asked & set(re.findall(r"[a-z]{4,}", (other.description or "").lower())):
+            # The owner's question must be about what this tool does, and the
+            # output must give its input with a value ("flight 6E 523"), not
+            # merely use the word: with an offer in the reply enough, every
+            # research answer ("Sources: ...") sent the model to read_page
+            # (whose input is "source"), twice, on a question about
+            # scheduling a weather check.
+            if not asked & set(re.findall(r"[a-z]{4,}", (other.description or "").lower())):
                 continue
-            required = [str(p).lower() for p in (other.input_schema or {}).get("required", [])]
+            required = [str(p) for p in (other.input_schema or {}).get("required", [])]
             for producer, text in outputs:
-                if required and all(re.search(rf"\b{re.escape(p)}\b", text) for p in required):
+                if required and all(re.search(rf"\b{re.escape(p)}\b[\s:=#]*[A-Z0-9][\w-]*", text, re.IGNORECASE)
+                                     and re.search(rf"\b{re.escape(p)}\b[\s:=#]*[A-Z]*\d", text, re.IGNORECASE)
+                                     for p in required):
                     return (f"Correction from the assistant's own checks: {producer} returned the {', '.join(required)} "
                             f"that {offered} needs. If the owner's question needs it, call {offered} now instead of "
                             f"offering to, then answer.")
