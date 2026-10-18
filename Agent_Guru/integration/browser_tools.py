@@ -116,6 +116,10 @@ class BrowserTools:
         self._elements: dict[int, dict[str, Any]] = {}
         self._idle: asyncio.TimerHandle | None = None
         self._lock = asyncio.Lock()
+        #: Redirects followed for the current page; reset at each browser_open.
+        self._hops = 0
+        #: Addresses the guard answered with a page that navigates on to a checked redirect target.
+        self._redirect_pages: set[str] = set()
 
     def tool_list(self) -> list[dict[str, Any]]:
         if not enabled():
@@ -196,7 +200,26 @@ class BrowserTools:
         if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
             return "Only http and https addresses can be opened.", True, False
         page = await self._ensure_page()
-        await page.goto(url, wait_until="domcontentloaded", timeout=_NAV_TIMEOUT_MS)
+        self._hops = 0
+        self._redirect_pages.clear()
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=_NAV_TIMEOUT_MS)
+        except Exception as exc:
+            # A checked redirect (see _fetch_checked) replaces the first page at once.
+            if "interrupted by another navigation" not in str(exc):
+                raise
+        # Each redirect hop is its own navigation: wait until the page is not
+        # one of the redirect pages the guard served before reading it.
+        for _ in range(50):
+            with contextlib.suppress(Exception):
+                await page.wait_for_load_state("load", timeout=_NAV_TIMEOUT_MS)
+            if page.url not in self._redirect_pages:
+                break
+            await asyncio.sleep(0.2)
+        with contextlib.suppress(Exception):
+            await page.wait_for_load_state("domcontentloaded", timeout=_NAV_TIMEOUT_MS)
+        if page.url.startswith("chrome-error://"):
+            return "The page could not be opened: a redirect led somewhere it may not go.", True, False
         return await self._snapshot(), False, False
 
     async def _click(self, element_id: int) -> tuple[str, bool, bool]:
@@ -278,7 +301,62 @@ class BrowserTools:
             elif parts.scheme not in ("data", "blob", "about"):
                 await route.abort("blockedbyclient")
                 return
+            if parts.scheme in ("http", "https"):
+                await self._fetch_checked(route)
+                return
         await route.continue_()
+
+    async def _fetch_checked(self, route: Any) -> None:
+        """Fetch one request here, checking every redirect target before anything follows it.
+
+        The browser followed redirects itself, past the check on the first
+        request, so a public page redirecting to 127.0.0.1 or localhost
+        loaded the local page; handing the redirect back to the browser did
+        not help, since it followed that too without asking the route again.
+        A page's redirect becomes a small page that navigates to the checked
+        target, which is a new request through this guard; a subresource's
+        redirects are followed here, at most five hops, each checked.
+        """
+        import html
+
+        from Agent_Guru.platform.features.web_fetch import BlockedDestination, resolve_public
+
+        async def allowed(url: str) -> bool:
+            parts = urllib.parse.urlsplit(url)
+            if parts.scheme not in ("http", "https"):
+                return False
+            try:
+                await resolve_public(parts.hostname or "", parts.port or (443 if parts.scheme == "https" else 80))
+            except BlockedDestination:
+                return False
+            return True
+
+        url = route.request.url
+        for _ in range(6):
+            try:
+                response = await route.fetch(url=url, max_redirects=0)
+            except Exception:
+                await route.abort("failed")
+                return
+            location = response.headers.get("location")
+            if not (300 <= response.status < 400 and location):
+                await route.fulfill(response=response)
+                return
+            target = urllib.parse.urljoin(url, location)
+            if not await allowed(target):
+                await route.abort("blockedbyclient")
+                return
+            if route.request.is_navigation_request():
+                self._hops += 1
+                if self._hops > 10:
+                    await route.abort("blockedbyclient")
+                    return
+                self._redirect_pages.add(url)
+                await route.fulfill(status=200, content_type="text/html",
+                                    body=f'<meta http-equiv="refresh" content="0;url={html.escape(target, quote=True)}">')
+                return
+            url = target
+        await route.abort("blockedbyclient")
 
     def _touch(self) -> None:
         if self._idle is not None:
