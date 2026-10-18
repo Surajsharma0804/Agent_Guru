@@ -13,7 +13,9 @@ opened and nothing on this machine becomes reachable from the network:
     matrix    MATRIX_HOMESERVER, MATRIX_ACCESS_TOKEN, MATRIX_INBOUND_ROOMS (room ids),
               MATRIX_ALLOWED_USERS (@user:server)
     email     IMAP_HOST, IMAP_USER, IMAP_PASSWORD (read), SMTP_* (reply),
-              EMAIL_ALLOWED_SENDERS (addresses)
+              EMAIL_ALLOWED_SENDERS (addresses); only mail the owner's mail server
+              authenticated (DMARC, or DKIM of the From domain) counts, and
+              EMAIL_AUTHSERV_ID (for example mx.google.com) names that server
 
 AGENT_GURU_INBOUND names the sources to run (comma separated, for example
 "telegram,matrix"); AGENT_GURU_TELEGRAM_INBOUND still turns Telegram on.
@@ -61,6 +63,8 @@ class Incoming:
     chat: str
     sender: str
     text: str
+    #: Whether the service vouched for the sender (email: DMARC or the From domain's DKIM passed).
+    verified: bool = True
 
 
 def _env(name: str) -> str:
@@ -310,7 +314,30 @@ class EmailSource(Source):
         return [f"{n} is not set" for n in names if not _env(n)]
 
     def allowed(self, message: Incoming) -> bool:
-        return message.sender.lower() in {s.lower() for s in _ids("EMAIL_ALLOWED_SENDERS")}
+        return message.verified and message.sender.lower() in {s.lower() for s in _ids("EMAIL_ALLOWED_SENDERS")}
+
+    @staticmethod
+    def authenticated(message: Any, sender: str) -> bool:
+        """Whether the owner's mail server vouched for *sender*: DMARC passed, or DKIM for its own domain.
+
+        The From header is whatever the sender typed: a mail from a stranger
+        with the owner's address in From was taken as the owner, and its
+        "yes" could approve an action. Only the topmost Authentication-Results
+        counts (the receiving server adds it last; a sender can add fake ones
+        below it), and with EMAIL_AUTHSERV_ID set it must be that server's.
+        """
+        results = message.get_all("Authentication-Results") or []
+        if not results:
+            return False
+        top = " ".join(str(results[0]).split()).lower()
+        server = _env("EMAIL_AUTHSERV_ID").lower()
+        if server and not top.startswith(server):
+            return False
+        if re.search(r"\bdmarc=pass\b", top):
+            return True
+        domain = sender.rpartition("@")[2].lower()
+        return bool(domain) and bool(re.search(
+            rf"\bdkim=pass\b[^;]*\bheader\.(?:d={re.escape(domain)}\b|i=[^\s;]*@{re.escape(domain)}\b)", top))
 
     def _box(self) -> Any:
         import imaplib
@@ -350,7 +377,7 @@ class EmailSource(Source):
                 text = re.split(r"\n(?:On .{0,200}wrote:|>)", text, maxsplit=1)[0].strip()
                 subject = str(message.get("Subject", "")).strip()
                 if text or subject:
-                    out.append(Incoming(sender, sender, text or subject))
+                    out.append(Incoming(sender, sender, text or subject, verified=self.authenticated(message, sender)))
                 box.uid("store", uid, "+FLAGS", "(\\Seen)")
         finally:
             box.logout()
