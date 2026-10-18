@@ -884,6 +884,15 @@ async def run() -> None:
         except Exception as e:
             logger.warning("Speech shutdown suppressed: %s", e)
 
+    # The memory's SQLite connection runs on its own worker thread; left
+    # open, that thread kept the process alive after "Goodbye" until
+    # `service stop` ended it 30 s later.
+    if hasattr(memory, "shutdown") and callable(memory.shutdown):
+        try:
+            await asyncio.wait_for(memory.shutdown(), 10)
+        except Exception as e:
+            logger.warning("Memory shutdown suppressed: %s", e)
+
     _service.withdraw()
     logger.info("Agent Guru stopped. Goodbye.")
 
@@ -933,6 +942,32 @@ def main() -> None:
     else:
         logger.critical("Max restart attempts (%d) exhausted. Exiting.", _MAX_RESTART_ATTEMPTS)
         sys.exit(1)
+    _exit_after_clean_shutdown()
+
+
+def _exit_after_clean_shutdown(grace_s: float = 5.0) -> None:
+    """End the process once run() has shut down cleanly, even if a library thread is still running.
+
+    After `service stop` the shutdown finished within a second ("Agent Guru
+    stopped. Goodbye."), but the process stayed alive until the service
+    command ended it 30 s later: a thread that is not a daemon kept the
+    interpreter from exiting. Everything is saved by the time run() returns,
+    so the threads still running are named in the log and the process exits.
+    """
+    import threading
+    import time as _time
+
+    deadline = _time.monotonic() + grace_s
+    while _time.monotonic() < deadline:
+        lingering = [t for t in threading.enumerate()
+                     if t is not threading.main_thread() and t.is_alive() and not t.daemon]
+        if not lingering:
+            return
+        _time.sleep(0.2)
+    logger.warning("Exiting with %d thread(s) still running after shutdown: %s", len(lingering),
+                   ", ".join(sorted(t.name for t in lingering))[:300])
+    logging.shutdown()
+    os._exit(0)
 
 
 if __name__ == "__main__":
