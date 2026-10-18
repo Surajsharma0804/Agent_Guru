@@ -50,7 +50,10 @@ logger = logging.getLogger(__name__)
 # Prime Minister?". An office-holder question is still caught by the office
 # ("prime minister", "ceo", ...) below.
 _CURRENT_EVENT_KEYWORDS = re.compile(
-    r"\b(current|currently|now|today|latest|recent|right now|"
+    # yesterday, tonight, won, election, results: "Who won yesterday's India
+    # cricket match?" matched none of the rest, was not researched first,
+    # and gemma4 answered "I don't know" without calling web_research.
+    r"\b(current|currently|now|today|tonight|yesterday|latest|recent|right now|won|wins|results?|election|"
     r"president|prime minister|"
     r"chancellor|king|queen|ceo|leader|winner|champion|score|"
     r"price|stock|weather|news|headline|just happened|"
