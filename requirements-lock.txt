@@ -75,15 +75,16 @@
 #
 #   How it was made, on Python 3.13, Windows x64, in an empty venv:
 #     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-#     pip install -r requirements.txt -e ".[test,backends,cloud,training]" playwright uvicorn locust "setuptools>=83.0.0"
+#     pip install -r requirements.txt -e ".[test,backends,cloud,training,browser,nostr]" uvicorn locust "setuptools>=83.0.0"
 #     pip check                      -> no broken requirements
 #     pip freeze --all --exclude-editable
 #   The second command must be ONE resolve: installing requirements.txt and
 #   the extras in separate steps downgraded protobuf to 5.29.6 under a
 #   tensorboard that needs >=6.31.1. Together pip picks tensorboard 2.20.0.
-#   playwright, uvicorn and locust are imported (browser_manager.py,
-#   health_endpoint.py, the load test) but declared nowhere, so they are
-#   named here to stay pinned and audited. The gpu extra (CUDA runtime
+#   uvicorn and locust are imported (health_endpoint.py, the load test)
+#   but declared nowhere, so they are named here to stay pinned and
+#   audited. playwright and websockets are declared since 2026-10-18 as the
+#   browser and nostr extras; their pins below did not change. The gpu extra (CUDA runtime
 #   libraries) is left out, as before; torch is the CPU build that
 #   requirements-torch.txt and CI use, so the +cu128 pins are gone.
 #
