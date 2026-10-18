@@ -1,7 +1,9 @@
 """The Nostr channel's signatures are BIP340's, checked against the specification's own test vectors.
 
 bip340_vectors.csv is test-vectors.csv from the BIP340 specification
-(github.com/bitcoin/bips, bip-0340), unchanged. A relay rejects an event
+(github.com/bitcoin/bips, bip-0340), unchanged, used under CC0-1.0, one
+of the licenses BIP340's code is offered under ("License-Code:
+BSD-2-Clause OR MIT OR CC0-1.0"). A relay rejects an event
 whose signature is not exactly BIP340, so every vector must hold: the
 exact signature bytes where a secret key is given, and the verdict
 (including every rejected case) for all of them.
