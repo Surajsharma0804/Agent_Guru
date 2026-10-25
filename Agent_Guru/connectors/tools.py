@@ -349,7 +349,7 @@ class ConnectorTools:
                                  startDateTime=start.isoformat(), endDateTime=end.isoformat(),
                                  **{"$orderby": "start/dateTime", "$top": 50, "$select": "subject,start,location"})
             for e in listing.get("value") or []:
-                lines.append(f"{(e.get('start') or {}).get('dateTime', '')} | {e.get('subject', '')} | "
+                lines.append(f"{_graph_local(e.get('start') or {})} | {e.get('subject', '')} | "
                              f"{_clip(((e.get('location') or {}).get('displayName') or ''), 80)}")
         elif os.environ.get("CALENDAR_ICS"):
             lines = await asyncio.to_thread(_ics_events, Path(os.environ["CALENDAR_ICS"]), start, end)
@@ -369,10 +369,15 @@ class ConnectorTools:
                 "start": {"dateTime": begin.isoformat()}, "end": {"dateTime": finish.isoformat()}})
             return f"Added {title!r} at {begin:%a %d %b %H:%M} (id {made.get('id', '?')}).", False, bool(made.get("id"))
         if provider == "microsoft":
+            # Graph wants a Windows or IANA zone name. str(tzinfo) gave "UTC+05:30" for a start with an
+            # offset and "IST" on Linux, neither of which Graph knows; the same instant in UTC always works.
+            def utc(moment: dt.datetime) -> str:
+                return moment.astimezone(dt.UTC).replace(tzinfo=None).isoformat()
+
             made = await _post("https://graph.microsoft.com/v1.0/me/events", provider, {
                 "subject": title, "body": {"contentType": "Text", "content": notes},
-                "start": {"dateTime": begin.replace(tzinfo=None).isoformat(), "timeZone": "UTC" if begin.utcoffset() == dt.timedelta(0) else str(begin.tzinfo)},
-                "end": {"dateTime": finish.replace(tzinfo=None).isoformat(), "timeZone": "UTC" if begin.utcoffset() == dt.timedelta(0) else str(begin.tzinfo)}})
+                "start": {"dateTime": utc(begin), "timeZone": "UTC"},
+                "end": {"dateTime": utc(finish), "timeZone": "UTC"}})
             return f"Added {title!r} at {begin:%a %d %b %H:%M}.", False, bool(made.get("id"))
         return "Adding events needs a connected Google or Microsoft calendar.", True
 
@@ -595,6 +600,23 @@ def _search_vault(vault: Path, query: str, limit: int) -> list[str]:
             if len(found) >= limit or time.monotonic() > deadline:
                 break
     return found
+
+
+def _graph_local(when: dict[str, Any]) -> str:
+    """A Graph {dateTime, timeZone} in the owner's local time.
+
+    Graph gives event times in UTC unless asked otherwise, without an
+    offset; they were shown as they came, so a 15:00 meeting in India
+    was read out as 09:30.
+    """
+    raw = when.get("dateTime", "")
+    if not raw or when.get("timeZone", "UTC") != "UTC":
+        return raw
+    try:
+        moment = dt.datetime.fromisoformat(raw[:26])
+    except ValueError:
+        return raw
+    return moment.replace(tzinfo=dt.UTC).astimezone().isoformat(timespec="minutes")
 
 
 def _render(message: Any) -> str:
