@@ -121,6 +121,60 @@ class TaskTools:
     _OWN = frozenset({"description", "tool", "arguments", "every_minutes", "notify_when", "contains_text",
                       "in_minutes", "at_time"})
 
+    def describe(self, name: str, arguments: dict[str, Any]) -> str | None:
+        """The owner's yes/no question for a scheduling call, from what _split says will run.
+
+        Without it the tool loop read the raw call aloud: "Should I run
+        schedule_check on tasks with {"arguments": {}, "contains_text":
+        "Delhi", "every_minutes": 60, "notify_when": "always", "tool":
+        "eval__get_weather", "city": "Delhi"}?". The words come from the same
+        split the call will use, so they name what is approved and nothing else.
+        """
+        if not isinstance(arguments, dict):
+            return None
+        if name == "cancel_task":
+            return f"cancel the task {str(arguments.get('task_id', ''))[:40]}"
+        if name not in {"schedule_check", "schedule_action"}:
+            return None
+        try:
+            tool, target_arguments = self._split(arguments)
+        except ValueError:
+            return None
+        what = tool.split("__", 1)[-1].replace("_", " ")
+        given = ", ".join(f"{k} {json.dumps(v, ensure_ascii=False).strip(chr(34))}" for k, v in target_arguments.items())
+        lookup = f"{what} ({given[:120]})" if given else what
+
+        def every(minutes: Any) -> str:
+            try:
+                value = float(minutes)
+            except (TypeError, ValueError):
+                return ""
+            if value == 60:
+                return "every hour"
+            if value % 1440 == 0:
+                return "every day" if value == 1440 else f"every {value / 1440:g} days"
+            if value % 60 == 0:
+                return f"every {value / 60:g} hours"
+            return f"every {value:g} minutes"
+
+        if name == "schedule_check":
+            when = every(arguments.get("every_minutes"))
+            notify = arguments.get("notify_when", "always")
+            if notify == "contains" and arguments.get("contains_text"):
+                tell = f"tell you when it mentions {str(arguments['contains_text'])[:60]}"
+            elif notify == "changed":
+                tell = "tell you when it changes"
+            else:
+                tell = "tell you what it finds each time"
+            return f"check {lookup} {when} and {tell}".replace("  ", " ")
+        if arguments.get("in_minutes") is not None:
+            when = f"in {float(arguments['in_minutes']):g} minutes"
+        elif arguments.get("at_time"):
+            when = f"at {str(arguments['at_time'])[:12]}"
+        else:
+            when = every(arguments.get("every_minutes"))
+        return f"run {lookup} {when}".strip()
+
     def _split(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         """The target tool and its arguments: from tool and arguments, from extra fields, or the turn's last lookup."""
         tool = str(arguments.get("tool") or "")

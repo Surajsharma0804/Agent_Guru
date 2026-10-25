@@ -90,8 +90,8 @@ def _schedule(**arguments):
 async def test_scheduling_an_action_waits_for_the_owners_yes(setup):
     orch, _, _ = await setup.build(("", [_schedule()]), ("Scheduled it.", []))
     asked = await orch.run_text_turn("in an hour, note that I need milk")
-    assert asked.awaiting_reply and "schedule_action" in asked.llm_response  # nosec B101
-    assert '"note": "buy milk"' in asked.llm_response  # nosec B101  the exact action is read back
+    # The exact action is read back in words, from the arguments that will run.
+    assert asked.awaiting_reply and "Should I run write note (note buy milk) in 60 minutes?" in asked.llm_response  # nosec B101
     assert orch._reminders().list_reminders() == []  # nosec B101  nothing scheduled yet
     done = await orch.run_text_turn("yes")
     (task,) = orch._reminders().list_reminders()
@@ -187,7 +187,7 @@ async def test_a_named_tool_without_its_arguments_gets_them_from_one_focused_ste
     bad = ToolCall(name="tasks__schedule_check", arguments={"tool": "test__echo", "every_minutes": 60})
     orch, model, _ = await setup.build(("", [bad]), ("", [ToolCall(name="test__echo", arguments={"text": "hi"})]))
     asked = await orch.run_text_turn("could you keep an eye on this for me")
-    assert asked.awaiting_reply and '"text": "hi"' in asked.llm_response  # nosec B101  read back with what was filled
+    assert asked.awaiting_reply and "check echo (text hi) every hour" in asked.llm_response  # nosec B101  read back with what was filled
     assert [f.name for f in model.requests[1].functions] == ["test__echo"]  # nosec B101  only the target offered
     await orch.run_text_turn("yes")
     assert [t.arguments for t in orch._reminders().list_reminders()] == [{"text": "hi"}]  # nosec B101
@@ -239,3 +239,19 @@ async def test_listing_tasks_needs_no_yes_and_cancelling_does(setup):
     await orch.run_text_turn("yes")
     assert orch._reminders().list_reminders() == []  # nosec B101
     assert task.reminder_id not in json.loads(setup.store.read_text(encoding="utf-8"))  # nosec B101
+
+
+@pytest.mark.parametrize("arguments, said", [
+    # gemma4's own call for "keep an eye on the weather in Delhi every hour", measured live: an empty
+    # arguments object, the city as a further field, and a contains_text the check will not use.
+    ({"arguments": {}, "contains_text": "Delhi", "every_minutes": 60, "notify_when": "always",
+      "tool": "eval__get_weather", "city": "Delhi"},
+     "check get weather (city Delhi) every hour and tell you what it finds each time"),
+    ({"tool": "eval__get_weather", "arguments": {"city": "Pune"}, "every_minutes": 120, "notify_when": "contains",
+      "contains_text": "rain"}, "check get weather (city Pune) every 2 hours and tell you when it mentions rain"),
+    ({"tool": "eval__get_weather", "city": "London", "every_minutes": 30, "notify_when": "changed"},
+     "check get weather (city London) every 30 minutes and tell you when it changes"),
+])
+def test_a_scheduled_check_is_asked_about_in_words(arguments, said):
+    """The question used to be the raw call: "Should I run schedule_check on tasks with {"arguments": {}, ...}?"."""
+    assert TaskTools().describe("schedule_check", arguments) == said  # nosec B101
