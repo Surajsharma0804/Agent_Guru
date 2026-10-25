@@ -51,7 +51,7 @@ States:
 
 | Reference | Agent Guru | State |
 |---|---|---|
-| Telegram, Slack, email, Discord, Signal, SMS, Matrix, Zulip, Mastodon, LINE, Viber, Messenger, Reddit, IRC, Twitch, Teams, Google Chat, Mattermost, Rocket.Chat, Feishu, webhooks | `platform/channels` | Present (no tests existed for these until 2026-10-17; the new channels have them) |
+| Telegram, Slack, email, Discord, Signal, SMS, Matrix, Zulip, Mastodon, LINE, Viber, Messenger, Reddit, IRC, Twitch, Teams, Google Chat, Mattermost, Rocket.Chat, Feishu, webhooks | `platform/channels` | Present; tested 2026-10-26 against stand-in services (`test_channel_sends.py`): request shape, refusals, network failures. That found two defects, both fixed: the webhook signature was over different bytes than were sent, and IRC reported a refused message (401, 404, 474) as sent. Not tried against real accounts |
 | X (Twitter) | `XChannel` | Built 2026-10-17: posts and direct messages (the reference only posted); OAuth 1.0a checked against X's documented example |
 | XMPP | `XmppChannel` | Built 2026-10-17 without a library; tried against a real Prosody server |
 | Nostr | `NostrChannel`, own BIP340, the `nostr` extra | Built 2026-10-17; all 19 BIP340 vectors; encrypted DMs (NIP-04). websockets was not declared, so a normal install could not publish; declared as the nostr extra on 2026-10-18. Not tried against a public relay |
@@ -64,7 +64,7 @@ States:
 
 | Reference | Agent Guru | State |
 |---|---|---|
-| Gmail, Outlook, IMAP, Google Calendar, contacts, Drive, Tasks, Notion, Obsidian, Dropbox, GitHub notifications, Oura, Strava, Spotify, news and Hacker News, OAuth | `connectors/` | Present; accounts not tried live (no credentials here) |
+| Gmail, Outlook, IMAP, Google Calendar, contacts, Drive, Tasks, Notion, Obsidian, Dropbox, GitHub notifications, Oura, Strava, Spotify, news and Hacker News, OAuth | `connectors/` | Present; tested 2026-10-26 against stand-in services, a scripted IMAP server and the real OAuth listener (`test_account_connectors.py`). Fixed on the way: Outlook event times read and written in the wrong zone, Oura and Spotify refusals read as data, wrong Spotify advice, IMAP searches for non-ASCII names, and a refresh failure that did not say to sign in again. Accounts not tried live (no credentials here) |
 | Weather | briefing and weather tools (wttr.in) | Present |
 | Slack as a data source | slack_search | Built 2026-10-18 (user token; not tried live) |
 | Granola meeting notes | meetings_search, meeting_read | Built 2026-10-18 (Granola public API; not tried live) |
@@ -99,7 +99,7 @@ States:
 | Traces, analyzer, feedback | turn records, `learn`, spoken "that was wrong" | Present |
 | Evaluation runner and benchmarks | `eval`, `bench`, eval scripts | Partial by choice: real turns and the owner's rated turns; the reference's third-party benchmark datasets compare research agents, not a personal assistant |
 | Prompt optimisation (DSPy, GEPA, ACE, agent evolver, spec search) | `self_improvement/prompt_tuning.py` | Built 2026-10-18 | `learn tune --strategy evolve`: rounds of reflective rewriting over a Pareto front, adopted only through the gate; also rules and demonstrations |
-| SFT, GRPO, LoRA training | dataset export; A100 plan | Partial: training needs a larger GPU |
+| SFT, GRPO, LoRA training | dataset export; A100 plan | Partial: training needs a larger GPU. Since 2026-10-26 the export keeps only answers the owner rated right (`--include-unrated` adds unrated successes without refusals) |
 | Routing (heuristic, learned) | `llm/model_router` | Present |
 | Skill discovery, skill import and sources | `reasoning/tools/skills`, `instruction_skills.py` | Built 2026-10-18 | Hermes and OpenClaw catalogs listed and learned live (Markdown only, scripts never copied), offered as use_skill |
 | Telemetry: tokens, TTFT, inter-token latency, NVIDIA energy and GPU | turn records, NVML | Present |
@@ -140,3 +140,22 @@ persistent REPL (sandbox runs start empty by design), the third-party
 benchmark datasets, the research protocols that need cloud keys to measure,
 and what needs Apple hardware or another GPU vendor. None of them needs the
 reference copy: the design notes above are enough.
+
+## Found while testing the rest (2026-10-26)
+
+- A "|" in a dictated message let a second action run unchecked: the
+  policy read the whole string as a message, the action stage split it
+  and typed text into the window in front. Each step is now checked on
+  its own and a message is never split.
+- The starting policy allowed only messaging, so opening and closing
+  apps, volume, reminders and the briefing were refused. Reversible
+  device actions are now allowed; typing, settings, power and uninstall
+  stay refused.
+- Scheduling a repeated check asked the owner a yes/no question in raw
+  JSON; it is now asked in words built from the call that will run.
+- On this laptop gemma4 no longer fits the 4 GB GPU under Ollama 0.35:
+  12 of 43 layers are offloaded and generation runs at 2.7 tokens a
+  second, so live turns take 40 to 140 s and some reach the 60 s model
+  limit. Forcing every layer onto the GPU was slower (1.55 tokens a
+  second). This is the hardware and runtime, not this code, and it is
+  open.
