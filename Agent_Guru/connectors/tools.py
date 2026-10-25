@@ -638,9 +638,25 @@ def _imap() -> imaplib.IMAP4_SSL:
 def _imap_search(query: str, limit: int) -> list[str]:
     box = _imap()
     try:
-        safe = query.replace('"', "")
-        _, data = box.search(None, "OR", "SUBJECT", f'"{safe}"', "FROM", f'"{safe}"')
-        ids = (data[0] or b"").split()[-limit:][::-1]
+        # Inside an IMAP quoted string a backslash escapes the next character, so "Ramesh \" swallowed
+        # the closing quote and the server answered BAD.
+        # A CR or LF would end the command early and start another; only newer patch releases of imaplib
+        # refuse them, so they are taken out here whatever Python the owner runs.
+        safe = re.sub(r"[\x00\r\n]+", " ", query).replace('"', "").replace("\\", "")
+        if safe.isascii():
+            _, data = box.search(None, "OR", "SUBJECT", f'"{safe}"', "FROM", f'"{safe}"')
+            found = (data[0] or b"").split()
+        else:
+            # imaplib sends commands as ASCII, so a search for "राहुल" raised UnicodeEncodeError before
+            # reaching the server. RFC 3501 sends such a string as a UTF-8 literal; imaplib takes one
+            # literal per command, so subject and sender are searched apart and joined.
+            matched: set[bytes] = set()
+            for field in ("SUBJECT", "FROM"):
+                box.literal = safe.encode()
+                _, data = box.search("UTF-8", field)
+                matched.update((data[0] or b"").split())
+            found = sorted(matched, key=int)
+        ids = found[-limit:][::-1]
         lines = []
         for num in ids:
             _, parts = box.fetch(num, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
