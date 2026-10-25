@@ -502,8 +502,12 @@ class ConnectorTools:
         start = (dt.date.today() - dt.timedelta(days=days)).isoformat()
         headers = {"Authorization": f"Bearer {os.environ['OURA_TOKEN']}"}
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            sleep = (await client.get("https://api.ouraring.com/v2/usercollection/daily_sleep", params={"start_date": start}, headers=headers)).json()
-            active = (await client.get("https://api.ouraring.com/v2/usercollection/daily_activity", params={"start_date": start}, headers=headers)).json()
+            answers = [await client.get(f"https://api.ouraring.com/v2/usercollection/{kind}", params={"start_date": start},
+                                        headers=headers) for kind in ("daily_sleep", "daily_activity")]
+        # An expired token used to read as "No Oura data for those days": Oura's 401 body has no "data".
+        for answer in answers:
+            answer.raise_for_status()
+        sleep, active = (answer.json() for answer in answers)
         by_day: dict[str, list[str]] = {}
         for d in sleep.get("data") or []:
             by_day.setdefault(d.get("day", ""), []).append(f"sleep {d.get('score')}")
@@ -529,6 +533,8 @@ class ConnectorTools:
                                         headers={"Authorization": f"Bearer {token}"})
         if response.status_code == 204 or not response.content:
             return "Nothing is playing on Spotify.", False
+        # A refused token used to come back as the song "? by ", a success the model read out.
+        response.raise_for_status()
         item = response.json().get("item") or {}
         artists = ", ".join(a.get("name", "") for a in item.get("artists") or [])
         return f"{item.get('name', '?')} by {artists}", False
@@ -544,9 +550,11 @@ class ConnectorTools:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             body: dict[str, Any] | None = None
             if action == "play" and query:
-                found = (await client.get("https://api.spotify.com/v1/search", params={"q": query, "type": "track", "limit": 1},
-                                          headers=headers)).json()
-                tracks = (found.get("tracks") or {}).get("items") or []
+                search = await client.get("https://api.spotify.com/v1/search", params={"q": query, "type": "track", "limit": 1},
+                                          headers=headers)
+                # A refused search is not "Spotify found nothing".
+                search.raise_for_status()
+                tracks = (search.json().get("tracks") or {}).get("items") or []
                 if not tracks:
                     return f"Spotify found nothing for {query!r}.", True
                 body = {"uris": [tracks[0]["uri"]]}
