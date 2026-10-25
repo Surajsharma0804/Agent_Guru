@@ -22,7 +22,8 @@ to turn, so Ollama's prompt reuse keeps working.
     python -m Agent_Guru learn tune       propose, measure, adopt or reject
     python -m Agent_Guru learn show       the current guidance and history
     python -m Agent_Guru learn rollback   back to the previous version
-    python -m Agent_Guru learn export     turns as a fine-tuning dataset (see turn_dataset.py)
+    python -m Agent_Guru learn export     turns rated right, as a fine-tuning dataset (see turn_dataset.py)
+    python -m Agent_Guru learn export --include-unrated   also unrated successes that answer
 """
 
 from __future__ import annotations
@@ -305,6 +306,8 @@ def run(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="python -m Agent_Guru learn", description="Learn from the owner's turns.")
     parser.add_argument("action", choices=["tune", "show", "rollback", "export"])
     parser.add_argument("--out", default="", help="export: the JSONL file to write")
+    parser.add_argument("--include-unrated", action="store_true",
+                        help="export: also unrated turns that succeeded, without refusals or bare acknowledgements")
     parser.add_argument("--strategy", choices=["rules", "examples", "both", "evolve"], default="both",
                         help="tune: rules from mistakes, examples from good answers, both, or several rounds of "
                              "rewriting over a Pareto front (evolve)")
@@ -312,7 +315,7 @@ def run(argv: list[str]) -> int:
     if args.action == "export":
         from Agent_Guru.self_improvement.turn_dataset import export
 
-        report = export(Path(args.out) if args.out else None)
+        report = export(Path(args.out) if args.out else None, include_unrated=args.include_unrated)
         print(json.dumps(report, indent=2))  # noqa: T201  the command's output
         return 0
     if args.action == "rollback":
