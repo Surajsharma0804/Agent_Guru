@@ -563,7 +563,16 @@ class ConnectorTools:
             response = await client.request(method, base + path, headers=headers, json=body)
         if response.status_code in (200, 202, 204):
             return f"Spotify: {action}" + (f" {query}" if query else "") + ".", False, True
-        return f"Spotify refused ({response.status_code}): open Spotify on a device first.", True
+        # Every refusal used to say "open Spotify on a device first", also for a free account (403,
+        # PREMIUM_REQUIRED) or an expired token (401), so the owner opened Spotify and it still failed.
+        try:
+            error = response.json().get("error") or {}
+        except ValueError:
+            error = {}
+        if error.get("reason") == "NO_ACTIVE_DEVICE" or (response.status_code == 404 and not error.get("reason")):
+            return f"Spotify refused ({response.status_code}): open Spotify on a device first.", True
+        why = error.get("message") or response.reason_phrase
+        return f"Spotify refused ({response.status_code}): {_clip(str(why), 160)}.", True
 
 
 def _search_vault(vault: Path, query: str, limit: int) -> list[str]:
