@@ -174,11 +174,16 @@ class EmailChannel(Channel):
 
 
 async def _post_json(url: str, body: dict[str, Any], headers: dict[str, str] | None = None,
-                     auth: tuple[str, str] | None = None, form: bool = False) -> tuple[int, Any]:
+                     auth: tuple[str, str] | None = None, form: bool = False,
+                     raw: bytes | None = None) -> tuple[int, Any]:
+    """POST *body* as JSON (or a form); *raw* sends those exact bytes instead, for a body that was signed."""
     import httpx
 
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
-        if form:
+        if raw is not None:
+            response = await client.post(url, content=raw, headers={"Content-Type": "application/json", **(headers or {})},
+                                         auth=auth)
+        elif form:
             response = await client.post(url, data=body, headers=headers, auth=auth)
         else:
             response = await client.post(url, json=body, headers=headers, auth=auth)
@@ -364,12 +369,16 @@ class WebhookChannel(Channel):
             body = {"msg_type": "text", "content": {"text": text}}
         else:
             body = {"text": text[:_MAX_CHARS]}
+        # The signature is over the bytes sent. It used to be over json.dumps(body) while httpx sent its own
+        # compact UTF-8 encoding of the same body, so the two never matched and a receiver that checks
+        # X-Signature refused every message, signed or not, with nothing wrong on the owner's side.
+        raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode()
         headers = {}
         secret = _env("WEBHOOK_SECRET")
         if secret:
-            headers["X-Signature"] = hmac.new(secret.encode(), json.dumps(body).encode(), hashlib.sha256).hexdigest()
+            headers["X-Signature"] = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
         try:
-            code, answer = await _post_json(url, body, headers)
+            code, answer = await _post_json(url, body, headers, raw=raw)
         except Exception as exc:
             return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
         if code < 300:
