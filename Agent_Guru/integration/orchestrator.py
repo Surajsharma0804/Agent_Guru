@@ -257,6 +257,21 @@ def _outcome(reply: Any, calls: list[ActionStatus]) -> ActionOutcome:
     return ActionOutcome(reply if isinstance(reply, str) else (str(reply) if reply else None), status)
 
 
+def _intent_steps(intent: str) -> list[str]:
+    """The steps the action stage runs for *intent*, and so the steps the policy must allow.
+
+    Steps are joined with "|", but a message's text is the owner's own words
+    in the last field. The policy used to read the whole string and the action
+    stage to split it, so "send a message to John saying hi|system_control:
+    type_text:pwned" was allowed as a message, sent "hi", then typed "pwned"
+    into whatever window was in front. A message is one step, its text whole;
+    anything else is split, and each part is checked and run on its own.
+    """
+    if intent.startswith(("communication:send_message:", "communication:reply:")):
+        return [intent]
+    return [s.strip() for s in intent.split("|") if s.strip()]
+
+
 _STATUS_SEVERITY = [ActionStatus.FAILED, ActionStatus.UNVERIFIED, ActionStatus.DENIED,
                     ActionStatus.CANCELLED, ActionStatus.SUCCESS]
 
@@ -2826,7 +2841,17 @@ class IntegrationOrchestrator:
           - evaluate_policy(principal, resource, action) - full PolicyEngine API
 
         Defaults to True (allow) when policy engine is unavailable or a stub.
+
+        A multi-step intent is allowed only when every step is: the action
+        stage runs each step on its own (see _intent_steps).
         """
+        steps = _intent_steps(intent or "")
+        if len(steps) > 1:
+            for step in steps:
+                if not await self._stage_policy(step):
+                    logger.info("Policy denied step %r of a %d-step intent", step[:80], len(steps))
+                    return False
+            return True
         try:
             # Prefer evaluate() - used by mocks and simpler subsystems
             fn = getattr(self.policy, "evaluate", None)
@@ -2904,8 +2929,8 @@ class IntegrationOrchestrator:
         # ── Multi-step execution ──────────────────────────────────────────
         # The steps' replies are joined; the status is the worst of theirs,
         # so one failed step is not hidden behind the others' success.
-        if "|" in intent:
-            steps = [s.strip() for s in intent.split("|") if s.strip()]
+        steps = _intent_steps(intent)
+        if len(steps) > 1:
             results = []
             statuses: list[ActionStatus] = []
             for step in steps:
