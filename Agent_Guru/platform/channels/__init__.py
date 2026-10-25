@@ -518,7 +518,14 @@ class IrcChannel(Channel):
     Twitch chat is IRC too: IRC_SERVER irc.chat.twitch.tv:6697 with an
     oauth: token as IRC_PASSWORD. Each message is one connection: join,
     say it, quit; the assistant keeps no idle socket open.
+
+    IRC acknowledges nothing it accepts, only what it refuses, so after the
+    message the server is pinged: it answers in order, and a refusal (no
+    such nick, cannot send to channel, banned) arrives before the pong.
     """
+
+    # Replies that mean the JOIN or the PRIVMSG did not reach anyone.
+    _REFUSED = {"401", "403", "404", "405", "407", "411", "412", "442", "471", "473", "474", "475", "477", "489"}
 
     def __init__(self, name: str = "irc", prefix: str = "IRC") -> None:
         self.name, self._p = name, prefix
@@ -532,9 +539,12 @@ class IrcChannel(Channel):
     async def send(self, contact: str, text: str) -> Delivery:
         import asyncio
 
+        import secrets
+
         host, _, port = _env(f"{self._p}_SERVER").partition(":")
         target = contact.strip()
         lines = [line for line in text.replace("\r", "").split("\n") if line.strip()][:5]
+        writer = None
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host, int(port or 6697), ssl=ssl.create_default_context()), _TIMEOUT_S)
@@ -543,27 +553,53 @@ class IrcChannel(Channel):
                 writer.write(f"PASS {_env(self._p + '_PASSWORD')}\r\n".encode())
             writer.write(f"NICK {nick}\r\nUSER {nick} 0 * :Agent Guru\r\n".encode())
             await writer.drain()
-            # Wait for the welcome (001) before speaking; answer the server's PINGs.
             deadline = asyncio.get_running_loop().time() + _TIMEOUT_S
+
+            async def reply() -> tuple[str, str]:
+                """The next line from the server and its command or numeric; PINGs are answered on the way."""
+                while True:
+                    left = max(0.1, deadline - asyncio.get_running_loop().time())
+                    line = (await asyncio.wait_for(reader.readline(), left)).decode(errors="replace")
+                    if not line:
+                        raise ConnectionError("the IRC server closed the connection")
+                    parts = line.split()
+                    command = parts[1] if len(parts) > 1 and parts[0].startswith(":") else (parts[0] if parts else "")
+                    if command == "PING":
+                        # A server may send its PING with a :prefix; the token after PING is echoed back.
+                        writer.write(("PONG" + line.rstrip("\r\n").split("PING", 1)[1] + "\r\n").encode())
+                        continue
+                    return line.strip(), command
+
+            # Wait for the welcome (001) before speaking.
             while True:
-                line = (await asyncio.wait_for(reader.readline(), max(0.1, deadline - asyncio.get_running_loop().time()))).decode(errors="replace")
-                if not line:
-                    return Delivery(False, error="the IRC server closed the connection")
-                if line.startswith("PING"):
-                    writer.write(("PONG" + line[4:]).encode())
-                if " 001 " in line:
+                line, command = await reply()
+                if command == "001":
                     break
-                if " 433 " in line or " 464 " in line:
-                    return Delivery(False, error=line.strip()[:200])
+                if command in ("432", "433", "464", "465"):
+                    return Delivery(False, error=line[:200])
             if target.startswith("#"):
                 writer.write(f"JOIN {target}\r\n".encode())
             for line in lines:
                 writer.write(f"PRIVMSG {target} :{line[:400]}\r\n".encode())
+            # It used to report "sent" here, so a message to a nick that was not online, or to a channel
+            # the bot was banned from, read as delivered while the server had answered 401 or 404.
+            token = f"agentguru-{secrets.token_hex(4)}"
+            writer.write(f"PING :{token}\r\n".encode())
+            await writer.drain()
+            while True:
+                line, command = await reply()
+                if command in self._REFUSED:
+                    return Delivery(False, error=line[:200])
+                if command == "PONG" and token in line:
+                    break
             writer.write(b"QUIT :bye\r\n")
             await writer.drain()
-            writer.close()
         except Exception as exc:
             return Delivery(False, error=f"{type(exc).__name__}: {exc}"[:200])
+        finally:
+            # Every early return used to leave the TLS socket open until the server timed it out.
+            if writer is not None:
+                writer.close()
         return Delivery(True)
 
 
