@@ -53,6 +53,55 @@ def messaging_policy() -> Policy:
     )
 
 
+#: Device actions a spoken command may take without asking: each is undone by
+#: another command, or changes nothing but what is on the screen or the
+#: speaker. Only messaging used to be allowed, so "open notepad", "set volume
+#: to 30", "set a timer for 1 minute" and "good morning" all reached the
+#: action stage denied and were answered "it isn't allowed in my current
+#: settings". close_app is here because closing asks the application's
+#: windows to close and never forces it: an editor with unsaved work asks the
+#: owner itself.
+#:
+#: Left out on purpose: type_text and dictate (keystrokes into whatever window
+#: is in front), clipboard (reads it aloud), settings (turns Wi-Fi or
+#: Bluetooth off, and reports success without a controller to do it),
+#: shutdown, restart, power and uninstall_app.
+DEVICE_ACTIONS = (
+    "open_app", "close_app", "switch_app", "window",
+    "volume", "brightness", "play_pause", "next_track", "previous_track", "stop_media",
+    "open_url", "web_search", "screenshot", "screen_read",
+    "reminder", "briefing", "system_status",
+)
+
+
+def device_control_policy() -> Policy:
+    """Allow the reversible device actions in DEVICE_ACTIONS, and nothing else.
+
+    The action string is "system_control:<action>[:<param>[:<level>]]". The
+    match is whole (the "matches" operator is a fullmatch), so a longer
+    action name that merely starts with an allowed one is not allowed, and
+    "|" cannot appear: a multi-step intent is checked one step at a time.
+    """
+    now = datetime.now(tz=UTC)
+    pattern = r"system_control:(?:" + "|".join(DEVICE_ACTIONS) + r")(?::[^|]*)?"
+    return Policy(
+        id="",
+        version=1,
+        name="allow-device-control",
+        description="Allow the assistant to open and close apps, set volume and brightness, "
+                    "control media, open pages, take screenshots, set reminders and give briefings.",
+        effect=PolicyEffect.ALLOW,
+        priority=10,
+        principals=[PIPELINE_PRINCIPAL],
+        resources=[PIPELINE_RESOURCE],
+        actions=["*"],
+        conditions={"attribute": "action", "operator": "matches", "value": "(?s)" + pattern},
+        created_at=now,
+        updated_at=now,
+    )
+
+
 def install_default_policies(engine: PolicyEngine) -> None:
     """Add the assistant's starting policies to *engine*."""
     engine.create_policy(messaging_policy())
+    engine.create_policy(device_control_policy())

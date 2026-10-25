@@ -379,12 +379,16 @@ async def test_a_window_unreadable_after_enter_is_unverified(tmp_path):
     ("communication:send_message:John:whatsapp:hello", True),
     ("communication:reply:Sam:whatsapp:ok", True),
     ("communication:make_call:John", False),
-    ("system_control:open_app:notepad", False),
+    # Reversible device actions are allowed (policy/defaults.py DEVICE_ACTIONS); keystrokes, settings and power are not.
+    ("system_control:open_app:notepad", True),
+    ("system_control:type_text:hello", False),
+    ("system_control:settings:wifi off", False),
+    ("system_control:open_app:notepad|system_control:type_text:hello", False),
     ("system_control:shutdown", False),
     ("file_ops:delete:C:/x", False),
     ("communication:send_messageX", False),
 ])
-async def test_starting_policy_allows_messaging_and_nothing_else(action, allowed):
+async def test_starting_policy_allows_messaging_and_reversible_device_actions_only(action, allowed):
     orch = IntegrationOrchestrator.__new__(IntegrationOrchestrator)
     orch.policy = _policy()
     assert await orch._stage_policy(action) is allowed  # nosec B101
