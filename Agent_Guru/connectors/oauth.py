@@ -224,7 +224,13 @@ def access_token(provider_name: str) -> str:
     if not tokens.get("refresh_token"):
         msg = f"{provider_name} needs signing in again; run: python -m Agent_Guru connect {provider_name}"
         raise OAuthError(msg)
-    body = _post_token(provider, {"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
+    try:
+        body = _post_token(provider, {"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
+    except OAuthError as exc:
+        # A revoked or expired grant only said "google: Token has been expired or revoked.", which the
+        # assistant read out with no way forward; the fix is always to sign in again.
+        msg = f"{exc}; sign in again: python -m Agent_Guru connect {provider_name}"
+        raise OAuthError(msg) from exc
     return _store(provider_name, body, tokens)["access_token"]
 
 
