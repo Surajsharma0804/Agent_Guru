@@ -77,3 +77,27 @@ async def test_a_question_the_model_answered_is_still_remembered(assistant):
     orch, memory = assistant
     await orch.run_text_turn("what is 17 times 23")
     assert memory.stored and "391" in memory.stored[0][1]  # nosec B101
+
+
+class SaysItCannot(Model):
+    async def complete(self, request):
+        return SimpleNamespace(content="Dude, I can\u2019t actually set up a recurring alert for the weather like that.",
+                               tool_calls=[], finish_reason="stop")
+
+
+async def test_a_reply_saying_it_cannot_is_not_remembered(tmp_path):
+    # Recalled into the next prompt for the same request, the model repeated it nearly word for word
+    # (live run, 2026-10-26), though schedule_check was on offer, and the repeat was stored as well.
+    engine = PolicyEngine()
+    install_default_policies(engine)
+    memory = Memory()
+    orch = IntegrationOrchestrator(
+        speech_engine=None, vision_engine=None, llm_runtime=SaysItCannot(), platform_controller=Controller(),
+        agent_orchestrator=None, memory=memory, reasoning=None, security=None, policy=engine, avatar=None,
+        deployment=None, gpu_pool=None, reminder_store=tmp_path / "r.json",
+    )
+    try:
+        result = await orch.run_text_turn("keep an eye on the weather in Delhi every hour")
+        assert "can\u2019t" in (result.llm_response or "") and memory.stored == []  # nosec B101
+    finally:
+        orch.close_scheduler()
