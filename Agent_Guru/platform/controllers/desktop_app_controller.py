@@ -28,11 +28,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 from Agent_Guru.platform.utils import fuzzy_match as _fuzzy_match
 
 logger = logging.getLogger(__name__)
+
+#: Characters cmd.exe acts on in a command line: command separators, pipes, redirection, its
+#: escape and variable markers, quotes, and line breaks.
+_CMD_SPECIAL = re.compile(r'[&|<>^%!"\r\n\x00]')
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +311,15 @@ class DesktopApplicationController:
         except (OSError, FileNotFoundError, RuntimeError) as exc:
             logger.debug("os.startfile failed for %r: %s", app_name, exc)
             logger.exception("Unexpected error in os.startfile for")
-        # Fallback: shell start command
+        # Fallback: shell start command. cmd.exe reads its whole command line again, and an argument
+        # is only quoted when it holds a space, so the name used to reach cmd as commands of its own:
+        # "open notepad>x.txt" (an app name the intent engine passes on) redirected into a file named
+        # x, "%COMSPEC%" expanded a variable, and a name like "notepad&whoami" ran whoami. A name
+        # with any character cmd treats specially is not given to it; os.startfile above has already
+        # tried it as written.
+        if _CMD_SPECIAL.search(app_name):
+            logger.warning("Not passing %r to cmd start: it holds characters cmd would act on", app_name[:80])
+            return False
         try:
             proc = await asyncio.create_subprocess_exec(
                 "cmd",
