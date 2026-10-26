@@ -152,7 +152,30 @@ class IntentResult:
 # Each entry: (pattern, intent_type, param_extractor_fn)
 # param_extractor_fn receives the re.Match and returns a dict of parameters.
 
+#: A power command is the whole utterance: an optional polite opening, the verb, and at most
+#: "the computer", "my laptop", "now". Anchored, so "close the shut down dialog" or "I couldn't
+#: sleep last night" are not power commands.
+_POWER_OPENING = r"^\s*(?:please\s+|can you\s+|could you\s+)?"
+_POWER_DEVICE = r"(?:pc|computer|laptop|system|machine|device|windows)"
+_POWER_TAIL = rf"(?:\s+(?:the|my|this))?(?:\s+{_POWER_DEVICE})?(?:\s+(?:now|please|for me))?\s*[.!]*\s*$"
+
 _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    # Power, before app control. "shut down" is also a close verb below, so "shut down the
+    # computer" used to match close_app first and arrive as close_app with the app name "shut down
+    # the", an action the policy allows. Bare "shutdown", "restart", "reboot" and "log out" matched
+    # nothing and went to the model as conversation.
+    (re.compile(_POWER_OPENING + r"(?:shut\s*down|power\s+(?:off|down))" + _POWER_TAIL, re.IGNORECASE), "shutdown"),
+    (re.compile(_POWER_OPENING + rf"turn\s+off(?:\s+(?:the|my|this))?\s+{_POWER_DEVICE}(?:\s+now)?\s*[.!]*\s*$",
+                re.IGNORECASE), "shutdown"),
+    (re.compile(_POWER_OPENING + r"(?:restart|reboot)" + _POWER_TAIL, re.IGNORECASE), "restart"),
+    (re.compile(_POWER_OPENING + rf"reset(?:\s+(?:the|my|this))?\s+{_POWER_DEVICE}\s*[.!]*\s*$", re.IGNORECASE),
+     "restart"),
+    (re.compile(_POWER_OPENING + r"(?:log\s*out|log\s*off|sign\s*out)(?:\s+of)?"
+                r"(?:\s+(?:the|my|this))?(?:\s+(?:pc|computer|laptop|account|windows|session))?\s*[.!]*\s*$",
+                re.IGNORECASE), "logout"),
+    (re.compile(_POWER_OPENING + r"(?:go\s+to\s+sleep|sleep|hibernate)" + _POWER_TAIL, re.IGNORECASE), "sleep"),
+    (re.compile(_POWER_OPENING + rf"put(?:\s+(?:the|my|this))?\s+{_POWER_DEVICE}\s+to\s+sleep(?:\s+now)?\s*[.!]*\s*$",
+                re.IGNORECASE), "sleep"),
     # App control - handles "open", "launch", "can you open", "I want to open", "open up"
     (re.compile(r"\b(open|launch|start|run|open up|fire up)\b.+", re.IGNORECASE), "open_app"),
     (re.compile(r"\b(close|quit|exit|kill|shut down|terminate)\b.+", re.IGNORECASE), "close_app"),
@@ -180,19 +203,6 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "brightness",
     ),
     (re.compile(r"\bset\s+brightness\s+to\s+\d+", re.IGNORECASE), "brightness"),
-    # Power
-    (
-        re.compile(
-            r"\b(shutdown|turn off|power off)\b.*\b(pc|computer|laptop|system)\b",
-            re.IGNORECASE,
-        ),
-        "shutdown",
-    ),
-    (
-        re.compile(r"\b(restart|reboot|reset)\b.*\b(pc|computer|laptop|system)\b", re.IGNORECASE),
-        "restart",
-    ),
-    (re.compile(r"\b(sleep|hibernate)\b", re.IGNORECASE), "power"),
     # Window management
     (
         re.compile(r"\b(minimize|minimise|maximize|maximise|restore|fullscreen)\b", re.IGNORECASE),
@@ -921,8 +931,10 @@ class _RuleEngine:
                     ).strip()
                     params["app"] = app
                     params["requires_confirmation"] = True
-                elif action in ("shutdown", "restart"):
+                elif action in ("shutdown", "restart", "logout", "sleep"):
                     params["requires_confirmation"] = True
+                    if action == "sleep":
+                        params["mode"] = "hibernate" if re.search(r"hibernate", text, re.IGNORECASE) else "sleep"
                 elif action == "volume":
                     num = re.search(r"\d+", text)
                     if num:
