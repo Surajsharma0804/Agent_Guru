@@ -497,8 +497,17 @@ def _open_command_doubt(transcript: str, action: str, target: str) -> str | None
     """
     name = (target or "").strip()
     words = IntegrationOrchestrator._clean_transcript(transcript or "") if transcript else ""
-    if words and not _OPEN_VERBS.match(words):
+    verb = _OPEN_VERBS.match(words) if words else None
+    if words and not verb:
         return f"Did you want me to open {name}? If so, say it again as a command, like \"open {name}\"."
+    # What was said after the verb, up to the next step, and not the name the intent engine kept:
+    # it keeps at most 3 words, so "open the official Python documentation page about the global
+    # interpreter lock in your browser" passed as the app "official Python documentation" and the
+    # assistant tried to launch an application by that name.
+    said = re.split(r"\s+(?:and|then)\s+|[,;]", words[verb.end():] if verb else "", maxsplit=1)[0]
+    said_words = [w for w in said.split() if w.lower() not in {"the", "a", "an", "my"}]
+    if len(said_words) > _MAX_OPEN_TARGET_WORDS:
+        return f"I'm not sure \"{said.strip()}\" is something to open. Say just its name, like \"open notepad\"."
     if len(name.split()) > _MAX_OPEN_TARGET_WORDS:
         return f"I'm not sure \"{name}\" is something to open. Say just its name, like \"open notepad\"."
     if action == "open_url":
