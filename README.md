@@ -323,6 +323,27 @@ estimate; each figure comes from the evaluation scripts in `scripts/` or the tur
 | Start to listening (warm start) | about 12 s |
 | Automated tests | 6,380 passed in the last full local run; CI runs the suite on Python 3.11, 3.12 and 3.13 |
 
+### Choosing a model
+
+`OLLAMA_MODEL` (in `settings.toml` or the environment) picks the model every part of the assistant uses; the
+context window is `AGENT_GURU_NUM_CTX` (default 6144). Measured 2026-10-26 on the same laptop, Ollama 0.40.3, each
+model at context 6144 and 100% on the GPU. Speed is three spoken questions, three runs each, through the full
+pipeline (`python -m Agent_Guru bench`); quality is the turn evaluation set (`python -m Agent_Guru eval`, 23 cases)
+and `scripts/tool_loop_eval.py` (11 cases).
+
+| Model | GPU memory in use | Tokens/s | First text | First audio ready | Turn evaluation | Tool cases, answers right |
+|:--|--:|--:|--:|--:|--:|--:|
+| gemma4:latest (default) | 3.8 to 3.9 GB | 28 | 0.76 s | 2.47 s | 16/23 | 11/11 |
+| gemma4:e2b (`low-vram` recipe) | 3.0 GB | 121 | 0.68 s | 2.15 s | 17/23 | 6/11 |
+| qwen2.5:1.5b | 1.3 GB | 85 | 0.56 s | 2.03 s | 18/23 | 5/11 |
+| gemma3:1b | 1.0 GB | 94 | 0.55 s | 1.87 s | 10/23 | 4/11 |
+
+The smaller models answer sooner, but by under 0.6 s to first audio, and they lose the tools: gemma4:e2b says it
+will check and calls nothing, qwen2.5:1.5b answers live questions without its tools and makes the facts up (a
+"heatwave" in Delhi, "sunny" in London), and Ollama does not offer tools to gemma3:1b at all. Keep the default
+when it fits on the GPU. On a card where it does not, gemma4:e2b is the better small choice: it fails by not
+answering, where qwen2.5:1.5b fails by answering wrongly.
+
 ## Platform support
 
 | Platform | State |
