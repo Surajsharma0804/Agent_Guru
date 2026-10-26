@@ -54,21 +54,24 @@ import asyncio, time
 import main
 
 class SlowNativeTeardown:
-    # Stands in for a Whisper model: CTranslate2's destructor joined its thread pool for 13 to 18 s.
+    # Stands in for a Whisper model: CTranslate2's destructor joined its thread pool.
     def __del__(self):
         time.sleep(30)
 
 async def fake_run():
-    main._hold_past_shutdown(SlowNativeTeardown())
+    model = SlowNativeTeardown()
+    # Stands in for a transcription of overheard speech still running when Ctrl+C came.
+    asyncio.get_running_loop().run_in_executor(None, time.sleep, 30)
+    print("goodbye", flush=True)
+    main._end_without_native_teardown()
 
 main.run = fake_run
 main.main()
-print("returned")
 """
 
 
-def test_a_clean_shutdown_does_not_wait_for_native_teardown():
+def test_a_clean_shutdown_ends_without_waiting_on_threads_or_teardown():
+    # Ctrl+C took 12 to 18 s to give the console back after "Goodbye": the models' destructors
+    # and asyncio.run's wait for jobs still on its worker threads.
     done, seconds = _run(_SLOW_TEARDOWN)
-    # Ctrl+C took 13 to 18 s to give the console back: the process waited for the models' destructors.
-    assert done.returncode == 0 and seconds < 15, (seconds, done.stderr[-800:])  # nosec B101
-    assert "returned" in done.stdout  # nosec B101  main() still returns to its caller first
+    assert done.returncode == 0 and "goodbye" in done.stdout and seconds < 15, (seconds, done.stderr[-800:])  # nosec B101
