@@ -309,8 +309,10 @@ class DesktopApplicationController:
             await loop.run_in_executor(None, os.startfile, app_name)
             return True
         except (OSError, FileNotFoundError, RuntimeError) as exc:
+            # Expected for any name Windows cannot resolve, so not an error. This also logged
+            # "Unexpected error in os.startfile" at ERROR with a full traceback every time a name
+            # was not found, which buried real errors in the live log.
             logger.debug("os.startfile failed for %r: %s", app_name, exc)
-            logger.exception("Unexpected error in os.startfile for")
         # Fallback: shell start command. cmd.exe reads its whole command line again, and an argument
         # is only quoted when it holds a space, so the name used to reach cmd as commands of its own:
         # "open notepad>x.txt" (an app name the intent engine passes on) redirected into a file named
