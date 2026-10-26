@@ -70,6 +70,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import urllib.parse
 from pathlib import Path
 
@@ -961,12 +962,18 @@ class MessagingController:
             ``True`` if adb returned exit code 0, ``False`` otherwise.
 
         """
-        cmd = ["adb", "shell", "am", "start", "-a", action, "-d", data]
+        remote = ["am", "start", "-a", action, "-d", data]
         if package:
-            cmd += ["-p", package]
+            remote += ["-p", package]
         if extras:
             for key, value in extras.items():
-                cmd += ["--es", key, value]
+                remote += ["--es", key, value]
+        # adb shell joins its arguments into one line for the phone's /system/bin/sh. Passed as
+        # separate arguments, the "&" in every whatsapp://send?phone=...&text=... link ends the
+        # command there for sh, cutting the text off the link, and a contact that is not all
+        # digits goes into the shell as written, so "x;rm -rf /sdcard" would run rm. Quoted for
+        # that shell, each part arrives as one argument.
+        cmd = ["adb", "shell", shlex.join(remote)]
 
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
