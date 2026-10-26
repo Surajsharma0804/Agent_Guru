@@ -8,6 +8,7 @@ import os
 import pathlib
 import sys
 import tempfile
+from typing import Any
 
 import pytest
 from hypothesis import HealthCheck, Verbosity, settings
@@ -89,6 +90,97 @@ if os.environ.get("AGENT_GURU_ALLOW_MODEL_DOWNLOAD", "").strip().lower() not in 
 
 
 # ---------------------------------------------------------------------------
+# Hermetic test runs: no live model calls
+#
+# The suite gave the same pass count with Ollama stopped and running, but not
+# the same run. With it running, 19 tests (test_engine::test_detect_intent and
+# 18 in reasoning/tests/test_integration_checkpoint.py) sent real prompts to
+# the model and waited for its 135 s intent timeout: those tests took 4,699 s
+# instead of 260 s, 1 h 50 min for the whole suite instead of 42 min, and what
+# they asserted depended on what the model happened to answer. The guards that
+# already existed did not cover them. reasoning/tests/conftest.py replaces
+# OllamaProvider and ReasoningEngine skips its provider under pytest, but the
+# intent fallback (reasoning/intent/llm_fallback.py) posts to Ollama with
+# requests directly, and vision, llm_manager and ollama_server each have their
+# own client too.
+#
+# So the refusal is made where every client meets: the socket. Unless
+# AGENT_GURU_LIVE_LLM=1, a connection to the Ollama port is refused exactly
+# as it is when Ollama is not running, so a run on a machine with Ollama up
+# is the same run as one without it. Tests that only mean something against
+# a real model carry @pytest.mark.live_llm and are skipped unless opted in.
+#
+# Set AGENT_GURU_LIVE_LLM=1 to let the suite reach a real model.
+# ---------------------------------------------------------------------------
+_TRUE = {"1", "true", "yes", "on"}
+_LIVE_LLM = os.environ.get("AGENT_GURU_LIVE_LLM", "").strip().lower() in _TRUE
+
+
+def _ollama_ports() -> set[int]:
+    """The port of the default Ollama address, plus the one OLLAMA_HOST names."""
+    from urllib.parse import urlsplit
+
+    ports = {11434}
+    host = os.environ.get("OLLAMA_HOST", "").strip()
+    if host:
+        try:
+            port = urlsplit(host if "://" in host else f"http://{host}").port
+        except ValueError:
+            port = None
+        if port:
+            ports.add(port)
+    return ports
+
+
+def _refuse_ollama_connections() -> None:
+    """Make every connection to the Ollama port fail as if Ollama were stopped."""
+    import errno
+    import socket
+
+    ports = _ollama_ports()
+
+    def refused(address: Any) -> bool:
+        return isinstance(address, tuple) and len(address) >= 2 and address[1] in ports
+
+    def error(address: Any) -> ConnectionRefusedError:
+        return ConnectionRefusedError(
+            errno.ECONNREFUSED,
+            f"{address!r}: live model calls are off under test (AGENT_GURU_LIVE_LLM=1 allows them)",
+        )
+
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def connect(self: socket.socket, address: Any) -> None:
+        if refused(address):
+            raise error(address)
+        return real_connect(self, address)
+
+    def connect_ex(self: socket.socket, address: Any) -> int:
+        if refused(address):
+            return errno.ECONNREFUSED
+        return real_connect_ex(self, address)
+
+    socket.socket.connect = connect  # type: ignore[method-assign]
+    socket.socket.connect_ex = connect_ex  # type: ignore[method-assign]
+
+    # The Windows proactor event loop connects through IOCP ConnectEx, not
+    # socket.connect, so an asyncio client (httpx, aiohttp) would pass the
+    # patch above untouched.
+    if sys.platform == "win32":
+        from asyncio import windows_events
+
+        real_iocp_connect = windows_events.IocpProactor.connect
+
+        def iocp_connect(self: Any, conn: socket.socket, address: Any) -> object:
+            if refused(address):
+                raise error(address)
+            return real_iocp_connect(self, conn, address)
+
+        windows_events.IocpProactor.connect = iocp_connect  # type: ignore[method-assign]
+
+
+# ---------------------------------------------------------------------------
 # Windows: raise the per-test timeout, because it is a hang guard
 #
 # pytest.ini passes --timeout=30. That timeout is a HANG guard, not a
@@ -120,7 +212,13 @@ _WINDOWS_HANG_GUARD_SECONDS = 300.0
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
-    """On Windows, raise the default timeout before pytest-timeout reads it."""
+    """Refuse live model calls, and on Windows raise the default timeout.
+
+    The refusal goes in before collection, because test modules and
+    session fixtures can reach the model before any test starts.
+    """
+    if not _LIVE_LLM:
+        _refuse_ollama_connections()
     if sys.platform != "win32":
         return
     timeout = config.getoption("timeout", default=None)
@@ -129,7 +227,12 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """On Windows, raise explicit @pytest.mark.timeout values to the same floor."""
+    """Skip live_llm tests unless opted in; on Windows raise explicit timeouts."""
+    if not _LIVE_LLM:
+        skip = pytest.mark.skip(reason="needs a real model: set AGENT_GURU_LIVE_LLM=1")
+        for item in items:
+            if item.get_closest_marker("live_llm") is not None:
+                item.add_marker(skip)
     if sys.platform != "win32":
         return
     for item in items:
