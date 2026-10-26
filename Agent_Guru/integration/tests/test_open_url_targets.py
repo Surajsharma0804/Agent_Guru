@@ -65,3 +65,31 @@ async def test_an_unknown_name_is_never_guessed_even_past_the_gate(opened, targe
     orch, urls = opened
     reply = await orch._action_open_url(Controller(), target)
     assert urls == [] and "won't guess" in reply  # nosec B101
+
+
+@pytest.fixture
+def turn(opened):
+    from Agent_Guru.policy import PolicyEngine
+    from Agent_Guru.policy.defaults import install_default_policies
+
+    orch, urls = opened
+    engine = PolicyEngine()
+    install_default_policies(engine)
+    orch.policy = engine
+
+    async def say(text):
+        await orch.run_text_turn(text)
+        return urls
+
+    return say
+
+
+@pytest.mark.parametrize("said, url", [
+    ("open example.com", "https://example.com"),                    # was cut to "example"
+    ("open www.example.com", "https://www.example.com"),            # was cut to "www"
+    ("go to https://github.com/python", "https://github.com/python"),  # was the site "https"
+    ("open https://example.com/docs?a=1&b=2", "https://example.com/docs?a=1&b=2"),  # "&" became " and "
+    ("visit http://localhost:8080/x", "http://localhost:8080/x"),   # the port's ":" split the intent
+])
+async def test_an_address_the_owner_says_opens_as_said(turn, said, url):
+    assert await turn(said) == [url]  # nosec B101
