@@ -357,20 +357,28 @@ class SyncExecutor:
                 msg = f"Execution exceeded timeout of {timeout}s"
                 raise TimeoutError(msg)
 
-            # No cancellation token, just wait for result
-            try:
-                return future.result(timeout=timeout)
-            except concurrent.futures.TimeoutError as e:
-                # On Python 3.11+ concurrent.futures.TimeoutError IS the
-                # builtin TimeoutError, so a tool that raises TimeoutError of
-                # its own lands here too. future.done() tells them apart: a
-                # genuine wait-timeout leaves the future still running.
-                if future.done():
-                    raise
-                abandoned = True
-                future.cancel()
-                msg = f"Execution exceeded timeout of {timeout}s"
-                raise TimeoutError(msg) from e
+            # No cancellation token, just wait for result. Against a deadline,
+            # not one timed wait: on Windows future.result(timeout=t) wakes up
+            # to 0.7 ms before t (measured, about 1 wait in 300), and the tool
+            # was then abandoned and reported as having run past a timeout it
+            # had not reached.
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    return future.result(timeout=max(deadline - time.monotonic(), 0.0))
+                except concurrent.futures.TimeoutError as e:
+                    # On Python 3.11+ concurrent.futures.TimeoutError IS the
+                    # builtin TimeoutError, so a tool that raises TimeoutError of
+                    # its own lands here too. future.done() tells them apart: a
+                    # genuine wait-timeout leaves the future still running.
+                    if future.done():
+                        raise
+                    if time.monotonic() < deadline:
+                        continue
+                    abandoned = True
+                    future.cancel()
+                    msg = f"Execution exceeded timeout of {timeout}s"
+                    raise TimeoutError(msg) from e
         finally:
             # Give-up paths do NOT wait. The orphaned worker finishes on its
             # own time instead of holding the caller past the deadline it was
