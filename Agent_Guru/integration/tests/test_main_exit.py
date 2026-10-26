@@ -47,3 +47,28 @@ def test_a_lingering_thread_does_not_keep_the_process_alive():
 def test_with_nothing_left_running_it_simply_returns():
     done, _ = _run(_CLEAN)
     assert done.returncode == 0 and "returned" in done.stdout  # nosec B101
+
+
+_SLOW_TEARDOWN = """
+import asyncio, time
+import main
+
+class SlowNativeTeardown:
+    # Stands in for a Whisper model: CTranslate2's destructor joined its thread pool for 13 to 18 s.
+    def __del__(self):
+        time.sleep(30)
+
+async def fake_run():
+    main._hold_past_shutdown(SlowNativeTeardown())
+
+main.run = fake_run
+main.main()
+print("returned")
+"""
+
+
+def test_a_clean_shutdown_does_not_wait_for_native_teardown():
+    done, seconds = _run(_SLOW_TEARDOWN)
+    # Ctrl+C took 13 to 18 s to give the console back: the process waited for the models' destructors.
+    assert done.returncode == 0 and seconds < 15, (seconds, done.stderr[-800:])  # nosec B101
+    assert "returned" in done.stdout  # nosec B101  main() still returns to its caller first
