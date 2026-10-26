@@ -88,3 +88,16 @@ def test_a_guess_is_refused_without_a_transcript():
     assert _open_command_doubt("", "open_url", "Note Packed") is not None  # nosec B101
     assert _open_command_doubt("", "open_url", "youtube") is None  # nosec B101
     assert _open_command_doubt("", "open_app", "notepad") is None  # nosec B101
+
+
+async def test_a_long_request_is_not_cut_to_an_app_name(turn):
+    # The intent engine keeps 3 words of the name, so this passed as the app "official Python
+    # documentation" and the assistant tried to launch it (live run, 2026-10-26).
+    said = "open the official Python documentation page about the global interpreter lock in your browser"
+    result, calls = await turn(said)
+    assert calls == [] and result.action_result  # nosec B101
+
+
+async def test_two_open_commands_in_one_breath_still_both_open(turn):
+    result, calls = await turn("open notepad and open youtube")
+    assert calls == [("app", "notepad"), ("url", "youtube")]  # nosec B101
