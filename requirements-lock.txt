@@ -354,8 +354,6 @@ rpds-py==2026.9.1
 ruamel.yaml==0.19.1
 ruff==0.17.0
 safetensors==0.8.0
-safety==3.8.1
-safety-schemas==0.0.16
 scikit-image==0.26.0
 scikit-learn==1.9.1
 scipy==1.18.1
