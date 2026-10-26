@@ -118,3 +118,35 @@ async def test_a_refused_step_stops_a_multi_step_command(turn):
 async def test_keystrokes_settings_and_power_stay_refused(turn, intent):
     _, _, orch = await turn("x")
     assert not await orch._stage_policy(intent)  # nosec B101
+
+
+@pytest.mark.parametrize("said, typed", [
+    ("open input del C:\\x", "del C"),
+    ("close input pwned", "pwned"),
+])
+async def test_the_text_of_an_allowed_command_cannot_start_typing(turn, said, typed):
+    """The features were matched on the allowed command's text: "input del C:\\x" as an app name typed "del C"."""
+    result, ctrl, _ = await turn(said)
+    assert result.policy_allowed  # nosec B101  open and close are allowed
+    assert not [c for c in ctrl.calls if c[0] == "type"], f"{typed!r} was typed"  # nosec B101
+
+
+async def test_the_text_of_an_allowed_command_cannot_read_the_clipboard(turn, monkeypatch):
+    from Agent_Guru.platform.features import dictation
+
+    monkeypatch.setattr(dictation, "get_clipboard_text", lambda: "SECRET-CLIPBOARD")
+    _, _, orch = await turn("x")
+
+    async def no_browser(ctrl, param):
+        # The real handler drives a browser; this test is about what runs before it.
+        return f"Opening {param}"
+
+    orch._action_open_url = no_browser
+    result, _, _ = await turn("open my clipboard")
+    assert "SECRET-CLIPBOARD" not in (result.action_result or "")  # nosec B101
+
+
+@pytest.mark.parametrize("said, heard", [("good morning", "Good morning"), ("set a timer for 1 minute", "1 minute")])
+async def test_a_feature_still_runs_for_its_own_command(turn, said, heard):
+    result, _, _ = await turn(said)
+    assert heard in (result.action_result or "")  # nosec B101
