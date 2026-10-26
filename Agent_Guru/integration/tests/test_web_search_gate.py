@@ -84,3 +84,18 @@ def test_a_message_with_a_pipe_in_its_text_is_not_searched():
     assert IntegrationOrchestrator._intent_needs_web(message, "my bank pin is 4321|information:news") is False
     # Real steps are still looked at one by one.
     assert IntegrationOrchestrator._intent_needs_web("system_control:open_app:edge|information:news", "") is True
+
+
+@pytest.mark.parametrize("transcript", [
+    "keep an eye on the weather in Delhi every hour and tell me if it rains",
+    "check the news every morning", "let me know when the price of gold drops", "watch for rain in Pune hourly",
+])
+def test_a_request_to_watch_or_repeat_is_not_searched_first(transcript):
+    # A search first put its results in front of the model, which answered from them that it
+    # could not keep watch (3 of 3 live runs), instead of offering the scheduled check.
+    assert IntegrationOrchestrator._intent_needs_web(f"information:weather:{transcript}", transcript) is False
+
+
+@pytest.mark.parametrize("transcript", ["what is the weather in Delhi", "will it rain today", "tell me the news"])
+def test_a_one_time_lookup_is_still_searched(transcript):
+    assert IntegrationOrchestrator._intent_needs_web(f"information:weather:{transcript}", transcript) is True
