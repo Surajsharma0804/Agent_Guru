@@ -101,7 +101,33 @@ def device_control_policy() -> Policy:
     )
 
 
+def clock_policy() -> Policy:
+    """Allow reading the clock and the calendar date: "what time is it", "what's the date".
+
+    The action stage answers these from the local clock, but only when the policy allows the
+    intent, and the starting policies allowed only messaging and device actions. "What time is
+    it" was answered "I can't do that - it isn't allowed in my current settings." Reading the
+    clock changes nothing and sends nothing anywhere. The match is whole, as for device actions.
+    """
+    now = datetime.now(tz=UTC)
+    return Policy(
+        id="",
+        version=1,
+        name="allow-clock",
+        description="Allow the assistant to tell the time and the date from this machine's clock.",
+        effect=PolicyEffect.ALLOW,
+        priority=10,
+        principals=[PIPELINE_PRINCIPAL],
+        resources=[PIPELINE_RESOURCE],
+        actions=["*"],
+        conditions={"attribute": "action", "operator": "matches", "value": r"(?s)information:time_date(?::[^|]*)?"},
+        created_at=now,
+        updated_at=now,
+    )
+
+
 def install_default_policies(engine: PolicyEngine) -> None:
     """Add the assistant's starting policies to *engine*."""
     engine.create_policy(messaging_policy())
     engine.create_policy(device_control_policy())
+    engine.create_policy(clock_policy())
