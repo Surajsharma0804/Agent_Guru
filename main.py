@@ -897,12 +897,14 @@ async def run() -> None:
             logger.warning("Memory shutdown suppressed: %s", e)
 
     _service.withdraw()
-    # Kept alive past this frame, so returning does not free the Whisper models here: their
-    # CTranslate2 destructor joins its worker threads, which held the process 13 to 18 s after
-    # "Goodbye" (measured on Ctrl+C, the main thread in ctranslate2::ThreadPool::~ThreadPool).
-    # The process then ends without running that teardown (_end_without_native_teardown).
-    _hold_past_shutdown(speech, wake_manager, _whisper_tiny_global, orch)
     logger.info("Agent Guru stopped. Goodbye.")
+    # Everything is saved and closed. The process ends here, not after run() returns: after a
+    # Ctrl+C it went on 12 to 18 s past "Goodbye" for two reasons, both measured. Returning
+    # freed the Whisper models, whose CTranslate2 destructor joins its thread pool (the main
+    # thread sat in ctranslate2::ThreadPool::~ThreadPool), and asyncio.run then waits for every
+    # job still on its worker threads, such as a transcription of speech overheard just before
+    # the Ctrl+C (logged 12 s after "Goodbye").
+    _end_without_native_teardown()
 
 
 def _start_memory_warmup(loop: asyncio.AbstractEventLoop) -> Any:
@@ -975,29 +977,11 @@ def main() -> None:
     _exit_after_clean_shutdown()
 
 
-#: Objects run() hands over at a clean shutdown so they outlive its frame (see the note there).
-_HELD_PAST_SHUTDOWN: list[Any] = []
-
-
-def _hold_past_shutdown(*objects: Any) -> None:
-    """Keep *objects* alive to the end, and end the process then without destroying them.
-
-    Registered with atexit, which runs after main() has returned to its caller and before the
-    interpreter starts tearing modules and objects down. Only a clean shutdown calls this.
-    """
-    if not _HELD_PAST_SHUTDOWN:
-        import atexit
-
-        atexit.register(_end_without_native_teardown)
-    _HELD_PAST_SHUTDOWN.extend(objects)
-
-
 def _end_without_native_teardown() -> None:
-    """End the process after a clean shutdown without letting native libraries tear down.
+    """End the process at the end of a clean shutdown, without waiting on threads or teardown.
 
-    Everything is saved and closed by the time run() returns. A normal interpreter exit then
-    destroys the Whisper models, and CTranslate2's destructor joins its thread pool: Ctrl+C took
-    13 to 18 s to give the console back after "Goodbye". The logs and output are flushed first.
+    Called by run() once everything is saved and closed (see the note there). The logs and the
+    output are flushed first.
     """
     logging.shutdown()
     for stream in (sys.stdout, sys.stderr):
