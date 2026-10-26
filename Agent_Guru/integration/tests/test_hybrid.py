@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 
 import pytest
 
@@ -84,7 +83,7 @@ def test_the_cloud_plans_only_when_allowed(monkeypatch):
     assert planner is not None and name == "gpt-4o-mini"  # nosec B101
 
 
-@pytest.mark.skipif(os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1", reason="needs Ollama: AGENT_GURU_REAL_OLLAMA=1")
+@pytest.mark.live_llm
 async def test_with_the_real_local_model():
     result = await answer("How much notice is needed to end the agreement?", CONTRACT, local=hybrid.ollama_model)
     assert "ninety" in result.answer.lower() or "90" in result.answer  # nosec B101
