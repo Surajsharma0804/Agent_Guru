@@ -20,6 +20,13 @@ from Agent_Guru.speech.battery_monitor import (
 )
 
 
+# The coverage tests below set the battery the monitor sees by replacing
+# get_battery_status. They used to replace _get_battery_status_mock, which
+# the monitor only falls back to when psutil reports no battery, so on a
+# laptop they read the real one: test_coverage_charging_overrides_low_battery
+# failed whenever the suite ran unplugged below 20 %.
+
+
 class TestBatteryMonitor:
     """Comprehensive tests for Battery Monitor."""
     
@@ -696,7 +703,7 @@ class TestBatteryMonitor:
     def test_coverage_low_battery_threshold_exact(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test exact low battery threshold (20%)."""
         # Mock battery at exactly 20%
-        monitor._get_battery_status_mock = lambda: BatteryStatus(
+        monitor.get_battery_status = lambda: BatteryStatus(
             percentage=20.0,
             is_charging=False,
             is_low=False,  # At 20%, not yet low
@@ -710,7 +717,7 @@ class TestBatteryMonitor:
     def test_coverage_critical_battery_threshold_exact(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test exact critical battery threshold (5%)."""
         # Mock battery at exactly 5%
-        monitor._get_battery_status_mock = lambda: BatteryStatus(
+        monitor.get_battery_status = lambda: BatteryStatus(
             percentage=5.0,
             is_charging=False,
             is_low=True,
@@ -724,7 +731,7 @@ class TestBatteryMonitor:
     def test_coverage_charging_overrides_low_battery(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test charging overrides low battery warnings."""
         # Mock low battery but charging
-        monitor._get_battery_status_mock = lambda: BatteryStatus(
+        monitor.get_battery_status = lambda: BatteryStatus(
             percentage=10.0,
             is_charging=True,
             is_low=True,
@@ -805,7 +812,7 @@ class TestBatteryMonitor:
         monitor._sleep_mode_start_time = time.time()
         
         # Mock battery increased
-        monitor._get_battery_status_mock = lambda: BatteryStatus(
+        monitor.get_battery_status = lambda: BatteryStatus(
             percentage=60.0,  # Increased!
             is_charging=True,
             is_low=False,
