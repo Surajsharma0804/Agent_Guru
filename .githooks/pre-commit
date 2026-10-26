@@ -1,0 +1,27 @@
+#!/bin/sh
+# Refuse a commit that adds a secret.
+#
+# A Google API key was committed on 2026-03-22 and pushed, and stayed in public
+# history for seven months because nothing looked at what was committed. This
+# scans the staged changes with gitleaks and the repository's .gitleaks.toml
+# before the commit is made, when removing the secret still costs nothing.
+#
+# A missing gitleaks stops the commit instead of letting it through unscanned:
+# a check that quietly skips itself is how the key got in.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# Install gitleaks:       https://github.com/gitleaks/gitleaks/releases
+#                         (on Windows this also looks in %LOCALAPPDATA%\Programs\gitleaks)
+gitleaks_bin=$(command -v gitleaks 2>/dev/null)
+if [ -z "$gitleaks_bin" ] && [ -n "$LOCALAPPDATA" ] && [ -x "$LOCALAPPDATA/Programs/gitleaks/gitleaks.exe" ]; then
+  gitleaks_bin="$LOCALAPPDATA/Programs/gitleaks/gitleaks.exe"
+fi
+if [ -z "$gitleaks_bin" ]; then
+  echo "pre-commit: gitleaks is not installed, so the staged changes cannot be checked for secrets." >&2
+  echo "pre-commit: install it (see .githooks/pre-commit) and commit again." >&2
+  exit 1
+fi
+
+root=$(git rev-parse --show-toplevel)
+exec "$gitleaks_bin" git --pre-commit --staged --redact --no-banner --log-level warn \
+  -c "$root/.gitleaks.toml" "$root"
