@@ -85,6 +85,13 @@ def create_app(orchestrator: Any) -> Any:
             result = await orchestrator.run_text_turn(text)
         status = getattr(result, "action_status", None)
         reply = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
+        if not reply:
+            # The voice path says what happened when nothing else did ("I can't do that - it
+            # isn't allowed in my current settings."); this returned "" and `ask` printed
+            # "(no reply)", so a typed turn could not tell a refusal from a hang.
+            from Agent_Guru.integration.orchestrator import _STATUS_REPLIES
+
+            reply = _STATUS_REPLIES.get(status, _STATUS_REPLIES[None])
         orchestrator.events.publish("api.turn", source=source, chars=len(text), status=getattr(status, "value", None))
         return {
             "reply": reply or "",
