@@ -361,12 +361,14 @@ class ReasoningEngine:
 
         # ------------------------------------------------------------------ #
         # Test-mode guard - skip ALL network calls during pytest runs.        #
-        # Set AGENT_GURU_REAL_OLLAMA=1 to override and test with real Ollama. #
+        # AGENT_GURU_LIVE_LLM=1 lets it reach a real model, as the root      #
+        # conftest does for every other client.                              #
         # ------------------------------------------------------------------ #
         in_test = (
             os.environ.get("AGENT_GURU_TEST_MODE") == "1" or "PYTEST_CURRENT_TEST" in os.environ
         )
-        if in_test and os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1":
+        live = os.environ.get("AGENT_GURU_LIVE_LLM", "").strip().lower() in {"1", "true", "yes", "on"}
+        if in_test and not live:
             logger.debug("Test mode detected - LLM provider disabled (no network calls)")
             return None
 
