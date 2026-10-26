@@ -459,6 +459,9 @@ _OPEN_VERBS = re.compile(r"(?:open|launch|start|run|close|quit|exit|go to|visit|
 #: ("door when the guests arrive"). 3 leaves room for "visual studio code".
 _MAX_OPEN_TARGET_WORDS = 3
 
+#: The level field an open_url intent can end in (platform/intent_recognizer.py, "engine").
+_OPEN_URL_LEVELS = frozenset({"direct", "google", "youtube", "bing", "spotify"})
+
 _BROWSER_NAMES = frozenset({"edge", "microsoft edge", "msedge", "chrome", "google chrome", "firefox", "mozilla firefox"})
 
 
@@ -3087,6 +3090,19 @@ class IntegrationOrchestrator:
         action = parts[1] if len(parts) > 1 else ""
         param = parts[2] if len(parts) > 2 else ""
         level_str = parts[3] if len(parts) > 3 else ""
+        if action == "open_url" and len(parts) > 2:
+            # An address holds ":" itself ("https://...", "localhost:8080"), so splitting the
+            # intent at every ":" turned "open https://example.com/docs" into the site name
+            # "https". The level, if any, is the last field and one of a few words. The address
+            # is also taken from the intent as written, not HTML-escaped, so "&" in a query string
+            # does not reach the browser as "&amp;".
+            target = intent.split(":", 2)[2]
+            head, _, last = target.rpartition(":")
+            if head and last in _OPEN_URL_LEVELS:
+                target, level_str = head, last
+            else:
+                level_str = ""
+            param = target
 
         # Destructive action + restricted-mode gate
         gate_result = await self._gate_destructive_action(action, pipeline_mode, safe_intent)
