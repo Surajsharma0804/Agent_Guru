@@ -2,7 +2,9 @@
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+# The sizes Windows asks an .ico for: title bar and taskbar (16, 24, 32), Explorer views
+# (48, 64, 128) and large icons (256).
+sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 images = []
 
 for size in sizes:
@@ -33,11 +35,15 @@ for size in sizes:
     images.append(img)
 
 os.makedirs("assets", exist_ok=True)
-images[0].save(
+# Saved from the largest image. Pillow writes only the requested sizes that are no larger than the
+# image it saves from, so saving from the 16x16 one (as this did) gave an icon holding 16x16 alone,
+# and Windows scaled that up for every larger place it shows the icon. The smaller images are
+# passed too, so each size is the one drawn for it rather than a downscale of the 256.
+images[-1].save(
     "assets/icon.ico",
     format="ICO",
     sizes=[(s[0], s[1]) for s in sizes],
-    append_images=images[1:],
+    append_images=images[:-1],
 )
 icon_size = os.path.getsize("assets/icon.ico")
 print(f"Icon created: assets/icon.ico ({icon_size} bytes)")
