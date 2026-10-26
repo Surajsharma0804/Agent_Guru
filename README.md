@@ -135,8 +135,12 @@ the key is printed by `python -m Agent_Guru api key`.
   for a model swap.
 
 **Learning** (`Agent_Guru/self_improvement`)
-- Say "that was wrong" after a bad answer. `python -m Agent_Guru learn tune` proposes guidance from your marked
-  mistakes and good answers, and keeps it only if the evaluation set improves with nothing lost. Rollback is one command.
+- Say "that was wrong" after a bad answer, or "that was right" (or "sahi hai") after a good one. `python -m Agent_Guru
+  learn tune` proposes guidance from your marked mistakes and good answers, and keeps it only if the evaluation set
+  improves with nothing lost. Rollback is one command.
+- Missed the moment? `python -m Agent_Guru learn rate` shows your recent unrated turns one at a time (request and
+  reply) and takes r for right, w for wrong, s to skip, q to stop; `--limit N` sets how many (20 by default). By default
+  only turns marked right go into the fine-tuning file `learn export` writes.
 </details>
 
 ---
@@ -290,7 +294,7 @@ flowchart TD
 | `mcp` | list or call tools on MCP servers, through the policy |
 | `api` | the local HTTP API: its state, or your key |
 | `telegram` | the Telegram bot: its state, or who has written to it |
-| `learn` | tune the prompt from mistakes, roll back, or export training data |
+| `learn` | tune the prompt from mistakes, roll back, export training data, or rate earlier turns (`learn rate`) |
 | `skills` | import a skill after checking it, or find repeated tool sequences |
 | `eval` / `bench` | score it on its evaluation set; time every stage of spoken turns |
 
@@ -381,7 +385,7 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
 | "Ollama is not answering" | Start Ollama, then `ollama list`; the model in `OLLAMA_MODEL` must be there |
 | It does not hear the wake word | Check the microphone in Windows settings and that the right input device is the default |
 | Speech recognition is slow | See [GPU speech recognition](#quick-start); the log says whether it runs on the GPU |
-| An answer was wrong | Say "that was wrong"; it is marked, and `learn tune` can learn from it |
+| An answer was wrong | Say "that was wrong" (or later, `learn rate`); it is marked, and `learn tune` can learn from it |
 </details>
 
 <details>
