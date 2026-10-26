@@ -4507,18 +4507,27 @@ class IntegrationOrchestrator:
 
         llm = self.llm_runtime
 
+        # An answer that hit the reply cap is cut back to its last full sentence, as the plain
+        # answer path does. This path did not check: in the live run a weather answer ended "check
+        # a live weather app for the super" and the sources note was appended straight after it.
         async def step(messages: list[Any], functions: list[Any] | None) -> ModelStep:
             ask = dataclasses.replace(request, messages=list(messages), functions=functions)
             tts_fn = self._streamable_tts_fn()
             if tts_fn is None or getattr(llm, "stream", None) is None:
                 response = await asyncio.wait_for(llm.complete(ask), timeout=LLM_TIMEOUT_S)
-                return ModelStep(text=response.content or "", tool_calls=list(response.tool_calls or []))
+                text = response.content or ""
+                if getattr(response, "finish_reason", None) == "length":
+                    text = self._drop_unfinished_sentence(text)
+                return ModelStep(text=text, tool_calls=list(response.tool_calls or []))
             calls: list[Any] = []
             parts: list[str] = []
+            finish: dict[str, str] = {}
             withheld = False
 
             async def chunks() -> Any:
                 async for chunk in llm.stream(ask):
+                    if getattr(chunk, "finish_reason", None):
+                        finish["reason"] = chunk.finish_reason
                     if chunk.tool_calls:
                         calls.extend(chunk.tool_calls)
                     if chunk.content:
@@ -4536,10 +4545,16 @@ class IntegrationOrchestrator:
                     if said:
                         yield said + " "
 
-            played = await self._speak_streaming(tts_fn, checked(), result.personality, text_timeout_s=LLM_TIMEOUT_S)
+            def capped() -> bool:
+                return finish.get("reason") == "length"
+
+            played = await self._speak_streaming(tts_fn, checked(), result.personality, capped=capped,
+                                                 text_timeout_s=LLM_TIMEOUT_S)
             if getattr(played, "spoken", 0):
                 spoken.append(played)
-            return ModelStep(text="".join(parts), tool_calls=calls, withheld=withheld)
+            text = "".join(parts)
+            return ModelStep(text=self._drop_unfinished_sentence(text) if capped() else text, tool_calls=calls,
+                             withheld=withheld)
 
         return step
 
