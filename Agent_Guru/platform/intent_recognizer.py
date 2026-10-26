@@ -654,9 +654,11 @@ def _extract_app_name(text: str) -> str:
     - "open notepad and write something" → "notepad" (stops at "and")
     - "Open Notepad. Himaya Open Notepad." → "notepad" (stops at punctuation)
     """
-    # Remove leading action words
+    # Remove leading action words: every verb the open and close patterns accept. "shut down",
+    # "open up", "fire up" and "terminate" were missing, so "shut down notepad" asked to close an
+    # app named "shut down notepad".
     cleaned = re.sub(
-        r"^\s*(open|launch|start|run|close|quit|exit|kill)\s+",
+        r"^\s*(open up|fire up|shut\s*down|open|launch|start|run|close|quit|exit|kill|terminate)\s+",
         "",
         text,
         flags=re.IGNORECASE,
