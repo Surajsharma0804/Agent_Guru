@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -98,3 +99,60 @@ def export(out: Path | None = None, *, limit: int = 100_000, include_unrated: bo
     secure_write_bytes(out, ("\n".join(lines) + ("\n" if lines else "")).encode("utf-8"))
     report["pairs"] = len(lines)
     return report
+
+
+_ANSWERS = {"r": 1.0, "right": 1.0, "w": 0.0, "wrong": 0.0, "s": None, "skip": None}
+
+
+def rate_turns(*, limit: int = 20, source: Path | None = None,
+               ask: Callable[[str], str] | None = None, say: Callable[[str], None] | None = None) -> dict[str, int]:
+    """Go through the newest turns nobody has rated and mark each right or wrong as the owner answers.
+
+    A turn could only be rated by saying "that was wrong" or "that was right" straight after its
+    answer, so a turn that went by unrated stayed unrated, and export() keeps rated-right turns
+    only: on the owner's records 25 turns, none rated, gave an empty dataset. This shows each
+    request and reply and records the owner's answer with TurnTraceStore.rate, the store the
+    spoken rating writes. r marks it right, w wrong, s skips it, q (or end of input) stops.
+    """
+    from Agent_Guru.integration.turn_trace import TurnTraceStore
+    from Agent_Guru.utils.path_utils import app_data_dir
+
+    ask = ask or input
+    say = say or print
+    counts = {"right": 0, "wrong": 0, "skipped": 0, "remaining": 0}
+    source = source or app_data_dir("turns.db", create=False)
+    if not source.exists():
+        say("No turns have been recorded yet.")
+        return counts
+    store = TurnTraceStore(source)
+    unrated = [t for t in store.recent(limit=100_000) if t.rating is None and t.heard.strip() and t.said.strip()]
+    counts["remaining"] = len(unrated)
+    if not unrated:
+        say("Every recorded turn is rated already.")
+        return counts
+    batch = unrated[:max(limit, 1)]
+    say(f"{len(unrated)} turns are not rated. Going through {len(batch)}, newest first: "
+        "r = right, w = wrong, s = skip, q = stop.")
+    for number, turn in enumerate(batch, 1):
+        say(f"\n[{number} of {len(batch)}] You: {turn.heard.strip()[:400]}\n"
+            f"{(turn.personality or 'assistant').title()}: {turn.said.strip()[:600]}")
+        while True:
+            try:
+                answer = ask("Right, wrong, skip or stop? [r/w/s/q] ").strip().lower()
+            except EOFError:
+                answer = "q"
+            if answer in ("q", "quit", "stop") or answer in _ANSWERS:
+                break
+            say("Type r, w, s or q.")
+        if answer in ("q", "quit", "stop"):
+            break
+        score = _ANSWERS[answer]
+        if score is None:
+            counts["skipped"] += 1
+            continue
+        store.rate(turn.turn_id, score)
+        counts["right" if score else "wrong"] += 1
+        counts["remaining"] -= 1
+    say(f"\nMarked {counts['right']} right and {counts['wrong']} wrong, skipped {counts['skipped']}. "
+        f"{counts['remaining']} turns are still not rated.")
+    return counts
