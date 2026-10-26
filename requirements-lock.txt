@@ -60,6 +60,12 @@
 #   Google client libraries pinned here. Checked in a clean install of this
 #   file: pip check clean, ONNX export tests pass. (The +cu128 torch pins
 #   this note kept were replaced by the CPU build on 2026-10-14, below.)
+# Removed 2026-10-26: Authlib, dparse, joserfc, marshmallow and ruamel.yaml.
+#   Only safety (removed the same day) and safety-schemas needed them. Checked
+#   in a clean venv from this file without them: a resolve with dependencies
+#   pulled none back in, pip check clean, full suite 7106 passed, 0 failed.
+#   tenacity (langchain-core) and tomlkit (pylint) looked orphaned too but
+#   are required, so they stay.
 # Removed 2026-10-05: pydantic-settings==2.14.1. Declared, but nothing in the
 #   project imports it or configures through BaseSettings; it was installed
 #   for chromadb, now removed, and fastapi needs it only for its unused
@@ -112,7 +118,6 @@ ast_serialize==0.13.0
 astroid==4.3.4
 asyncpg==0.32.0
 attrs==26.1.0
-Authlib==1.9.1
 av==18.1.0
 babel==2.18.0
 bandit==1.9.4
@@ -153,7 +158,6 @@ distlib==0.4.3
 distro==1.9.0
 dlinfo==2.0.0
 docstring_parser==0.18.0
-dparse==0.6.4
 espeakng-loader==0.2.4
 fastapi==0.143.1
 faster-whisper==1.2.1
@@ -204,7 +208,6 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 jiter==0.17.0
 joblib==1.6.0
-joserfc==1.7.5
 jsonpatch==1.35
 jsonpointer==3.2.1
 jsonschema==4.26.0
@@ -235,7 +238,6 @@ lxml==6.1.3
 Markdown==3.11.1
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
-marshmallow==4.3.1
 matplotlib==3.11.2
 mccabe==0.7.0
 mdurl==0.1.2
@@ -351,7 +353,6 @@ requests-toolbelt==1.0.0
 rfc3986==1.5.0
 rich==15.0.0
 rpds-py==2026.9.1
-ruamel.yaml==0.19.1
 ruff==0.17.0
 safetensors==0.8.0
 scikit-image==0.26.0
