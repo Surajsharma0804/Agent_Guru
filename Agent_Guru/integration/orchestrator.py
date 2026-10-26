@@ -2284,11 +2284,11 @@ class IntegrationOrchestrator:
         """
         if not intent:
             return False
-        if "|" in intent:
-            return any(
-                IntegrationOrchestrator._intent_needs_web(step, transcript)
-                for step in intent.split("|")
-            )
+        # The same steps the action stage runs (_intent_steps). Splitting a message's text here made
+        # "...saying my bank pin is 4321|information:news" search the web with the dictated words.
+        steps = _intent_steps(intent)
+        if len(steps) > 1:
+            return any(IntegrationOrchestrator._intent_needs_web(step, transcript) for step in steps)
         parts = intent.split(":", 2)
         intent_type = parts[0].lower().strip()
         action = parts[1].lower().strip() if len(parts) > 1 else ""
@@ -4799,11 +4799,9 @@ class IntegrationOrchestrator:
             return True
 
         # Multi-step: needs LLM only if any step needs it
-        if "|" in intent:
-            return any(
-                IntegrationOrchestrator._intent_needs_llm(step, transcript)
-                for step in intent.split("|")
-            )
+        steps = _intent_steps(intent)
+        if len(steps) > 1:
+            return any(IntegrationOrchestrator._intent_needs_llm(step, transcript) for step in steps)
 
         parts = intent.split(":", 2)
         intent_type = parts[0].lower().strip() if parts else ""
