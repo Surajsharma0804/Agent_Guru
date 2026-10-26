@@ -87,3 +87,58 @@ def test_the_cloud_plans_only_when_allowed(monkeypatch):
 async def test_with_the_real_local_model():
     result = await answer("How much notice is needed to end the agreement?", CONTRACT, local=hybrid.ollama_model)
     assert "ninety" in result.answer.lower() or "90" in result.answer  # nosec B101
+
+
+@pytest.fixture
+def ollama_bodies(monkeypatch):
+    """Stands in for Ollama's /api/chat and keeps every request body."""
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    bodies: list[dict] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            bodies.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            data = json.dumps({"message": {"role": "assistant", "content": "1: NONE"}, "done": True}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setenv("OLLAMA_HOST", f"http://127.0.0.1:{server.server_address[1]}")
+    monkeypatch.delenv("AGENT_GURU_NUM_CTX", raising=False)
+    monkeypatch.delenv("AGENT_GURU_NUM_GPU", raising=False)
+    yield bodies
+    server.shutdown()
+    server.server_close()
+
+
+async def test_the_local_reader_loads_the_model_as_every_other_client(ollama_bodies, monkeypatch):
+    # It sent only a temperature, so Ollama loaded the model at its own context (4096, measured)
+    # instead of the 6144 every other client asks for, and reloaded it on each switch.
+    from Agent_Guru.reasoning.llm.generation import ollama_options
+
+    monkeypatch.setenv("OLLAMA_MODEL", "gemma3:1b")
+    await hybrid.ollama_model("Does clause 30 mention notice?")
+    (body,) = ollama_bodies
+    expected = ollama_options(num_predict=None)
+    assert body["model"] == "gemma3:1b" and body["think"] is False  # nosec B101
+    assert {k: body["options"][k] for k in ("num_ctx", "num_gpu")} == {  # nosec B101
+        k: expected[k] for k in ("num_ctx", "num_gpu")
+    }
+
+
+async def test_the_local_reader_uses_the_configured_default_model(ollama_bodies, monkeypatch):
+    from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
+
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    await hybrid.ollama_model("Does clause 30 mention notice?")
+    assert ollama_bodies[0]["model"] == DEFAULT_OLLAMA_MODEL  # nosec B101  was "gemma4"
