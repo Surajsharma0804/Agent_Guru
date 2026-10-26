@@ -3078,7 +3078,7 @@ class IntegrationOrchestrator:
             if action in ("briefing", "system_status") and transcript:
                 raw_text = transcript
             feature_result = await self._detect_universal_features(
-                raw_text, pipeline_mode, intent_type,
+                raw_text, pipeline_mode, intent_type, action=action,
             )
             if isinstance(feature_result, ActionOutcome):
                 return feature_result
@@ -3160,13 +3160,31 @@ class IntegrationOrchestrator:
             return ActionOutcome("Something went wrong checking that - I didn't do it, try again.", ActionStatus.FAILED)
         return None
 
+    #: The intent actions each feature belongs to. A feature runs only for its own action, so the
+    #: action the policy checked is the one that happens. The features used to be matched on the
+    #: text of whatever intent was allowed: "open dictate pwned" was allowed as open_url and then
+    #: typed "pwned" into the window in front, "open input del C:\x" typed "del C", and "open my
+    #: clipboard" read the clipboard aloud, though typing and the clipboard are refused as actions.
+    _FEATURE_ACTIONS: ClassVar[dict[str, frozenset[str]]] = {
+        "briefing": frozenset({"briefing"}),
+        "system_status": frozenset({"system_status"}),
+        "reminder": frozenset({"reminder"}),
+        "dictation": frozenset({"dictate", "type_text"}),
+        "clipboard": frozenset({"clipboard"}),
+        "screen_read": frozenset({"screen_read"}),
+    }
+
     async def _detect_universal_features(
-        self, raw_text: str, pipeline_mode: str, intent_type: str = "",
+        self, raw_text: str, pipeline_mode: str, intent_type: str = "", *, action: str,
     ) -> Any | None:
-        """Detect universal features (briefing, status, reminders, dictation, etc.)."""
+        """Run the feature the authorized *action* names (briefing, status, reminders, dictation, etc.)."""
+
+        def owns(feature: str) -> bool:
+            return action in self._FEATURE_ACTIONS[feature]
+
         # Morning briefing
         from Agent_Guru.platform.features.briefing import get_morning_briefing, is_briefing_command
-        if is_briefing_command(raw_text):
+        if owns("briefing") and is_briefing_command(raw_text):
             from Agent_Guru.platform.features.user_memory import get_user_memory
             location = get_user_memory().get("location")
             # Today's reminders and, where connected, calendar and tasks:
@@ -3180,11 +3198,11 @@ class IntegrationOrchestrator:
 
         # System status
         from Agent_Guru.platform.features.system_status import get_system_status, is_system_status_command
-        if is_system_status_command(raw_text):
+        if owns("system_status") and is_system_status_command(raw_text):
             return get_system_status(raw_text)
 
         # Reminder / Timer
-        result = await self._handle_reminder(raw_text)
+        result = await self._handle_reminder(raw_text) if owns("reminder") else None
         if result is not None:
             return result
 
@@ -3193,7 +3211,7 @@ class IntegrationOrchestrator:
             extract_dictation_text, get_clipboard_action, get_clipboard_text,
             is_clipboard_command, is_dictation_command,
         )
-        if is_dictation_command(raw_text):
+        if owns("dictation") and is_dictation_command(raw_text):
             text_to_type = extract_dictation_text(raw_text)
             if text_to_type:
                 ctrl = self.platform_controller
@@ -3205,7 +3223,7 @@ class IntegrationOrchestrator:
                 return ActionOutcome("Typing is not available on this platform.", ActionStatus.FAILED)
 
         # Clipboard read
-        if is_clipboard_command(raw_text):
+        if owns("clipboard") and is_clipboard_command(raw_text):
             clip_text = get_clipboard_text()
             if not clip_text:
                 return "Your clipboard is empty."
@@ -3222,11 +3240,12 @@ class IntegrationOrchestrator:
         from Agent_Guru.platform.features.screen_reader import (
             answer_screen_question, is_screen_read_command,
         )
-        if is_screen_read_command(raw_text):
+        if owns("screen_read") and is_screen_read_command(raw_text):
             return await answer_screen_question(raw_text, self.platform_controller)
 
-        # Presentation generation (e.g. "make a presentation from notes.txt")
-        result = await self._handle_presentation_request(raw_text)
+        # Presentation generation (e.g. "make a presentation from notes.txt"), which the intent
+        # engine calls a conversation; never from the text of a device command.
+        result = await self._handle_presentation_request(raw_text) if intent_type == "conversation" else None
         if result is not None:
             return result
 
