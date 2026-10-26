@@ -252,7 +252,9 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.6.0",
     "bandit>=1.7.6",
-    "safety>=2.3.5",
+    # safety was here. Nothing ran it (CI audits the lock with pip-audit, see
+    # scripts/dependency_audit.py), and its newest release (3.8.1) requires
+    # filelock<4, which held filelock below the 4.2.1 security fix.
     "types-PyYAML>=6.0.12",
 ]
 
