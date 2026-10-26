@@ -76,6 +76,30 @@ async def test_an_installed_model_must_also_answer(monkeypatch):
     assert result.status is HealthStatus.HEALTHY and "2.0 s of it loading" in result.message  # nosec B101
 
 
+async def test_the_model_check_loads_the_model_as_the_assistant_does(monkeypatch):
+    # With only num_predict, Ollama loaded the model at its own context (4096, measured), so the
+    # load time reported was not the user's and the next real request reloaded it (5.1 s).
+    from Agent_Guru.reasoning.llm.generation import ollama_options
+
+    sent = []
+
+    def server(url, payload=None, timeout=5.0):
+        if url.endswith("/api/tags"):
+            return {"models": [{"name": "gemma4:latest"}]}
+        sent.append(payload)
+        return {"response": "OK", "load_duration": 0}
+
+    monkeypatch.delenv("AGENT_GURU_NUM_CTX", raising=False)
+    monkeypatch.delenv("AGENT_GURU_NUM_GPU", raising=False)
+    monkeypatch.setattr(doctor, "_get_json", server)
+    monkeypatch.setattr("Agent_Guru.reasoning.llm.generation.ollama_model", lambda: "gemma4")
+    await doctor.check_model()
+    expected = ollama_options(num_predict=1)
+    assert {k: sent[0]["options"].get(k) for k in ("num_ctx", "num_gpu")} == {  # nosec B101
+        k: expected[k] for k in ("num_ctx", "num_gpu")
+    }
+
+
 def _fake_speech(monkeypatch, heard, device="cuda", fail_cuda=None):
     class Transcriber:
         pass
