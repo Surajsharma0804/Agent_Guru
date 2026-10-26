@@ -74,6 +74,17 @@ def store(tmp_path):
     return TurnTraceStore(tmp_path / "turns.db")
 
 
+@pytest.fixture(autouse=True)
+def _no_gpu_readings(monkeypatch):
+    # A turn records a "gpu" stage once NVML has been loaded in the process, and NVML stays
+    # loaded for the rest of the run, so these exact stage lists depended on whether an earlier
+    # test had loaded it: test_nothing_heard_is_still_recorded failed when the platform and
+    # integration suites ran together. These tests are not about the GPU.
+    from Agent_Guru.platform.hardware import nvml
+
+    monkeypatch.setattr(nvml, "ready", lambda: False)
+
+
 async def test_a_turn_is_recorded_with_what_was_heard_done_and_said(store):
     result, spoken = await _turn(_orchestrator(Controller(OK), trace_store=store), "minimize the window")
     [turn] = store.recent()
