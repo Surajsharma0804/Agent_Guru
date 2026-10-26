@@ -127,11 +127,20 @@ async def answer(question: str, text: str, *, local: Model, planner: Model | Non
 async def ollama_model(prompt: str) -> str:
     import httpx
 
+    # The model and the load options come from reasoning/llm/generation.py, like every other client.
+    # This call sent only a temperature, so Ollama loaded the model at the server's own context
+    # (4096 here, 131072 where the desktop app's setting is high) instead of the 6144 the voice
+    # answer uses, and reloaded it on every switch between the two: 7.4 s each way on gemma3:1b,
+    # twice for each long-document question. Its default model was "gemma4", not the configured one.
+    from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK, ollama_options
+    from Agent_Guru.reasoning.llm.generation import ollama_model as configured_model
+
     host = (os.environ.get("OLLAMA_HOST", "").strip() or "http://localhost:11434").rstrip("/")
     async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(f"{host}/api/chat", json={
-            "model": os.environ.get("OLLAMA_MODEL", "").strip() or "gemma4", "stream": False, "think": False,
-            "messages": [{"role": "user", "content": prompt}], "options": {"temperature": 0.1}})
+            "model": configured_model(), "stream": False, "think": OLLAMA_THINK,
+            "messages": [{"role": "user", "content": prompt}],
+            "options": ollama_options(num_predict=None, temperature=0.1)})
     response.raise_for_status()
     return str((response.json().get("message") or {}).get("content", ""))
 
