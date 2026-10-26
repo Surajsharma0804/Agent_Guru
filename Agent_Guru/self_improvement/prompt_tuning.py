@@ -24,6 +24,7 @@ to turn, so Ollama's prompt reuse keeps working.
     python -m Agent_Guru learn rollback   back to the previous version
     python -m Agent_Guru learn export     turns rated right, as a fine-tuning dataset (see turn_dataset.py)
     python -m Agent_Guru learn export --include-unrated   also unrated successes that answer
+    python -m Agent_Guru learn rate       mark recent unrated turns right or wrong (--limit N)
 """
 
 from __future__ import annotations
@@ -300,18 +301,33 @@ def rollback() -> str:
     return f"Back to version {state['current']}." if state["current"] else "Tuned guidance removed."
 
 
+def _at_least_one(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        msg = "must be 1 or more"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def run(argv: list[str]) -> int:
     import asyncio
 
     parser = argparse.ArgumentParser(prog="python -m Agent_Guru learn", description="Learn from the owner's turns.")
-    parser.add_argument("action", choices=["tune", "show", "rollback", "export"])
+    parser.add_argument("action", choices=["tune", "show", "rollback", "export", "rate"])
     parser.add_argument("--out", default="", help="export: the JSONL file to write")
     parser.add_argument("--include-unrated", action="store_true",
                         help="export: also unrated turns that succeeded, without refusals or bare acknowledgements")
     parser.add_argument("--strategy", choices=["rules", "examples", "both", "evolve"], default="both",
                         help="tune: rules from mistakes, examples from good answers, both, or several rounds of "
                              "rewriting over a Pareto front (evolve)")
+    parser.add_argument("--limit", type=_at_least_one, default=20,
+                        help="rate: how many unrated turns to go through, newest first (default 20)")
     args = parser.parse_args(argv)
+    if args.action == "rate":
+        from Agent_Guru.self_improvement.turn_dataset import rate_turns
+
+        rate_turns(limit=args.limit)
+        return 0
     if args.action == "export":
         from Agent_Guru.self_improvement.turn_dataset import export
 
