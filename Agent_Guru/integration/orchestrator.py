@@ -450,6 +450,45 @@ def _local_now() -> _dt.datetime:
     return _dt.datetime.now().astimezone()
 
 
+#: How a spoken command to open or close something begins, once the wake word is gone.
+_OPEN_VERBS = re.compile(r"(?:open|launch|start|run|close|quit|exit|go to|visit|bring up|show me)\b", re.IGNORECASE)
+
+#: Longest app or site name, in words, taken as said. Measured on 50 synthesized utterances
+#: (scratchpad conf_measure.py, 2026-10-26): every clean command named at most 2 words ("file
+#: explorer", "vs code"); the background speech the rule engine also routed to open_url named 5
+#: ("door when the guests arrive"). 3 leaves room for "visual studio code".
+_MAX_OPEN_TARGET_WORDS = 3
+
+_BROWSER_NAMES = frozenset({"edge", "microsoft edge", "msedge", "chrome", "google chrome", "firefox", "mozilla firefox"})
+
+
+def _open_command_doubt(transcript: str, action: str, target: str) -> str | None:
+    """A question to ask instead of opening, when the words do not look like a command to open *target*; else None.
+
+    The rule engine routes any sentence with "open" in it to open_app or open_url: speech heard
+    after a false wake, "I opened the window in the morning" or "Guru, Open Note Packed", opened
+    a browser on www.window.com or www.notepacked.com. Neither confidence could tell those apart:
+    measured on 50 utterances, the rule engine gives every open_app 0.75 and every open_url 0.80,
+    and Whisper was as sure of the background speech (mean log-probability -0.36 to -0.91) as of
+    clean commands (-0.38 to -1.07, under noise). What did separate them: a command starts with
+    its verb and names a short target, and a website the assistant does not know is a guess.
+    """
+    name = (target or "").strip()
+    words = IntegrationOrchestrator._clean_transcript(transcript or "") if transcript else ""
+    if words and not _OPEN_VERBS.match(words):
+        return f"Did you want me to open {name}? If so, say it again as a command, like \"open {name}\"."
+    if len(name.split()) > _MAX_OPEN_TARGET_WORDS:
+        return f"I'm not sure \"{name}\" is something to open. Say just its name, like \"open notepad\"."
+    if action == "open_url":
+        from Agent_Guru.platform.browser_manager import _resolve_site_url
+
+        lowered = name.lower()
+        if lowered not in _BROWSER_NAMES and not _resolve_site_url(name) and not ("." in name and " " not in name):
+            return (f"I don't know a website called {name}, so I won't guess one. "
+                    f"Say its address, like {lowered.replace(' ', '')}.com, or the app's name.")
+    return None
+
+
 def _clock_answer() -> str:
     """Answer "what's the time / date / day" from the system clock.
 
@@ -3102,6 +3141,14 @@ class IntegrationOrchestrator:
             # controller, and a missing one must not turn this into silence.
             if intent_type == "information" and action == "time_date":
                 return ActionOutcome(_clock_answer(), ActionStatus.SUCCESS)
+
+            # Asked, not done, when the words do not read as a command to open this (see
+            # _open_command_doubt): garbled or overheard speech used to open guessed websites.
+            if action in ("open_app", "open_url"):
+                doubt = _open_command_doubt(transcript, action, param)
+                if doubt is not None:
+                    logger.info("Not opening %r: the request was unclear", param[:80])
+                    return ActionOutcome(doubt, ActionStatus.CANCELLED)
 
             ctrl = self.platform_controller
             if ctrl is None:
