@@ -146,7 +146,20 @@ async def test_the_text_of_an_allowed_command_cannot_read_the_clipboard(turn, mo
     assert "SECRET-CLIPBOARD" not in (result.action_result or "")  # nosec B101
 
 
-@pytest.mark.parametrize("said, heard", [("good morning", "Good morning"), ("set a timer for 1 minute", "1 minute")])
-async def test_a_feature_still_runs_for_its_own_command(turn, said, heard):
-    result, _, _ = await turn(said)
-    assert heard in (result.action_result or "")  # nosec B101
+async def test_a_timer_still_runs_for_its_own_command(turn):
+    result, _, _ = await turn("set a timer for 1 minute")
+    assert "1 minute" in (result.action_result or "")  # nosec B101
+
+
+async def test_the_briefing_still_runs_for_its_own_command(turn, monkeypatch):
+    # The briefing greets by the clock and reads live headlines and weather. Checking for
+    # "Good morning" failed every afternoon, and the run fetched real news from the network.
+    from Agent_Guru.platform.features import briefing
+
+    async def nothing(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(briefing, "_get_news_headlines", nothing)
+    monkeypatch.setattr(briefing, "_get_weather", nothing)
+    result, _, _ = await turn("good morning")
+    assert "Today is" in (result.action_result or "")  # nosec B101
