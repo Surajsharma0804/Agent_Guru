@@ -1,0 +1,22 @@
+# Secret scanning, read by gitleaks in .githooks/pre-commit and in CI (ci.yml, job secret-scan).
+#
+# A Google API key was committed on 2026-03-22 (bb03ea2a) in two audit reports and pushed. It sat in
+# public history for seven months before anyone noticed, because nothing looked. It has been revoked.
+# Its findings, and the other existing ones, are listed by fingerprint in .gitleaksignore, so the scan
+# fails only on secrets that are new.
+
+title = "Agent Guru"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test vectors that exist to look like credentials"
+# test_credential_redaction.py checks that each common key shape is masked in logs, so it must hold
+# one of each (AWS's documented EXAMPLE keys, a cut-down PEM block, a fake Telegram token).
+# test_more_channels.py checks the OAuth 1.0a signature against the consumer key, token and secrets
+# X publishes in its "Creating a signature" example. Neither file holds a usable secret.
+paths = [
+  '''^Agent_Guru/llm/tests/test_credential_redaction\.py$''',
+  '''^Agent_Guru/platform/channels/tests/test_more_channels\.py$''',
+]
