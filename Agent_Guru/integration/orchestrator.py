@@ -459,6 +459,16 @@ _OPEN_VERBS = re.compile(r"(?:open|launch|start|run|close|quit|exit|go to|visit|
 #: ("door when the guests arrive"). 3 leaves room for "visual studio code".
 _MAX_OPEN_TARGET_WORDS = 3
 
+#: A model reply saying the assistant cannot do something: "I can't actually set up...",
+#: "I cannot do that", "I'm not able to", "I don't have that kind of tool".
+_CLAIMS_INABILITY = re.compile(
+    # Models write the typographic apostrophe as often as the plain one.
+    r"\bI\s*(?:can['’]t|can not|cannot|am\s+not\s+able\s+to|['’]m\s+not\s+able\s+to|am\s+unable\s+to"
+    r"|['’]m\s+unable\s+to)\b"
+    r"|\bI\s+don['’]t\s+have\s+(?:that|the|any)\s+(?:kind\s+of\s+)?(?:\w+\s+)?(?:ability|tool|access|feature)",
+    re.IGNORECASE,
+)
+
 #: Words asking for something to be watched or repeated, not looked up once: "every hour",
 #: "each morning", "hourly", "keep an eye on", "tell me if it rains", "let me know when".
 _ASKS_TO_REPEAT = re.compile(
@@ -1328,7 +1338,18 @@ class IntegrationOrchestrator:
                 # precedent after it: the owner's memory held such turns for
                 # requests the policy now allows. A refused turn with an
                 # answer of its own (a question the model answered) is kept.
-                refused = result.action_status is ActionStatus.DENIED and not result.llm_response
+                #
+                # Nor is a reply in which the model says it cannot do what was
+                # asked. Recalled into the next prompt for the same request, it
+                # is repeated whatever the tools can now do: in the live run
+                # "keep an eye on the weather in Delhi every hour" recalled an
+                # earlier "I can't actually set up a recurring alert", and was
+                # refused again, nearly word for word, with schedule_check on
+                # offer; the repeat was stored too.
+                refused = (
+                    (result.action_status is ActionStatus.DENIED and not result.llm_response)
+                    or bool(_CLAIMS_INABILITY.search(result.llm_response or ""))
+                )
                 try:
                     if not refused:
                         await asyncio.wait_for(
