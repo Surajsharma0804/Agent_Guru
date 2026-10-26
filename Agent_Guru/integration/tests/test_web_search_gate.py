@@ -76,3 +76,11 @@ async def test_only_this_turn_goes_to_the_search_engine(run_turn):
     # The recalled turns still reach the local model, which is where they belong.
     prompt = "\n".join(message.content for message in turn.llm.requests[0].messages)
     assert earlier in prompt
+
+
+def test_a_message_with_a_pipe_in_its_text_is_not_searched():
+    """The text after "saying" is the owner's message: split on "|", it sent "my bank pin is 4321" to a search engine."""
+    message = "communication:send_message:John:whatsapp:my bank pin is 4321|information:news"
+    assert IntegrationOrchestrator._intent_needs_web(message, "my bank pin is 4321|information:news") is False
+    # Real steps are still looked at one by one.
+    assert IntegrationOrchestrator._intent_needs_web("system_control:open_app:edge|information:news", "") is True
