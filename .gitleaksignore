@@ -1,0 +1,42 @@
+# Findings that existed when secret scanning was added (2026-10-26), by gitleaks fingerprint.
+# Each was checked by hand; none is a live secret. Never add a line here for a new finding:
+# remove the secret from the change instead, and revoke it if it was ever pushed.
+
+# fa214e59 2026-01-05: documentation placeholders and test fixtures (no usable value).
+fa214e59e85a6bdfe96d8f823f16347a37af4c17:desktop-agent/tests/negative/test_pairing_failures.py:private-key:209
+fa214e59e85a6bdfe96d8f823f16347a37af4c17:desktop-agent/tests/unit/test_device_registry.py:generic-api-key:34
+fa214e59e85a6bdfe96d8f823f16347a37af4c17:desktop-agent/tests/unit/test_key_exchange.py:private-key:38
+
+# e4cc7331 2026-01-18: documentation placeholders and test fixtures (no usable value).
+e4cc733184ec1071abce5fb3ba526d68bb73c6d3:desktop-agent/src/test_store_compliance.py:generic-api-key:241
+
+# 66ad9c77 2026-01-30: documentation placeholders and test fixtures (no usable value).
+66ad9c77ea77cff0ef9a9584296c309581beab03:src/common/logging.rs:generic-api-key:397
+
+# 9c3e7adf 2026-02-06: documentation placeholders and test fixtures (no usable value).
+9c3e7adf4c8781683deea5e6ec1a6daff6bb3d79:guru-audit/src/inventory/security_scanner.rs:generic-api-key:828
+
+# bf56c785 2026-02-22: documentation placeholders and test fixtures (no usable value).
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:163
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:220
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:260
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:280
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:321
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:347
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:48
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:695
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:725
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:748
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:774
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:curl-auth-header:801
+bf56c785a3bdd5cb392abc923628a4463bbf3580:Agent_Guru/reasoning/docs/API_DOCUMENTATION.md:stripe-access-token:49
+
+# 162b576b 2026-03-15: documentation placeholders and test fixtures (no usable value).
+162b576b0f3b3f42f4cba8b651c5d7fad248026b:Agent_Guru/reasoning/docs/user_guide.md:curl-auth-header:47
+
+# bb03ea2a 2026-03-22: Google API key in two audit reports. Revoked 2026-10-26; both files were deleted in eccf3904.
+bb03ea2a6c66c6d5e1902707459e75c3b9774e68:FULL_REPOSITORY_AUDIT_REPORT.txt:gcp-api-key:38
+bb03ea2a6c66c6d5e1902707459e75c3b9774e68:docs/COMPLETE_CODE_ISSUES_REPORT.md:gcp-api-key:29
+
+# 20a561db 2026-10-17: documentation placeholders and test fixtures (no usable value).
+20a561db2940f7a35221e76f1c18e64f708c3203:Agent_Guru/integration/tests/test_local_api_documents.py:generic-api-key:14
