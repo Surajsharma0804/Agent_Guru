@@ -90,6 +90,58 @@ if os.environ.get("AGENT_GURU_ALLOW_MODEL_DOWNLOAD", "").strip().lower() not in 
 
 
 # ---------------------------------------------------------------------------
+# Hermetic test runs: no Hugging Face version checks when the models are here
+#
+# With every model already in the local cache, loading the embedding models
+# still asked huggingface.co whether a newer revision existed: 66 requests a
+# run, measured (33 during collection for all-MiniLM-L6-v2, 33 in
+# test_memory_llm_integration for all-mpnet-base-v2), so the suite failed
+# or slowed down whenever the network did, and told the Hub every run.
+#
+# HF_HUB_OFFLINE=1 makes the Hub client use the cache and ask nothing. It is
+# set only when every model the suite loads from the Hub is cached. A cold
+# cache, as on a fresh CI runner, is left online, so the models download as
+# before. Whisper first tries its cache and downloads only on a miss, which
+# offline mode would block, so its sizes are on the list too.
+#
+# huggingface_hub reads HF_HUB_OFFLINE once, when it is imported, so this
+# runs at conftest import and finds the cache without importing it.
+# ---------------------------------------------------------------------------
+_HF_TEST_MODELS = (
+    "sentence-transformers/all-MiniLM-L6-v2",
+    "sentence-transformers/all-mpnet-base-v2",
+    "Systran/faster-whisper-tiny",
+    "Systran/faster-whisper-base",
+    "Systran/faster-whisper-medium",
+)
+
+
+def _hf_hub_cache() -> pathlib.Path:
+    """The Hub cache directory, resolved as huggingface_hub resolves it."""
+    if os.environ.get("HF_HUB_CACHE"):
+        return pathlib.Path(os.environ["HF_HUB_CACHE"]).expanduser()
+    if os.environ.get("HF_HOME"):
+        return pathlib.Path(os.environ["HF_HOME"]).expanduser() / "hub"
+    base = os.environ.get("XDG_CACHE_HOME") or str(pathlib.Path.home() / ".cache")
+    return pathlib.Path(base).expanduser() / "huggingface" / "hub"
+
+
+def _hf_cached(repo_id: str, cache: pathlib.Path) -> bool:
+    """True when *repo_id* has a downloaded snapshot holding files."""
+    snapshots = cache / f"models--{repo_id.replace('/', '--')}" / "snapshots"
+    try:
+        return any(p.is_dir() and any(p.iterdir()) for p in snapshots.iterdir())
+    except OSError:
+        return False
+
+
+if "HF_HUB_OFFLINE" not in os.environ:
+    _cache = _hf_hub_cache()
+    if all(_hf_cached(repo, _cache) for repo in _HF_TEST_MODELS):
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
+
+# ---------------------------------------------------------------------------
 # Hermetic test runs: no live model calls
 #
 # The suite gave the same pass count with Ollama stopped and running, but not
