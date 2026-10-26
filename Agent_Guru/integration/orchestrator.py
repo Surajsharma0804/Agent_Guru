@@ -4312,7 +4312,9 @@ class IntegrationOrchestrator:
         from Agent_Guru.integration import tool_loop
 
         request = dataclasses.replace(request, temperature=tool_loop.TOOL_TEMPERATURE)
-        loop = tool_loop.ToolLoop(self._toolbox, tools, stages=result.tool_stages)
+        # The owner's next words answer a "Should I ...?" (_continue_tool_confirmation), so this loop
+        # can ask; only the verified owner reaches it (pipeline_mode "full").
+        loop = tool_loop.ToolLoop(self._toolbox, tools, stages=result.tool_stages, can_ask_owner=True)
         messages = list(request.messages)
         messages[0] = dataclasses.replace(messages[0], content=f"{messages[0].content}\n\n{tool_loop.TOOL_GUIDANCE}")
         self._fit_tool_prompt(messages, loop)

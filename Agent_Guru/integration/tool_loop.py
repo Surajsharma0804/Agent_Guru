@@ -375,8 +375,12 @@ class ToolLoop:
         *,
         budget: ToolBudget | None = None,
         stages: list[StageTiming] | None = None,
+        can_ask_owner: bool = False,
     ) -> None:
         self.budget = budget or ToolBudget()
+        # Whether a question put to the owner can be answered. Off unless the caller says so, so a
+        # loop run where nobody can say yes refuses a call that needs one instead of running it.
+        self._can_ask_owner = can_ask_owner
         self._toolbox = toolbox
         self._stages = stages
         self._tools: dict[str, ExternalTool] = {}
@@ -391,6 +395,8 @@ class ToolLoop:
 
         self._taint = TaintTracker()
         self._owner_text = ""
+        #: Every tool output this turn, by "server/tool", for checks on what it named.
+        self._outputs: list[tuple[str, str]] = []
         self._tool_seconds = 0.0
         self._output_chars = 0
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
@@ -566,6 +572,17 @@ class ToolLoop:
                     messages.append(Message(role="tool", name=call.name, content=self._tool_message(refused, call.name)))
                     continue
                 pending = self._needs_confirmation(call)
+                if pending is not None and not self._can_ask_owner:
+                    # Nobody can answer the question here, so the call is refused, never run.
+                    ran.append(call)
+                    refused = ToolCallResult(
+                        server=pending.server, tool=pending.tool, status=ActionStatus.DENIED,
+                        category="not_confirmed", error="it needs the owner's yes, and the owner cannot be asked here",
+                    )
+                    self.outcome.calls.append(refused)
+                    self._stage("tool_refused", time.time(), {"name": call.name, "category": "no_one_to_ask"})
+                    messages.append(Message(role="tool", name=call.name, content=self._tool_message(refused, call.name)))
+                    continue
                 if pending is not None:
                     # The calls after this one are not run; the message keeps
                     # only the calls that have a result.
@@ -643,10 +660,22 @@ class ToolLoop:
         schema = {**tool.input_schema, "additionalProperties": tool.input_schema.get("additionalProperties", False)}
         return validate(call.arguments, schema)
 
+    def _owner_yes_reason(self, tool: ExternalTool, call: ToolCall) -> str | None:
+        """Why a read-only call must still be confirmed (browser_open to an address nobody named), else None."""
+        check = getattr(self._toolbox, "needs_owner_yes", None)
+        if check is None:
+            return None
+        return check(tool.server, tool.name, call.arguments, self._owner_text, self._outputs)
+
     def _needs_confirmation(self, call: ToolCall) -> PendingCall | None:
         tool = self._tools.get(call.name)
-        if tool is None or tool.risk is ToolRisk.READ_ONLY or self._key(call) in self._seen:
+        if tool is None or self._key(call) in self._seen:
             return None
+        why = None
+        if tool.risk is ToolRisk.READ_ONLY:
+            why = self._owner_yes_reason(tool, call)
+            if why is None:
+                return None
         # A tool that can say what the call does is read back in its words:
         # "browser_click with {"element": 7}" told the owner nothing about
         # which button would be pressed on which site.
@@ -657,6 +686,8 @@ class ToolLoop:
         else:
             shown = json.dumps(call.arguments, ensure_ascii=False)[:200] if isinstance(call.arguments, dict) else ""
             question = f"Should I run {tool.name} on {tool.server}" + (f" with {shown}" if shown and shown != "{}" else "") + "?"
+        if why:
+            question += f" I'm asking because {why}."
         # Text the model copied from a tool's output is named, so the owner
         # knows "x@example.net" came from a page and not from them.
         taints = self._taint.find(call.arguments, self._owner_text)
@@ -711,8 +742,8 @@ class ToolLoop:
             )
             self.outcome.stop_reason = "budget"
             return self._tool_message(refused, call.name)
-        if tool.risk is not ToolRisk.READ_ONLY and not confirmed:
-            # Reached only through a path that skipped confirmation.
+        if not confirmed and (tool.risk is not ToolRisk.READ_ONLY or self._owner_yes_reason(tool, call)):
+            # Reached only through a path that skipped confirmation (a prefetch, for one).
             refused = ToolCallResult(
                 server=tool.server, tool=tool.name, status=ActionStatus.DENIED,
                 category="not_confirmed", error="the owner has not confirmed this",
@@ -721,6 +752,7 @@ class ToolLoop:
             return self._tool_message(refused, call.name)
         result = await self._toolbox.call(tool.server, tool.name, call.arguments, stages=self._stages)
         self._taint.record(f"{tool.server}/{tool.name}", result.output)
+        self._outputs.append((f"{tool.server}/{tool.name}", result.output or ""))
         self.made.append((tool.server, tool.name, call.arguments, result.status))
         self._seen[key] = result
         self.outcome.calls.append(result)
