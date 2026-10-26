@@ -129,7 +129,7 @@ async def check_ollama() -> ComponentHealth:
 
 async def check_model() -> ComponentHealth:
     """The configured model exists and produces a token; reports the load and first-token time."""
-    from Agent_Guru.reasoning.llm.generation import ollama_model
+    from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK, ollama_model, ollama_options
 
     host, model = _ollama_host(), ollama_model()
     try:
@@ -140,10 +140,15 @@ async def check_model() -> ComponentHealth:
     if model not in names and f"{model}:latest" not in names:
         return _fail("model", f"{model} is not installed. Run: ollama pull {model}", installed=sorted(names))
     started = time.perf_counter()
+    # Loaded with the options the assistant itself sends. With only num_predict, Ollama loaded the
+    # model at its own context (4096 here) instead of the assistant's 6144, so the load time
+    # reported was not the one the user pays, and the next real request reloaded the model:
+    # 5.1 s on gemma3:1b, measured.
     try:
         reply = await asyncio.to_thread(
             _get_json, f"{host}/api/generate",
-            {"model": model, "prompt": "Say OK.", "stream": False, "think": False, "options": {"num_predict": 1}},
+            {"model": model, "prompt": "Say OK.", "stream": False, "think": OLLAMA_THINK,
+             "options": ollama_options(num_predict=1)},
             120.0,
         )
     except Exception as exc:
