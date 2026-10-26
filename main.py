@@ -655,6 +655,8 @@ async def run() -> None:
         logger.warning("Whisper tiny pre-warm failed (%s) - Maya detection uses spectral fallback", _e)
         _whisper_tiny_global = None
 
+    _start_memory_warmup(asyncio.get_running_loop())
+
     # --- Define pipeline callback BEFORE starting the listener ---
     async def _on_wake_word(detection) -> None:
         """Called by WakeWordManager when a real wake word is detected."""
@@ -895,6 +897,28 @@ async def run() -> None:
 
     _service.withdraw()
     logger.info("Agent Guru stopped. Goodbye.")
+
+
+def _start_memory_warmup(loop: asyncio.AbstractEventLoop) -> Any:
+    """Load the memory embedding model on a worker thread now, not inside the first turn.
+
+    The model was loaded on first use, which is the first turn's memory stage. That stage waits
+    5 s and then answers without recalled memory, and the load took longer, so the first turn after
+    every start lost its memory and took 13.2 s to answer "what time is it" (1.5 s once warm),
+    measured in the live run on 2026-10-26. Started here and not awaited, so startup does not wait
+    for it either; a turn that comes sooner waits on the same load instead of starting a second one.
+    """
+
+    def warm() -> None:
+        try:
+            from Agent_Guru.memory.memory_manager import _get_real_embedder
+
+            _get_real_embedder()
+        except Exception as exc:
+            logger.warning("Memory embedding model did not preload (%s); it loads on first use", exc)
+
+    logger.info("Pre-loading the memory embedding model in the background...")
+    return loop.run_in_executor(None, warm)
 
 
 # ---------------------------------------------------------------------------
