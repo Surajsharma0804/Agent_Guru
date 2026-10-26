@@ -786,6 +786,24 @@ class MCPToolbox:
             return None
         return text.strip()[:300] if isinstance(text, str) and text.strip() else None
 
+    def needs_owner_yes(self, server: str, tool: str, arguments: Any, owner_text: str,
+                        sources: list[tuple[str, str]]) -> str | None:
+        """For a read-only in-process tool: why this call must still ask the owner first; else None.
+
+        Unlike describe(), a check that fails asks: a broken trust check must not let the call through.
+        """
+        entry = self._servers.get(server)
+        provider = getattr(getattr(entry, "config", None), "local", None)
+        check = getattr(provider, "needs_owner_yes", None)
+        if check is None:
+            return None
+        try:
+            why = check(tool, arguments, owner_text, sources)
+        except Exception:
+            logger.warning("needs_owner_yes() of %s on %s failed; asking the owner", tool, server, exc_info=True)
+            return "it could not be checked"
+        return why.strip()[:200] if isinstance(why, str) and why.strip() else None
+
     async def close(self) -> None:
         """End every server this toolbox started."""
         await asyncio.gather(*(s.close() for s in self._servers.values()), return_exceptions=True)
