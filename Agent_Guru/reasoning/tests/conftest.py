@@ -4,7 +4,7 @@ This conftest.py is automatically loaded by pytest for ALL tests in this
 directory and subdirectories. It provides:
 
 1. Ollama mock - prevents any test from making real HTTP calls to Ollama.
-   Set AGENT_GURU_REAL_OLLAMA=1 to opt-out and test with real Ollama.
+   Set AGENT_GURU_LIVE_LLM=1 to opt-out and test with real Ollama.
 
 2. Session-scoped intent engine - IntentDetectionEngine is expensive to
    initialize (NER/neural model loading). We initialize it once per session
@@ -200,9 +200,10 @@ def _patch_ollama_globally() -> Any:
     """Session-scoped autouse fixture that replaces OllamaProvider with a mock
     for the entire test session.
 
-    Set AGENT_GURU_REAL_OLLAMA=1 to opt-out (e.g. manual integration testing).
+    Set AGENT_GURU_LIVE_LLM=1 to opt-out (e.g. manual integration testing), the
+    same switch the root conftest reads for every client.
     """
-    if os.environ.get("AGENT_GURU_REAL_OLLAMA") == "1":
+    if os.environ.get("AGENT_GURU_LIVE_LLM", "").strip().lower() in {"1", "true", "yes", "on"}:
         yield
         return
 
