@@ -1308,13 +1308,23 @@ class IntegrationOrchestrator:
                 # Bounded: the user already has their answer by this point, so
                 # a slow write must not hold the turn open. Losing one stored
                 # turn is recoverable; hanging the pipeline is not.
+                #
+                # A refusal is not kept. Every refused turn was stored as a
+                # memory ("I can't do that - it isn't allowed in my current
+                # settings."), and memory is recalled into later prompts, so
+                # a refusal from before a policy change came back as
+                # precedent after it: the owner's memory held such turns for
+                # requests the policy now allows. A refused turn with an
+                # answer of its own (a question the model answered) is kept.
+                refused = result.action_status is ActionStatus.DENIED and not result.llm_response
                 try:
-                    await asyncio.wait_for(
-                        self._store_turn_in_memory(
-                            result.personality, result.transcript, tts_text,
-                        ),
-                        timeout=MEMORY_WRITE_TIMEOUT_S,
-                    )
+                    if not refused:
+                        await asyncio.wait_for(
+                            self._store_turn_in_memory(
+                                result.personality, result.transcript, tts_text,
+                            ),
+                            timeout=MEMORY_WRITE_TIMEOUT_S,
+                        )
                 except TimeoutError:
                     logger.warning(
                         "Storing this turn in memory exceeded %.1fs - turn not persisted",
