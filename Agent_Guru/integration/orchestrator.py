@@ -3735,7 +3735,10 @@ class IntegrationOrchestrator:
     # browser_manager._resolve_site_url() instead of keeping their own copy.
 
     async def _action_open_url(self, ctrl: Any, param: str) -> str:
-        param_lower = param.lower().strip()
+        # Stripped once, here: the domain check below used the raw name, so " example.com"
+        # passed _open_command_doubt (which strips) and failed here, and fell through to a guess.
+        param = param.strip()
+        param_lower = param.lower()
 
         # Browser app launches
         if param_lower in ("edge", "microsoft edge", "msedge"):
@@ -3761,9 +3764,9 @@ class IntegrationOrchestrator:
                 # to recognize, but still clearly a domain.
                 target_url = param if param.startswith("http") else f"https://{param}"
             else:
-                # Unrecognized site name - best-effort guess, same
-                # fallback behavior this method has always had.
-                target_url = f"https://www.{param_lower.replace(' ', '')}.com"
+                # A name it does not know is never turned into an address. This used to guess
+                # https://www.<name>.com: " example.com" opened www.example.com.com.
+                return f"I don't know a website called {self._sanitize_output(param)}, so I won't guess one."
 
         logger.info("ACTION: open_url('%s') → %s", param, target_url)
 
