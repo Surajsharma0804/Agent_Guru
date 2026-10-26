@@ -1193,3 +1193,26 @@ class TestExecutionResultStructureProperties:
             datetime.fromisoformat(result_dict["timestamp"])
         except ValueError:
             pytest.fail(f"timestamp not in ISO format: {result_dict['timestamp']}")
+
+
+def test_a_wait_that_wakes_early_does_not_abandon_the_tool(monkeypatch):
+    """On Windows a timed future.result() wakes up to 0.7 ms early, about once in 300 waits.
+
+    The executor took that wake-up as the timeout: it abandoned a tool that was still inside its
+    time and reported TIMEOUT. Here the first timed wait wakes at once, as the early wake does.
+    """
+    import concurrent.futures
+
+    real_result = concurrent.futures.Future.result
+    woke_early = []
+
+    def result(self, timeout=None):
+        if timeout and not woke_early:
+            woke_early.append(timeout)
+            raise concurrent.futures.TimeoutError
+        return real_result(self, timeout)
+
+    monkeypatch.setattr(concurrent.futures.Future, "result", result)
+    executor = SyncExecutor(default_timeout=2.0, max_retries=0)
+    outcome = executor.execute(Action(action_id="a", tool_id="t", parameters={}), lambda p: time.sleep(0.05) or "done")
+    assert woke_early and outcome.success and outcome.result_data == "done"  # nosec B101
