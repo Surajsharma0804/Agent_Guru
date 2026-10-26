@@ -344,6 +344,10 @@ will check and calls nothing, qwen2.5:1.5b answers live questions without its to
 when it fits on the GPU. On a card where it does not, gemma4:e2b is the better small choice: it fails by not
 answering, where qwen2.5:1.5b fails by answering wrongly.
 
+gemma4:e2b is what the `low-vram` recipe uses (`python -m Agent_Guru recipes apply low-vram`, which also sets the
+context to 4096; the row above was measured at 6144). Expect it to answer 6 of the 11 tool cases. When a question
+needs a tool it says it will check and then does not, so the miss is a non-answer you can see, not a wrong fact.
+
 ## Platform support
 
 | Platform | State |
@@ -358,7 +362,8 @@ answering, where qwen2.5:1.5b fails by answering wrongly.
 - **False wakes**: when the openWakeWord model is not available, the fallback detector reacts to loud speech, not
   only to the wake phrase. Each false wake starts a turn.
 - **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
-  `low-vram` recipe switches to the smaller gemma4:e2b. Swapping between models takes 17 to 19 s.
+  `low-vram` recipe switches to the smaller gemma4:e2b, which gets 6 of 11 tool cases right against 11 of 11 (see
+  "Choosing a model"). Swapping between models takes 17 to 19 s.
 - **No code execution**: the assistant does not run code it writes. A sandbox needs an isolation boundary that can be
   demonstrated (Windows Sandbox, Docker or WSL), which this machine does not have.
 - **Accounts and channels** need your own credentials (OAuth client ids, bot tokens) and were checked against local
