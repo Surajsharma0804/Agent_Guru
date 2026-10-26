@@ -557,3 +557,54 @@ async def test_old_history_is_dropped_to_fit_the_tools(make):
     assert needed <= context_window()  # nosec B101
     assert messages[0].content == "s" * 4000 and messages[-1].content == "what's the weather"  # nosec B101
     assert messages[1].content.startswith(str(30 - (len(messages) - 2)))  # nosec B101  the oldest went first
+
+
+# ---- a reply that hit the token cap ----
+
+class CappedModel(Model):
+    """Answers as Model does, but every reply stops at the token cap (Ollama's done_reason "length")."""
+
+    async def complete(self, request):
+        step = self._next(request)
+        return SimpleNamespace(content=step.text, tool_calls=step.calls, finish_reason="length")
+
+    async def stream(self, request):
+        step = self._next(request)
+        for word in step.text.split(" ") if step.text else []:
+            yield StreamChunk(content=word + " ")
+        yield StreamChunk(content="", finish_reason="length")
+
+
+_CUT = "It is 16 C in Delhi with clear skies. Check a live weather app for the super"
+
+
+async def test_a_capped_typed_answer_ends_on_a_full_sentence(audit, notes):
+    # In the live run on 2026-10-26 a weather answer ended "check a live weather app for the super".
+    orch = await _orchestrator(CappedModel(say(_CUT)), _servers(notes), audit)
+    try:
+        result = await orch.run_text_turn("what is the weather in Delhi")
+        assert result.llm_response.startswith("It is 16 C in Delhi with clear skies.")  # nosec B101
+        assert "for the super" not in result.llm_response  # nosec B101
+    finally:
+        await orch.close_tools()
+
+
+async def test_a_capped_spoken_answer_is_cut_where_speech_is_cut(audit, notes):
+    seen = []
+
+    class CapAwareSpeaker(Speaker):
+        async def speak(self, fn, text, personality, **kw):
+            capped = kw.get("capped")
+            out = await super().speak(fn, text, personality, **kw)
+            seen.append(capped() if capped else None)
+            return out
+
+    speaker = CapAwareSpeaker()
+    orch = await _orchestrator(CappedModel(say(_CUT)), _servers(notes), audit, speaker=speaker)
+    try:
+        orch._stage_stt = _stt("what is the weather in Delhi")
+        result = await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=b"\x00" * 3200))
+        assert seen and seen[0] is True  # nosec B101  the speaker is told the reply was cut
+        assert "for the super" not in (result.llm_response or "")  # nosec B101
+    finally:
+        await orch.close_tools()
