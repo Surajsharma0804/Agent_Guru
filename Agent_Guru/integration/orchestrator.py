@@ -459,6 +459,15 @@ _OPEN_VERBS = re.compile(r"(?:open|launch|start|run|close|quit|exit|go to|visit|
 #: ("door when the guests arrive"). 3 leaves room for "visual studio code".
 _MAX_OPEN_TARGET_WORDS = 3
 
+#: Words asking for something to be watched or repeated, not looked up once: "every hour",
+#: "each morning", "hourly", "keep an eye on", "tell me if it rains", "let me know when".
+_ASKS_TO_REPEAT = re.compile(
+    r"\b(?:every\s+(?:\d+\s+)?(?:minute|hour|day|morning|evening|night|week)s?|each\s+(?:hour|day|morning|evening)"
+    r"|hourly|daily|keep\s+an\s+eye\s+on|keep\s+(?:checking|watching)|watch\s+(?:for|out\s+for)"
+    r"|(?:tell|let)\s+me\s+know\s+(?:if|when)|tell\s+me\s+(?:if|when))\b",
+    re.IGNORECASE,
+)
+
 #: The level field an open_url intent can end in (platform/intent_recognizer.py, "engine").
 _OPEN_URL_LEVELS = frozenset({"direct", "google", "youtube", "bing", "spotify"})
 
@@ -2335,6 +2344,13 @@ class IntegrationOrchestrator:
         answer is the safe default for a local-first assistant.
         """
         if not intent:
+            return False
+        if _ASKS_TO_REPEAT.search(transcript or ""):
+            # A request to watch something or do it again later is for the scheduling tools, not
+            # a lookup to make now. Searching first put "answer from these sources" results in
+            # front of the model, and "keep an eye on the weather in Delhi every hour" was answered
+            # from them with "I can't actually keep an eye on it" (3 of 3 runs); without the
+            # search the model offered the hourly check. The model can still search on its own.
             return False
         # The same steps the action stage runs (_intent_steps). Splitting a message's text here made
         # "...saying my bank pin is 4321|information:news" search the web with the dictated words.
