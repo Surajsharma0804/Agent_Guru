@@ -53,3 +53,12 @@ def test_an_ordinary_name_still_falls_back_to_start(launches, name):
     controller = DesktopApplicationController()
     assert asyncio.run(controller._open_windows(name)) is True  # nosec B101
     assert launches == [("cmd", "/c", "start", "", name)]  # nosec B101
+
+
+def test_a_name_windows_cannot_find_is_not_logged_as_an_error(launches, caplog):
+    # Every unknown name logged "Unexpected error in os.startfile" at ERROR with a traceback.
+    import logging
+
+    with caplog.at_level(logging.DEBUG, logger=desktop_app_controller.logger.name):
+        asyncio.run(DesktopApplicationController()._open_windows("no such app"))
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]  # nosec B101
