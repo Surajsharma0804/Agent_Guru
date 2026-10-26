@@ -2705,7 +2705,10 @@ class IntegrationOrchestrator:
         # Handle Whisper mishearings: "Himaya", "Hi Maya", "A Maya", "Hey Maya"
         # Also handle mid-sentence repetitions like "Open Notepad. Himaya Open Notepad."
         # First, take only the FIRST sentence (before first period/exclamation)
-        first_sentence = re.split(r"[.!]", t)[0].strip()
+        # A sentence ends at "." or "!" followed by a space or the end. Splitting at every "." cut
+        # "open example.com" to "open example" and "open https://example.com/docs" to
+        # "open https://example", so no address the owner said could be opened.
+        first_sentence = re.split(r"[.!](?=\s|$)", t)[0].strip()
         if first_sentence:
             t = first_sentence
 
@@ -2757,7 +2760,9 @@ class IntegrationOrchestrator:
         t = re.sub(r"\s{2,}", " ", t).strip().lstrip(".,!?;: ")
 
         # ── Step 8: Normalize & → and, + → and ───────────────────────────
-        t = re.sub(r"\s*[&+]\s*", " and ", t)
+        # Only a spoken "&" or "+" between words. One inside an address is part of it: rewriting
+        # it opened "https://example.com/docs?a=1 and b=2", cut at the space to ?a=1.
+        t = re.sub(r"\s+[&+]\s+", " and ", t)
 
         # ── Step 9: Collapse "open youtube and play X" → "play X on youtube"
         t = re.sub(

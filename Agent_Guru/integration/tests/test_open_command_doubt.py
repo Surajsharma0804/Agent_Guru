@@ -54,7 +54,7 @@ async def turn(tmp_path):
 
 @pytest.mark.parametrize("said, opened", [
     ("open notepad", ("app", "notepad")), ("open youtube", ("url", "youtube")),
-    ("launch vs code", ("app", "vscode")), ("open github.com", ("url", "github")),
+    ("launch vs code", ("app", "vscode")), ("open github.com", ("url", "github.com")),
     ("open file explorer", ("app", "file explorer")), ("Guru, open calculator", ("app", "calculator")),
 ])
 async def test_a_clean_command_opens_without_a_question(turn, said, opened):
