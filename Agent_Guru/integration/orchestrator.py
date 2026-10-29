@@ -3128,7 +3128,10 @@ class IntegrationOrchestrator:
         if not intent:
             return ActionOutcome(None, None)
 
-        safe_intent = self._sanitize_output(intent)
+        # Taken as written. It was HTML-escaped here, so every controller got "AT&amp;T" for AT&T, a
+        # web search looked for "AT&amp;T", and replies built from it were escaped twice and spoken
+        # as "amp". Text is escaped where it is put into HTML, by the dashboard (local_api esc()).
+        safe_intent = intent
 
         # Parse once, up front
         parts = safe_intent.split(":", 3)
@@ -3343,7 +3346,7 @@ class IntegrationOrchestrator:
                 if fn:
                     # "Typed: ..." was said whatever type_text returned.
                     typed = await asyncio.to_thread(fn, text_to_type)
-                    return _outcome(f"Typed: {self._sanitize_output(text_to_type[:60])}", [_call_status(typed)])
+                    return _outcome(f"Typed: {text_to_type[:60]}", [_call_status(typed)])
                 return ActionOutcome("Typing is not available on this platform.", ActionStatus.FAILED)
 
         # Clipboard read
@@ -3420,7 +3423,7 @@ class IntegrationOrchestrator:
         except ValueError:
             return (
                 f"I can only build presentations from files under your home "
-                f"folder - {self._sanitize_output(source_ref)} is outside that."
+                f"folder - {source_ref} is outside that."
             )
 
         logger.info("ACTION: create_presentation(%r)", str(source_path))
@@ -3429,7 +3432,7 @@ class IntegrationOrchestrator:
             output_path = await generate_presentation(source_path, complete_fn=complete_fn)
         except PresentationError as exc:
             logger.warning("Presentation generation failed for %s: %s", source_path, exc)
-            return f"Couldn't build a presentation from that: {self._sanitize_output(str(exc))}"
+            return f"Couldn't build a presentation from that: {str(exc)}"
         except Exception:
             logger.exception("Unexpected error generating presentation from %s", source_path)
             return "Something went wrong while building that presentation."
@@ -3537,7 +3540,7 @@ class IntegrationOrchestrator:
         if intent_type == "information":
             return None
 
-        _sval = self._sanitize_output(value)
+        _sval = value
         _lang = get_user_memory().get("code_mixing", "hinglish")
         _ack_map = {
             "name": f"Nice to meet you, {_sval}! I'll remember that.",
@@ -3650,7 +3653,7 @@ class IntegrationOrchestrator:
         so "Opening paint for you!" was said about nothing.
         """
         param = param.rstrip(".,!?;:")
-        safe_param = self._sanitize_output(param)
+        safe_param = param
         before = await self._app_instances(ctrl, param)
         if before:
             # Already running: launching again only adds a duplicate window.
@@ -3707,7 +3710,7 @@ class IntegrationOrchestrator:
         the request, and the question appeared after 0.06 s.
         """
         param = param.rstrip(".,!?;:")
-        safe_param = self._sanitize_output(param)
+        safe_param = param
         before = await self._app_instances(ctrl, param)
         if before == {}:
             return ActionOutcome(f"{safe_param} isn't open.", ActionStatus.SUCCESS)
@@ -3833,7 +3836,7 @@ class IntegrationOrchestrator:
             else:
                 # A name it does not know is never turned into an address. This used to guess
                 # https://www.<name>.com: " example.com" opened www.example.com.com.
-                return f"I don't know a website called {self._sanitize_output(param)}, so I won't guess one."
+                return f"I don't know a website called {param}, so I won't guess one."
 
         logger.info("ACTION: open_url('%s') → %s", param, target_url)
 
@@ -3847,7 +3850,7 @@ class IntegrationOrchestrator:
         try:
             mgr = await self._get_browser_mgr()
             await mgr.open_url(target_url)
-            return f"Opening {self._sanitize_output(param)}"
+            return f"Opening {param}"
         except Exception:
             logger.exception(
                 "Persistent BrowserManager failed for open_url(%s) - falling back to "
@@ -3857,8 +3860,8 @@ class IntegrationOrchestrator:
         fn = getattr(ctrl, "open_url", None)
         if fn:
             await asyncio.to_thread(fn, target_url)
-            return f"Opening {self._sanitize_output(param)}"
-        return f"Cannot open {self._sanitize_output(param)} - browser unavailable"
+            return f"Opening {param}"
+        return f"Cannot open {param} - browser unavailable"
 
     async def _action_web_search(self, ctrl: Any, param: str, level_str: str) -> str:
         query = param.strip()
@@ -3870,7 +3873,7 @@ class IntegrationOrchestrator:
         if engine == "youtube":
             try:
                 await self._open_youtube_and_play(query)
-                return f"Playing {self._sanitize_output(query)} on YouTube"
+                return f"Playing {query} on YouTube"
             except Exception as yt_exc:
                 logger.exception(
                     "YouTube auto-play failed (%s) - opening search page instead", yt_exc,
@@ -3879,7 +3882,7 @@ class IntegrationOrchestrator:
                 fn = getattr(ctrl, "open_url", None)
                 if fn:
                     await asyncio.to_thread(fn, search_url)
-                return f"Opening YouTube search for {self._sanitize_output(query)}"
+                return f"Opening YouTube search for {query}"
 
         # Prefer the persistent BrowserManager here too - same tab-reuse
         # rationale as _action_open_url(), and it shares the exact same
@@ -3888,7 +3891,7 @@ class IntegrationOrchestrator:
         try:
             mgr = await self._get_browser_mgr()
             await mgr.search_and_open(query, engine=engine)
-            return f"Searching for {self._sanitize_output(query)} on {engine}"
+            return f"Searching for {query} on {engine}"
         except Exception:
             logger.exception(
                 "Persistent BrowserManager failed for web_search(%s) - falling back to "
@@ -3903,7 +3906,7 @@ class IntegrationOrchestrator:
         fn = getattr(ctrl, "open_url", None)
         if fn:
             await asyncio.to_thread(fn, search_url)
-            return f"Searching for {self._sanitize_output(query)} on {engine}"
+            return f"Searching for {query} on {engine}"
         return "Cannot search - controller unavailable"
 
     async def _action_volume(
@@ -4074,7 +4077,7 @@ class IntegrationOrchestrator:
                 logger.debug("win32 switch_app failed: %s", exc)
         if not switched:
             await asyncio.to_thread(ctrl.open_application, param)
-        return f"Switched to {self._sanitize_output(param)}"
+        return f"Switched to {param}"
 
     async def _action_settings(self, ctrl: Any, param: str, level_str: str) -> str:
         setting_text = (param + " " + level_str).lower()
@@ -4115,7 +4118,7 @@ class IntegrationOrchestrator:
         """The reply for a send outcome."""
         label = {"whatsapp": "WhatsApp", "telegram": "Telegram", "slack": "Slack",
                  "sms": "SMS", "email": "email"}[app]
-        who = self._sanitize_output(contact)
+        who = (contact)
         # What the app shows after the send (messaging_controller,
         # _send_in_whatsapp_desktop), not just that send was pressed. Every
         # outcome but "sent" said "ready, press send", which was wrong both
@@ -4157,7 +4160,7 @@ class IntegrationOrchestrator:
         assert draft is not None  # nosec B101 - only called with a draft
         if not draft["contact"]:
             return "Who should I send it to?"
-        who = self._sanitize_output(draft["contact"])
+        who = (draft["contact"])
         if not draft["message"]:
             return f"What would you like me to send {who}?"
         return f"Your message to {who} says: {draft['message']}. Send it?"
@@ -4218,17 +4221,15 @@ class IntegrationOrchestrator:
         self, ctrl: Any, action: str, param: str, level_str: str,
     ) -> ActionOutcome | str | None:
         if action in ("send_message", "reply"):
-            import html
-
             # level_str is "<app>:<text>" for a dictated message. The text
             # used to be dropped before this point, so the assistant could
-            # only open the app. The intent was HTML-escaped by
-            # _sanitize_output, so the text is unescaped: "it's" must not be
-            # sent as "it&#x27;s".
-            contact = html.unescape(param).strip()
+            # only open the app. Contact and text arrive as said: they were
+            # HTML-escaped upstream and unescaped here, which also turned a
+            # literal "&lt;3" the owner typed into "<3".
+            contact = param.strip()
             app, _, message = level_str.partition(":")
             app = app.strip().lower() or "whatsapp"
-            message = html.unescape(message).strip()
+            message = message.strip()
             if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
                 app = "whatsapp"
             send = getattr(ctrl, "send_message", None)
@@ -4247,14 +4248,14 @@ class IntegrationOrchestrator:
                     digits = contact.replace("+", "").replace("-", "").replace(" ", "")
                     url = f"https://wa.me/{digits}" if digits.isdigit() else "https://web.whatsapp.com"
                     await asyncio.to_thread(fn, url)
-                    return f"Opening WhatsApp for {self._sanitize_output(contact)}"
+                    return f"Opening WhatsApp for {contact}"
                 if app == "telegram":
                     await asyncio.to_thread(fn, f"https://t.me/{contact.lstrip('@')}")
-                    return f"Opening Telegram for {self._sanitize_output(contact)}"
+                    return f"Opening Telegram for {contact}"
                 if app == "email":
                     await asyncio.to_thread(fn, f"mailto:{contact}")
-                    return f"Opening email for {self._sanitize_output(contact)}"
-            return f"Opening messaging app for {self._sanitize_output(contact)}"
+                    return f"Opening email for {contact}"
+            return f"Opening messaging app for {contact}"
         if action == "make_call":
             contact = param.strip()
             fn = getattr(ctrl, "open_url", None)
@@ -4262,7 +4263,7 @@ class IntegrationOrchestrator:
                 digits = contact.replace("+", "").replace("-", "").replace(" ", "")
                 url = f"tel:{digits}" if digits.isdigit() else f"https://wa.me/?phone={contact}"
                 await asyncio.to_thread(fn, url)
-            return f"Calling {self._sanitize_output(contact)}"
+            return f"Calling {contact}"
         return None
 
     async def _action_information(
@@ -4274,7 +4275,7 @@ class IntegrationOrchestrator:
             fn = getattr(ctrl, "web_search", None)
             if fn:
                 await asyncio.to_thread(fn, query, "google")
-                return f"Searching for {self._sanitize_output(query)}"
+                return f"Searching for {query}"
         return None
 
     async def _action_file_ops(self, ctrl: Any, action: str, param: str) -> str | None:
@@ -4282,12 +4283,12 @@ class IntegrationOrchestrator:
             fn = getattr(ctrl, "create_file", None)
             if fn:
                 await asyncio.to_thread(fn, param)
-                return f"Created {self._sanitize_output(param)}"
+                return f"Created {param}"
         if action == "delete" and param:
             fn = getattr(ctrl, "delete_file", None)
             if fn:
                 await asyncio.to_thread(fn, param, True)
-                return f"Deleted {self._sanitize_output(param)}"
+                return f"Deleted {param}"
         return None
 
     async def _get_browser_mgr(self) -> Any:
@@ -4871,26 +4872,6 @@ class IntegrationOrchestrator:
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _sanitize_output(text: str) -> str:
-        """Sanitize user-controlled text for safe display (HTML context).
-
-        Escapes HTML special characters so the text is safe to display
-        in web interfaces, logs, or any HTML context.
-        For OS/shell commands use _sanitize_for_shell() instead.
-
-        Args:
-            text: Raw user input or derived text.
-
-        Returns:
-            HTML-escaped text safe for display.
-
-        """
-        if not text:
-            return text
-        import html as _html_mod
-
-        return _html_mod.escape(text, quote=True)
 
     @staticmethod
     def _sanitize_for_shell(text: str) -> str:
@@ -4898,7 +4879,7 @@ class IntegrationOrchestrator:
 
         Uses shlex.quote() to prevent shell injection when passing
         user-controlled strings to subprocess, win32api, or os.system.
-        Always use this - not _sanitize_output - for OS command params.
+        Always use this for OS command params.
 
         Args:
             text: Raw user input or parameter.
