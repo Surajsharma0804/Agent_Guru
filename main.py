@@ -834,11 +834,15 @@ async def run() -> None:
         stop_event.set()
 
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
+    # SIGHUP is what a closed terminal sends on Linux and macOS, so it stops the same way.
+    for sig in (signal.SIGINT, signal.SIGTERM, getattr(signal, "SIGHUP", None)):
+        if sig is None:
+            continue
         try:
             loop.add_signal_handler(sig, _handle_signal)
         except NotImplementedError:
             signal.signal(sig, _handle_signal)
+    _on_console_close(loop, stop_event)
 
     # `service stop` asks through a file: a windowless process on Windows
     # gets no Ctrl+Break, and os.kill there is TerminateProcess, which would
@@ -905,6 +909,44 @@ async def run() -> None:
     # job still on its worker threads, such as a transcription of speech overheard just before
     # the Ctrl+C (logged 12 s after "Goodbye").
     _end_without_native_teardown()
+
+
+#: Windows ends a process about 5 s after its console is closed; the shutdown measured 1.1 s.
+_CONSOLE_CLOSE_WAIT_S = 4.5
+_CONSOLE_EVENTS = {2: "close", 5: "logoff", 6: "shutdown"}  # CTRL_CLOSE/LOGOFF/SHUTDOWN_EVENT
+_console_handler: Any = None  # the ctypes callback must stay referenced while it is registered
+
+
+def _on_console_close(loop: asyncio.AbstractEventLoop, stop_event: asyncio.Event) -> bool:
+    """On Windows, stop the same way as Ctrl+C when the console is closed, or at log-off or shutdown.
+
+    Closing the console window ended the process at once: none of the shutdown in run() ran, so
+    the microphone was not released, the memory and turn stores were not closed, and nothing
+    said it had stopped. Windows calls this handler on a thread of its own and ends the process
+    as soon as it returns, so it sets stop_event through the loop (the path Ctrl+C takes) and
+    then waits, up to _CONSOLE_CLOSE_WAIT_S, for run() to end the process itself. Ctrl+C and
+    Ctrl+Break are left to the signal handlers. Returns whether the handler was registered.
+    """
+    global _console_handler
+    if sys.platform != "win32":
+        return False
+    import ctypes
+    import time
+    from ctypes import wintypes
+
+    def handler(event: int) -> bool:
+        what = _CONSOLE_EVENTS.get(event)
+        if what is None:
+            return False
+        logger.info("Console %s: shutting down as for Ctrl+C", what)
+        loop.call_soon_threadsafe(stop_event.set)
+        # run() ends the process when its shutdown is done; sleeping here only keeps Windows
+        # from ending it first. A shutdown that does not finish in time is cut off by Windows.
+        time.sleep(_CONSOLE_CLOSE_WAIT_S)
+        return True
+
+    _console_handler = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)(handler)
+    return bool(ctypes.windll.kernel32.SetConsoleCtrlHandler(_console_handler, True))
 
 
 def _start_memory_warmup(loop: asyncio.AbstractEventLoop) -> Any:
