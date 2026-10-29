@@ -1,9 +1,12 @@
-﻿"""Production-grade wake word detection for Agent Guru.
+﻿"""Wake word detection for Agent Guru.
 
-Supports three backends in priority order:
-1. Picovoice Porcupine  - <5% CPU, <10ms latency (requires API key)
-2. Vosk keyword spotting - offline, no API key, ~50ms latency
-3. MFCC energy fallback  - always available, ~5ms latency
+Backends in priority order, each used only when it can hear the configured
+wake words themselves:
+1. Picovoice Porcupine - an access key and one of the wake words among its
+   built-in keywords
+2. openWakeWord - a model file per wake word in the wake model folder
+3. Vosk keyword spotting - a Vosk model directory
+4. MFCC energy fallback - always available; a loudness gate, not a detector
 
 All backends share the same async API and WakeWordDetection result type.
 """
@@ -19,6 +22,7 @@ import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -95,6 +99,9 @@ class WakeWordConfig:
         vosk_model_path: Path to a Vosk model directory.
         porcupine_access_key: Picovoice access key (reads
             ``PICOVOICE_ACCESS_KEY`` env var when empty).
+        oww_model_dir: Folder of openWakeWord models, one per wake word,
+            named after it (``hey_guru.onnx``). Empty means the
+            ``wake_models`` folder in the app data directory.
 
     """
 
@@ -116,6 +123,7 @@ class WakeWordConfig:
     cooldown_seconds: float = 3.0
     vosk_model_path: str = "models/vosk-model-small-en-us-0.15"
     porcupine_access_key: str = ""
+    oww_model_dir: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -126,10 +134,8 @@ class WakeWordConfig:
 class WakeWordDetector:
     """Production wake word detector with automatic backend selection.
 
-    Backend priority:
-    1. Porcupine (if ``pvporcupine`` installed and access key available)
-    2. Vosk     (if ``vosk`` installed and model directory exists)
-    3. MFCC energy fallback (always available)
+    Backend priority: see the module docstring. The choice and the reason
+    for it are logged when the detector is created.
 
     All detection is exposed through the async :meth:`detect` method.
     A synchronous :meth:`detect_sync` wrapper is provided for non-async callers.
@@ -155,37 +161,105 @@ class WakeWordDetector:
         # Porcupine handle (lazy-initialised)
         self._porcupine: Any | None = None
 
-        # OpenWakeWord model (lazy-initialised)
+        # openWakeWord model, loaded when the backend is chosen, and the
+        # phrase each of its model names stands for
         self._oww_model: Any | None = None
+        self._oww_phrases: dict[str, str] = {}
 
         # Whisper tiny model (lazy-initialised)
         self._whisper_tiny: Any | None = None
 
         # Determine active backend
+        self._backend_reason: str = ""
         self._backend: str = self._select_backend()
-        logger.info("WakeWordDetector initialised - backend=%s", self._backend)
+        logger.info("WakeWordDetector initialised - backend=%s: %s", self._backend, self._backend_reason)
 
     # ------------------------------------------------------------------
     # Backend selection
     # ------------------------------------------------------------------
 
     def _select_backend(self) -> str:
-        """Choose the best available backend.
+        """Choose the best backend that can hear the configured wake words.
 
-        Priority:
-        1. Porcupine - best accuracy, needs API key
-        2. openWakeWord - free, no API key, neural network, good accuracy
-        3. Vosk - offline keyword spotting
-        4. MFCC energy fallback - always available, least accurate
+        openWakeWord used to be chosen whenever the package was installed. It
+        ships no model for "hey guru" or "hey maya", so it loaded the stock
+        hey_jarvis model as a stand-in, which caught 0 of 28 recorded wake
+        phrases: installing the package made the assistant deaf, and nothing
+        said why. Porcupine did the same with its built-in "computer". Each
+        backend is now taken only when it has something for these phrases,
+        and every step down the chain says why in _backend_reason.
         """
+        reasons: list[str] = []
         access_key = self.config.porcupine_access_key or os.environ.get("PICOVOICE_ACCESS_KEY", "")
-        if _HAS_PORCUPINE and access_key:
+        if not _HAS_PORCUPINE:
+            reasons.append("porcupine not installed")
+        elif not access_key:
+            reasons.append("porcupine has no access key")
+        elif not [kw for kw in self.config.wake_words if kw in pvporcupine.KEYWORDS]:
+            reasons.append("porcupine has no built-in keyword for these wake words")
+        else:
+            self._backend_reason = "Picovoice key set and a built-in keyword matches"
             return "porcupine"
-        if _HAS_OWW:
+
+        oww = self._load_openwakeword(reasons)
+        if oww:
+            self._backend_reason = oww
             return "openwakeword"
-        if _HAS_VOSK and os.path.isdir(self.config.vosk_model_path):  # noqa: PTH112
+
+        if not _HAS_VOSK:
+            reasons.append("vosk not installed")
+        elif not os.path.isdir(self.config.vosk_model_path):  # noqa: PTH112
+            reasons.append(f"no Vosk model at {self.config.vosk_model_path}")
+        else:
+            self._backend_reason = f"Vosk model at {self.config.vosk_model_path}"
             return "vosk"
+
+        self._backend_reason = (
+            "; ".join(reasons)
+            + ". The MFCC fallback wakes on any loud sound, not only the wake words"
+        )
         return "mfcc"
+
+    def _oww_model_dir(self) -> Path:
+        if self.config.oww_model_dir:
+            return Path(self.config.oww_model_dir)
+        from Agent_Guru.utils.path_utils import app_data_dir
+
+        return app_data_dir("wake_models", create=False)
+
+    def _load_openwakeword(self, reasons: list[str]) -> str:
+        """Load a model for each wake word that has one; the reason it was chosen, or "".
+
+        Loaded here rather than on the first chunk so a missing feature model
+        or a damaged file shows up in the startup log as the reason for the
+        fallback, not as an error on the first sound the microphone hears.
+        """
+        if not _HAS_OWW:
+            reasons.append("openwakeword not installed")
+            return ""
+        folder = self._oww_model_dir()
+        files = {
+            phrase: folder / f"{phrase.replace(' ', '_')}.onnx" for phrase in self.config.wake_words
+        }
+        found = {phrase: path for phrase, path in files.items() if path.is_file()}
+        if not found:
+            names = ", ".join(path.name for path in files.values())
+            reasons.append(f"openwakeword has no model for these wake words (looked for {names} in {folder})")
+            return ""
+        try:
+            self._oww_model = OWWModel(
+                wakeword_models=[str(path) for path in found.values()],
+                inference_framework="onnx",
+            )
+        except Exception as exc:
+            reasons.append(f"openwakeword could not load {', '.join(p.name for p in found.values())}: {exc}")
+            return ""
+        self._oww_phrases = {path.stem: phrase for phrase, path in found.items()}
+        missing = [phrase for phrase in self.config.wake_words if phrase not in found]
+        reason = f"models for {', '.join(found)} in {folder}"
+        if missing:
+            reason += f" (none for {', '.join(missing)}, which cannot wake it)"
+        return reason
 
     # ------------------------------------------------------------------
     # Lazy initialisers
@@ -231,7 +305,10 @@ class WakeWordDetector:
             available = pvporcupine.KEYWORDS
             valid = [kw for kw in self.config.wake_words if kw in available]
             if not valid:
-                valid = ["computer"]
+                # Was a silent switch to "computer", a word the owner never
+                # chose, so the assistant answered to it and not to its name.
+                msg = "Porcupine has no built-in keyword for any configured wake word"
+                raise WakeWordError(msg)
             self._porcupine = pvporcupine.create(
                 access_key=access_key,
                 keywords=valid,
@@ -471,47 +548,31 @@ class WakeWordDetector:
     # ------------------------------------------------------------------
 
     async def _detect_openwakeword(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
-        """Detect using openWakeWord - free, no API key, neural network.
+        """Detect with the openWakeWord models loaded for the wake words.
 
-        openWakeWord uses pre-trained ONNX models for common wake phrases.
-        It's more accurate than MFCC energy detection and doesn't need
-        Porcupine's API key.
-
-        We use the "hey_jarvis" model as a proxy for "hey guru" since
-        openWakeWord doesn't have a "hey guru" model out of the box.
-        The Whisper transcript step then confirms the actual wake word.
-
-        Install: pip install openwakeword
+        Each model is named after its phrase, so the model that fired says
+        which wake word was spoken; the Whisper guess at Guru or Maya that
+        the MFCC fallback needs is not used here.
         """
         try:
-            if not hasattr(self, "_oww_model") or self._oww_model is None:
-                # Load openWakeWord with the best available model for "hey" phrases
-                # hey_jarvis is a good proxy - similar phonetics to "hey guru"
-                try:
-                    self._oww_model = OWWModel(
-                        wakeword_models=["hey_jarvis"],
-                        inference_framework="onnx",
-                    )
-                    logger.info("openWakeWord loaded (hey_jarvis model)")
-                except Exception as _e:
-                    # Try with default models
-                    self._oww_model = OWWModel(inference_framework="onnx")
-                    logger.info("openWakeWord loaded (default models)")
+            if self._oww_model is None:
+                msg = "openWakeWord model not loaded"
+                raise WakeWordError(msg)
 
             # openWakeWord expects 16kHz int16 audio in chunks
             audio_int16 = (audio * 32767).astype(np.int16)
 
             # Process in 80ms chunks (1280 samples at 16kHz)
             chunk_size = _OWW_CHUNK_SIZE
-            max_score = 0.0
+            best_name, max_score = "", 0.0
             n_chunks = 0
             for start in range(0, len(audio_int16) - chunk_size + 1, chunk_size):
                 chunk = audio_int16[start : start + chunk_size]
                 prediction = self._oww_model.predict(chunk)
                 n_chunks += 1
-                # Get max score across all models
-                for score in prediction.values():
-                    max_score = max(max_score, score)
+                for name, score in prediction.items():
+                    if score > max_score:
+                        best_name, max_score = name, float(score)
 
             # BUG FIX (Round 15): if the caller handed us fewer samples than
             # one openWakeWord chunk, the loop above never executes and this
@@ -537,9 +598,9 @@ class WakeWordDetector:
 
             # Threshold: 0.5 is a good balance of sensitivity vs false positives
             threshold = max(0.3, 1.0 - self.config.sensitivity)
-            if max_score >= threshold:
-                # Use Whisper to confirm which wake word and which personality
-                phrase, personality = self._match_phrase_by_spectrum(audio)
+            phrase = self._oww_phrases.get(best_name)
+            if phrase is not None and max_score >= threshold:
+                personality = self.config.wake_words[phrase]
                 self._last_detection_time = now
                 detection = WakeWordDetection(
                     wake_word=phrase,
