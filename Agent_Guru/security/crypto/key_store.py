@@ -305,6 +305,11 @@ class KeyStore:
             with self._conn:
                 self._conn.execute("DELETE FROM keys WHERE key_id = ?", (key_id,))
 
+    def key_ids(self) -> list[str]:
+        """The ids of the keys in this store, without decrypting anything (used to migrate a store)."""
+        with self._lock:
+            return [row[0] for row in self._conn.execute("SELECT key_id FROM keys ORDER BY key_id")]
+
     def key_exists(self, key_id: str) -> bool:
         """Check if a key exists."""
         with self._lock:
