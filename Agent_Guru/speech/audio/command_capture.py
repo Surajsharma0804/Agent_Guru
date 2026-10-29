@@ -58,6 +58,26 @@ class CaptureSettings:
     energy_threshold: float = 0.008
     # Below this RMS over the whole recording nothing is sent to STT.
     near_silence_rms: float = 0.005
+    # False after a wake word: a recording in which no speech was found is
+    # dropped, not sent to STT. See AFTER_WAKE.
+    keep_without_speech: bool = True
+
+
+#: How the command is captured right after a wake word. The wake detector in
+#: use is a loudness gate (see wake_word.py), so a door, a cough or a song
+#: woke it, and capture then waited 8 s for speech and ran a turn on whatever
+#: it heard, the waking sound included. A wake now counts only if speech
+#: starts within 3 s; people say the command straight after the wake word,
+#: as no tone tells them to wait.
+#:
+#: Measured by replaying audio through the real MFCC detector and Silero,
+#: with each turn taken as 20 s: wakes that ran a turn fell from 132 to 60 an
+#: hour on 53 min of AudioSet sounds with no speech label, and from 132 to 37
+#: on 100 min of FMA music. On 16 min of speech it went from 141 to 130, as
+#: speech does follow, so this does nothing against talk in the room. Real
+#: wake takes followed by a command were kept 123 of 124 times (16 of the
+#: owner's own, 108 TTS). This is a stopgap, not a wake word detector.
+AFTER_WAKE = CaptureSettings(no_speech_seconds=3.0, keep_without_speech=False)
 
 
 class SpeechProbability(Protocol):
@@ -213,6 +233,9 @@ async def capture_command(
     if rms < s.near_silence_rms:
         logger.info("VAD: audio is near-silence (rms=%.4f) - discarding", rms)
         return b""
+    if not turn.speech_found and not s.keep_without_speech:
+        logger.info("VAD: no speech within %.1f s - not a command", s.no_speech_seconds)
+        return b""
     if not turn.speech_found:
         try:
             from Agent_Guru.speech.audio.wake_word import WakeWordDetector
@@ -226,3 +249,18 @@ async def capture_command(
             logger.debug("Music check failed", exc_info=True)
     logger.info("VAD: captured %.1f s of audio (rms=%.4f)", len(audio) / SAMPLE_RATE, rms)
     return audio.tobytes()
+
+
+async def capture_after_wake(mic: Any, wake_audio: np.ndarray | None, vad: SpeechProbability | None = None) -> bytes:
+    """The wake chunk followed by the command, or b"" when no speech followed the wake.
+
+    main.py used to put the wake chunk in front of whatever capture returned,
+    an empty recording included, so every wake ran a turn on the sound that
+    caused it. b"" now means the wake is ignored.
+    """
+    command = await capture_command(mic, AFTER_WAKE, vad)
+    if not command:
+        return b""
+    if wake_audio is None or len(wake_audio) == 0:
+        return command
+    return wake_audio.astype(np.float32).tobytes() + command
