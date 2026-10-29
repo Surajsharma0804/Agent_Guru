@@ -69,8 +69,8 @@ async def assistant(monkeypatch, tmp_path):
     monkeypatch.setenv(browser_tools.ENABLE_ENV, "1")
     made = []
 
-    async def build(script, page="Page: a page"):
-        browser = RecordedBrowser(page)
+    async def build(script, page="Page: a page", browser=None):
+        browser = browser or RecordedBrowser(page)
         server = browser_server()
         server.local = browser
         research = ServerConfig(name="guru", command="(in process)", timeout=25.0,
@@ -162,3 +162,43 @@ async def test_with_no_one_to_ask_the_address_is_refused(assistant):
     outcome = await loop.run([Message(role="user", content="what is the weather like today")], step)
     assert browser.opened == [] and outcome.pending is None  # nosec B101
     assert [c.category for c in outcome.calls] == ["not_confirmed"]  # nosec B101
+
+
+# Row 7 of the live run: the model, unprompted, opens an address the owner never
+# said. Live, the model could not be made to do it on demand, so the row was
+# reported from code reading only. Here its choice is scripted and the browser's
+# own dispatcher (BrowserTools.call) runs; only the visit itself is recorded.
+
+class DispatchedBrowser(BrowserTools):
+    def __init__(self) -> None:
+        super().__init__()
+        self.visited: list[str] = []
+
+    async def _open(self, url):
+        self.visited.append(url)
+        return "Page: Weather\nSunny, 31 C.", False, False
+
+
+@pytest.fixture
+async def dispatched(assistant):
+    async def build(script):
+        return await assistant(script, browser=DispatchedBrowser())
+
+    return build
+
+
+async def test_row_7_an_unsaid_address_is_asked_about_and_no_means_no_visit(dispatched):
+    orch, browser = await dispatched([("", [_open("https://weather.example/delhi?q=7314")]), ("Done.", [])])
+    asked = await orch.run_text_turn("what is the weather like today")
+    assert asked.awaiting_reply and "weather.example" in asked.llm_response  # nosec B101
+    assert browser.visited == []  # nosec B101
+    await orch.run_text_turn("no")
+    assert browser.visited == []  # nosec B101
+
+
+async def test_row_7_yes_visits_exactly_the_address_that_was_read_out(dispatched):
+    orch, browser = await dispatched([("", [_open("https://weather.example/delhi?q=7314")]), ("Sunny, 31 C.", [])])
+    asked = await orch.run_text_turn("what is the weather like today")
+    assert asked.awaiting_reply and browser.visited == []  # nosec B101
+    await orch.run_text_turn("yes")
+    assert browser.visited == ["https://weather.example/delhi?q=7314"]  # nosec B101
