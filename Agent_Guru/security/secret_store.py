@@ -86,3 +86,39 @@ def delete(name: str) -> bool:
         path.unlink()
         return True
     return False
+
+
+class NoCredentialBackend(RuntimeError):
+    """No operating-system credential store is available to protect a secret."""
+
+
+_KEYRING_SERVICE = "Agent Guru"
+
+
+def os_credential(name: str, factory: Callable[[], bytes]) -> bytes:
+    """The secret *name*, made with *factory* the first time, kept by the operating system.
+
+    save() and load() fall back to a plain owner-only file off Windows. That is not good enough
+    for a value that is itself the key to other secrets, such as a store's master password, so
+    this uses only an OS credential store: DPAPI on Windows (the same as save()), and elsewhere
+    the keyring package's backend when one is installed and working (Keychain, Secret Service).
+    Without one it raises NoCredentialBackend, and the caller must not keep the secret at all.
+    """
+    if sys.platform == "win32":
+        return load_or_create(name, factory)
+    try:
+        import keyring  # type: ignore[import-not-found]
+        from keyring.backends import fail  # type: ignore[import-not-found]
+    except ImportError as exc:
+        msg = "no operating-system credential store: keyring is not installed"
+        raise NoCredentialBackend(msg) from exc
+    backend = keyring.get_keyring()
+    if isinstance(backend, fail.Keyring) or getattr(backend, "priority", 0) <= 0:
+        msg = f"no operating-system credential store: keyring has no working backend ({type(backend).__name__})"
+        raise NoCredentialBackend(msg)
+    stored = keyring.get_password(_KEYRING_SERVICE, name)
+    if stored is not None:
+        return bytes.fromhex(stored)
+    value = factory()
+    keyring.set_password(_KEYRING_SERVICE, name, value.hex())
+    return value
