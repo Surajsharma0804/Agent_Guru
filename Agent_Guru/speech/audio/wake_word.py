@@ -346,6 +346,18 @@ class WakeWordDetector:
         self._energy_buffer.clear()
         self._last_detection_time = 0.0
 
+    def start_cooldown(self) -> None:
+        """Start the cooldown again now, when the turn a wake word started has ended.
+
+        The cooldown used to count only from the moment of detection. A turn
+        takes longer than the 3 s cooldown, so it had always run out by the
+        time the listen loop read the microphone again, and the first chunk
+        after a turn could wake it at once. That chunk is often stale: the
+        stream holds 2 to 2.5 s of audio that arrived during the turn, the
+        end of the spoken reply included.
+        """
+        self._last_detection_time = time.time()
+
     def get_frame_length(self) -> int:
         """Return the required audio frame length in samples.
 
