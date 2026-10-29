@@ -35,6 +35,9 @@ from Agent_Guru.security.crypto.key_store import KeyStore
 
 logger = structlog.get_logger(__name__)
 
+#: Kept in the new store once the old .guru store has been looked for, so it is migrated once.
+_MIGRATED_MARKER = "onboarding:migrated_from_legacy_store"
+
 
 class OnboardingStep(str, Enum):
     """Steps in the onboarding flow."""
@@ -118,23 +121,78 @@ class OnboardingManager:
     """
 
     def __init__(self, state_path: Path | None = None, key_store: KeyStore | None = None) -> None:
-        self._state_path = state_path or Path(".guru/onboarding_state.json")
+        from Agent_Guru.utils.path_utils import app_data_dir
+
+        # Both files used to be ".guru/..." relative to the working directory, so the store went
+        # wherever the assistant was started from (the repository, when run from a checkout) and a
+        # different directory meant a different, empty store. They now live in the data folder
+        # beside memory and turns.db.
+        self._state_path = state_path or app_data_dir("onboarding_state.json")
         self._state_path.parent.mkdir(parents=True, exist_ok=True)
         # Dependency injection, matching IdentityManager's convention
-        # (security/crypto/identity.py) -- callers that already run a
-        # GuruSecuritySystem should inject its shared KeyStore instance so
-        # LLM credentials land in the same encrypted store (and, once one
-        # exists, behind the same master password) as every other secret.
-        # Falling back to a private KeyStore keeps this class usable
-        # standalone; it uses master_password="" because that is the
-        # existing codebase-wide default (see SecurityConfig.master_password
-        # in security/security_system.py) -- not a weaker choice made here,
-        # but not a solved secrets story either. See _save_state().
-        self._key_store = key_store or KeyStore(
-            storage_path=str(self._state_path.parent / "onboarding_secrets.db"),
-            master_password="",  # nosec B106
+        # (security/crypto/identity.py): a caller that runs a GuruSecuritySystem
+        # can inject its shared KeyStore.
+        self._key_store: KeyStore | None = key_store if key_store is not None else self._own_key_store(
+            app_data_dir("onboarding_secrets.db") if state_path is None else self._state_path.parent / "onboarding_secrets.db",
         )
         self._state = self._load_state()
+
+    @staticmethod
+    def _own_key_store(path: Path) -> KeyStore | None:
+        """The onboarding KeyStore under a master secret the OS keeps, or None when it cannot keep one.
+
+        This store was opened with master_password="", and its derivation salt is stored in the
+        same file, so anyone holding the file could derive the key: the API key it held was only
+        obscured. The master secret is now 32 random bytes made once per user and kept by the
+        operating system (DPAPI on Windows, keyring's backend elsewhere), never in a file of ours.
+        With no such store (headless Linux, say) nothing is kept rather than kept under a password
+        anyone can derive, and the owner is told once.
+        """
+        import secrets
+
+        from Agent_Guru.security import secret_store
+
+        try:
+            master = secret_store.os_credential("onboarding_master_key", lambda: secrets.token_bytes(32)).hex()
+        except secret_store.NoCredentialBackend as exc:
+            logger.warning("onboarding_credentials_not_stored", reason=str(exc),
+                           detail="an API key entered during onboarding will not be saved")
+            return None
+        store = KeyStore(storage_path=str(path), master_password=master)
+        OnboardingManager._migrate_legacy_store(store)
+        return store
+
+    @staticmethod
+    def _migrate_legacy_store(store: KeyStore) -> None:
+        """Copy keys from the old working-directory store into *store* once, checked; the old file stays.
+
+        The old store sat at .guru/onboarding_secrets.db under whatever directory the assistant ran
+        from, which is why the current directory and the checkout are both looked in. Its keys are
+        read with the empty password it was made with, written to the new store, read back and
+        compared. The old file is left for the owner to delete, and its path is logged.
+        """
+        if store.key_exists(_MIGRATED_MARKER):
+            return
+        checkout = Path(__file__).resolve().parents[2]
+        candidates = {p.resolve() for p in (Path.cwd() / ".guru" / "onboarding_secrets.db",
+                                            checkout / ".guru" / "onboarding_secrets.db") if p.is_file()}
+        for legacy_path in sorted(candidates):
+            legacy = KeyStore(storage_path=str(legacy_path), master_password="")  # nosec B106 - how it was made
+            try:
+                moved = 0
+                for key_id in legacy.key_ids():
+                    value = legacy.retrieve_key(key_id)
+                    if not store.key_exists(key_id):
+                        store.store_key(key_id, value)
+                    if store.retrieve_key(key_id) != value:
+                        msg = f"migrated key {key_id!r} did not read back the same"
+                        raise RuntimeError(msg)
+                    moved += 1
+            finally:
+                legacy.close()
+            logger.info("onboarding_store_migrated", keys=moved, old_file=str(legacy_path),
+                        detail="checked by reading each key back; delete the old file yourself")
+        store.store_key(_MIGRATED_MARKER, b"1")
 
     # ------------------------------------------------------------------
     # Public API
@@ -289,7 +347,7 @@ class OnboardingManager:
             # back in from where it actually lives. If the file predates
             # this fix, or the field was already populated some other way,
             # leave it untouched rather than clobbering a legitimate value.
-            if state.llm_config is not None and state.llm_config.api_key is None:
+            if self._key_store is not None and state.llm_config is not None and state.llm_config.api_key is None:
                 key_id = self._llm_api_key_id(state.llm_config.provider)
                 try:
                     real_key = self._key_store.retrieve_key(key_id)
@@ -332,11 +390,17 @@ class OnboardingManager:
         state_to_persist = self._state.model_copy(deep=True)
 
         if state_to_persist.llm_config is not None and state_to_persist.llm_config.api_key:
-            key_id = self._llm_api_key_id(state_to_persist.llm_config.provider)
-            self._key_store.store_key(
-                key_id,
-                state_to_persist.llm_config.api_key.encode("utf-8"),
-            )
+            if self._key_store is None:
+                # No OS credential store to protect it (see _own_key_store): the key stays in
+                # memory for this run only and is never written anywhere.
+                logger.warning("onboarding_api_key_not_saved",
+                               detail="no operating-system credential store; enter the key again next run")
+            else:
+                key_id = self._llm_api_key_id(state_to_persist.llm_config.provider)
+                self._key_store.store_key(
+                    key_id,
+                    state_to_persist.llm_config.api_key.encode("utf-8"),
+                )
             state_to_persist.llm_config.api_key = None
 
         self._state_path.write_text(state_to_persist.model_dump_json(indent=2))
