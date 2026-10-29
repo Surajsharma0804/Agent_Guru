@@ -1172,6 +1172,8 @@ class WakeWordManager:
                                 await self._config.on_detection_callback(detection)
                             except Exception:
                                 logger.exception("Detection callback error")
+                        if self._detector is not None:
+                            self._detector.start_cooldown()
                         # Return to sleep after callback
                         self._power_mode = PowerMode.SLEEP
 
