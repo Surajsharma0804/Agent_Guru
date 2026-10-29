@@ -47,6 +47,14 @@ def _api(text: str) -> dict:
 
 
 def _show(answer: dict) -> None:
+    # Piped or redirected on Windows, stdout is cp1252, and a reply with an
+    # emoji in it (the model writes them) raised UnicodeEncodeError: the
+    # owner got a traceback in place of the answer, and a "yes" that had
+    # already been acted on looked as if it had failed. What the console
+    # cannot show is replaced; the rest of the reply still prints.
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(errors="replace")
     print(answer.get("reply") or answer.get("error") or "(no reply)")  # noqa: T201  the command's output
     for source in answer.get("sources") or []:
         print(f"  [{source.get('id', '')}] {source.get('title', '')} {source.get('url', '')}".rstrip())  # noqa: T201
