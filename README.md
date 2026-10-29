@@ -363,8 +363,13 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
 
 ## Known limitations
 
-- **False wakes**: when the openWakeWord model is not available, the fallback detector reacts to loud speech, not
-  only to the wake phrase. Each false wake starts a turn.
+- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya", and none has been trained yet, so the
+  fallback detector runs. It reacts to loud sound and to talk in the room, not only to the wake phrase. A wake that no
+  speech follows within 3 s is ignored, and nothing read in the 3 s after a turn can wake it. On recorded background
+  audio that cut false turns from 132 to 60 an hour for everyday sounds and from 132 to 37 for music, but not for
+  talk (141 to 130). The startup log names the detector in use and why. With `openwakeword` installed and trained
+  models named `hey_guru.onnx` and `hey_maya.onnx` in `%LOCALAPPDATA%\agent_guru\wake_models`, that detector is
+  used instead.
 - **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
   `low-vram` recipe switches to the smaller gemma4:e2b, which gets 6 of 11 tool cases right against 11 of 11 (see
   "Choosing a model"). Swapping between models takes 17 to 19 s.
