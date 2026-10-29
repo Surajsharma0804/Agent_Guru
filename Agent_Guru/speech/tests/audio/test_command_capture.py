@@ -15,6 +15,7 @@ from Agent_Guru.speech.audio.command_capture import (
     FRAME_SAMPLES,
     SAMPLE_RATE,
     CaptureSettings,
+    capture_after_wake,
     capture_command,
 )
 
@@ -154,3 +155,49 @@ async def test_no_microphone_returns_nothing() -> None:
 
     assert await capture_command(NoMic(), vad=AmplitudeScorer()) == b""
     assert NoMic.calls <= CaptureSettings().no_speech_seconds / 0.25 + 1
+
+
+# After a wake word. main.py put the wake chunk in front of whatever capture
+# returned, an empty recording included, so a cough or a door that woke the
+# loudness-gate detector ran a turn on itself. AFTER_WAKE has the measurement.
+
+WAKE = signal((1.5, SPEECH))
+
+
+async def test_a_wake_no_speech_follows_starts_nothing() -> None:
+    mic = Mic(signal((10.0, QUIET)))
+    assert await capture_after_wake(mic, WAKE, vad=AmplitudeScorer()) == b""
+    # Gives up at the 3 s window, not the 8 s a command may take to start.
+    assert mic.seconds_read <= 3.0 + 0.25
+
+
+async def test_noise_that_is_not_speech_is_not_a_command() -> None:
+    # Loud enough to pass the near-silence check, scored as no speech: the
+    # case that used to reach STT with the waking sound in front of it.
+    mic = Mic(signal((10.0, SOFT)))
+    assert await capture_after_wake(mic, WAKE, vad=AmplitudeScorer()) == b""
+
+
+@pytest.mark.parametrize("pause", [0.0, 0.5, 2.5])
+async def test_a_command_said_after_the_wake_keeps_both(pause: float) -> None:
+    mic = Mic(signal((pause, QUIET), (1.5, SPEECH), (4.0, QUIET)))
+    out = await capture_after_wake(mic, WAKE, vad=AmplitudeScorer())
+    assert out[:len(WAKE) * 4] == WAKE.tobytes()
+    assert len(out) // 4 - len(WAKE) >= int((pause + 1.5) * SAMPLE_RATE)
+
+
+async def test_a_command_that_starts_too_late_is_not_taken() -> None:
+    mic = Mic(signal((3.5, QUIET), (1.5, SPEECH), (4.0, QUIET)))
+    assert await capture_after_wake(mic, WAKE, vad=AmplitudeScorer()) == b""
+
+
+async def test_without_a_wake_chunk_the_command_alone_is_returned() -> None:
+    mic = Mic(signal((1.5, SPEECH), (4.0, QUIET)))
+    out = await capture_after_wake(mic, None, vad=AmplitudeScorer())
+    assert len(out) // 4 >= int(1.5 * SAMPLE_RATE)
+
+
+async def test_other_captures_still_keep_audio_without_speech() -> None:
+    # Follow-up answers and the default settings are unchanged: a recording
+    # above near-silence still goes to STT.
+    assert await capture_command(Mic(signal((9.0, SOFT))), vad=AmplitudeScorer())
