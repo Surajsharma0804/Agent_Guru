@@ -351,7 +351,7 @@ def _load_gpu_pool():
 # Was _capture_command_with_vad here, judging whole 1.5 s chunks; it ran on a
 # median 2.06 s after the speaker stopped and could not be tested from main.py.
 # Agent_Guru/speech/audio/command_capture.py explains the replacement.
-from Agent_Guru.speech.audio.command_capture import capture_command, load_silero  # noqa: E402
+from Agent_Guru.speech.audio.command_capture import capture_after_wake, capture_command, load_silero  # noqa: E402
 
 
 async def _answer_follow_ups(
@@ -669,17 +669,13 @@ async def run() -> None:
 
         import numpy as np
         try:
-            audio_bytes = await capture_command(wake_manager)
-
-            wake_audio = getattr(detection, "audio_chunk", None)
-            if wake_audio is not None and len(wake_audio) > 0:
-                wake_bytes = wake_audio.astype(np.float32).tobytes()
-                audio_bytes = wake_bytes + audio_bytes
-
-            if audio_bytes:
-                command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
-                rms = float(np.sqrt(np.mean(command_audio ** 2)))
-                logger.info("Command audio captured: %.2fs, rms=%.4f", len(command_audio) / 16000, rms)
+            audio_bytes = await capture_after_wake(wake_manager, getattr(detection, "audio_chunk", None))
+            if not audio_bytes:
+                logger.info("[%s] No command followed the wake word - not starting a turn.", personality_name)
+                return
+            command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
+            rms = float(np.sqrt(np.mean(command_audio ** 2)))
+            logger.info("Command audio captured: %.2fs, rms=%.4f", len(command_audio) / 16000, rms)
         except Exception as exc:
             logger.warning("Command audio capture failed: %s", exc)
             audio_bytes = b""
