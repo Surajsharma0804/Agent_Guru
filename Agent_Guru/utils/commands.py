@@ -12,6 +12,7 @@ assistant already has:
     model [NAME]          the model in use, or switch it (settings.toml)
     memory [show|forget KEY]        what the assistant remembers about the owner
     tasks                 reminders, checks and actions it has scheduled (read only)
+    mic [mute|unmute]     whether it is listening, or stop and start it listening
     eval / bench          scripts/turn_eval.py: scoring, or stage latency
 
 ask and chat talk to the assistant that is running, through its local
@@ -60,6 +61,38 @@ def _show(answer: dict) -> None:
         print(f"  [{source.get('id', '')}] {source.get('title', '')} {source.get('url', '')}".rstrip())  # noqa: T201
     if answer.get("awaiting_reply"):
         print("(It is waiting for your answer.)")  # noqa: T201
+
+
+def mic(argv: list[str]) -> int:
+    """Mute or unmute the running assistant's microphone, or say which it is.
+
+    It could not be told to stop listening short of quitting, while the
+    fallback wake detector started turns on room talk. Muting closes the
+    input stream; it lasts until unmuted or until the assistant restarts.
+    """
+    import httpx
+
+    from Agent_Guru.integration import local_api
+
+    action = (argv[0] if argv else "status").lower()
+    if action not in ("status", "mute", "unmute"):
+        print("python -m Agent_Guru mic [status|mute|unmute]")  # noqa: T201
+        return 2
+    url = f"http://{local_api.HOST}:{local_api.port()}/v1/mic"
+    headers = {"X-API-Key": local_api.owner_key()}
+    try:
+        if action == "status":
+            response = httpx.get(url, headers=headers, timeout=10)
+        else:
+            response = httpx.post(url, json={"muted": action == "mute"}, headers=headers, timeout=10)
+    except httpx.HTTPError as exc:
+        msg = (f"The assistant is not answering on {url} ({type(exc).__name__}). Start it with "
+               "AGENT_GURU_API = true in settings.toml.")
+        raise SystemExit(msg) from exc
+    state = response.json().get("microphone", "unknown")
+    print({"muted": "Microphone muted: not listening.", "listening": "Microphone on: listening for the wake word.",
+           "none": "Nothing is listening: the assistant runs without a microphone."}.get(state, state))  # noqa: T201
+    return 0 if response.status_code == 200 else 1
 
 
 def ask(argv: list[str]) -> int:
