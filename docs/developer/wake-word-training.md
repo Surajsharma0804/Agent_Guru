@@ -1,18 +1,20 @@
 # Training the Hey Guru and Hey Maya wake words
 
-A first pair of "Hey Guru" and "Hey Maya" models was trained on this laptop on 2026-10-30 (results
-at the end of this page). They are not installed: measured through the assistant's own detector they
-miss openWakeWord's aims, and they have not been measured on new recordings in the owner's room. openWakeWord ships models for alexa, hey jarvis,
-hey mycroft, hey rhasspy, weather and timers only (under CC BY-NC-SA 4.0, non-commercial). Until a
-model is installed the assistant uses the MFCC fallback, which wakes on loud sound and on talk in
-the room; its startup log says so (`WakeWordDetector initialised - backend=mfcc: ...`).
+Two pairs of "Hey Guru" and "Hey Maya" models have been trained on this laptop (2026-10-30 and
+2026-10-31; results at the end of this page). Neither is installed: measured through the assistant's
+own detector on the fixed held-out sets, both miss openWakeWord's aims, and neither has been measured
+on new recordings in the owner's room. openWakeWord ships models for alexa, hey jarvis, hey mycroft,
+hey rhasspy, weather and timers only (under CC BY-NC-SA 4.0, non-commercial). Until a model is
+installed the assistant uses the MFCC fallback, which wakes on loud sound; a turn it starts goes
+ahead only when what was heard names Guru or Maya (see "The name check"). The startup log says which
+detector runs (`WakeWordDetector initialised - backend=mfcc: ...`).
 
 ## What already exists
 
 | Piece | Where | State |
 |:--|:--|:--|
 | Training pipeline: synthetic positives (Parler TTS, 21 Indian English and 2 Hindi voices, plus Piper and LibriTTS-R), negatives (ACAV100M features, Svarah's Indian English speakers, near-miss phrases), room impulses, AudioSet and FMA background, openWakeWord training, ONNX export checks, its own benchmark | `wakeword_training/runner/` (not in git), copied into the data folder's `code/` | dry run and kill test proven on the laptop |
-| Offline data folder (30.25 GiB, 638 files, hashed) | `E:\agent_guru_wakeword_data` | complete |
+| Offline data folder (30.89 GiB, 640 files, hashed) | `E:\agent_guru_wakeword_data` | complete; AudioSet shard 00 added 2026-10-31 |
 | A100 runbook (SLURM) | `wakeword_training/runner/RUNBOOK.md` | not yet run on the A100 |
 | One command for all of it | `scripts/train_wake_words.py` | this page |
 | Measurement through the assistant's own detector | `scripts/wake_word_eval.py` | harness checked, see below |
@@ -52,6 +54,26 @@ your room. Record after the data folder was packed (2026-10-02), under a speaker
 - The second records sentences that hold a wake phrase without being a wake ("Hey Guru ji", "I told
   her hey Maya is late"). They are measured, not trained on: see "Near misses" below.
 - Do not pack these into the data folder. They land in `wakeword_training\recordings\suraj_room\`.
+
+### A second held-out set: distance and TV
+
+The first held-out set (the 16 takes of 2026-10-01 held back from training) stays fixed so every
+model is compared on it. The second covers what that one does not:
+
+```
+.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_far --takes 10
+.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_tv --takes 10
+.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_cmds --commands
+```
+
+- `suraj_far`: stand 3 to 4 metres from the microphone, facing it for half the takes and away for
+  the rest.
+- `suraj_tv`: a TV or YouTube video playing speech at an ordinary volume, you at your usual seat.
+- `suraj_cmds`: 20 whole commands ("Hey Guru, what time is it", "Guru, stop", "Hey Maya ji, read my
+  messages"), at different distances as the prompts say. Then measure the fallback's name check on
+  them: `.venv\Scripts\python scripts\name_check_eval.py wakeword_training\recordings\suraj_cmds`.
+  Every take it lists as dropped is a command that would have gone unanswered.
+- Never pack these into the data folder; training must not see them.
 
 ## 2. Background audio for false accepts
 
@@ -100,6 +122,17 @@ Only then install: add `--install` to the same command. It refuses unless held-o
 measured. Restart the assistant; its log must say `backend=openwakeword: models for hey guru, hey
 maya in ...`.
 
+## The name check
+
+While the fallback decides wakes, a turn it starts goes ahead only if the turn's own transcript names
+Guru or Maya (`speech/audio/wake_word.py`, `wake_name`). The check switches itself off when a trained
+model is installed and chosen at startup. Measured over the whole background fixtures, every kept
+false wake transcribed by the assistant's speech recognition: false turns per hour fell from 42.7 to
+1.1 on everyday sounds, 24.0 to 0.6 on music and 130.1 to 0.0 on speech. Real commands: the owner's
+16 held-back takes each followed by a command all pass, but said alone 3 of 16 are dropped; synthetic
+sets not used to build the rule lose 10 of 80 unseen voices, 0 of 48 Hindi and 12 of 40 bare names.
+Measure it on your own commands with `scripts/name_check_eval.py` before relying on it.
+
 ## Near misses
 
 "Hey Guru ji" and "hey Maya" said inside a sentence contain the wake phrase itself. A detector that
@@ -146,6 +179,34 @@ default sensitivity, 1.5 s chunks):
 | The owner's 16 held-back takes | 13 woke with the right name, 3 missed (19%); latency median 0.36 s, max 1.27 s | under 5% |
 | Compute, both models | 173 ms per 1.5 s chunk (median) | |
 
-Next: record the in-room held-out set (step 1), add the four negatives that woke it and everyday
-sounds to the training negatives, and retrain; a retrain that reuses these clips costs only the
-training step (about 65 minutes here).
+## Second models (2026-10-31, laptop, not installed)
+
+Retrained from the same Parler clips (2 hours 1 minute, 00:37 to 02:38) with: "Hey Guru ji" and "Hey Maya ji" among
+the generated positives; "hey siri", "hey alexa", "hey google", "hey mario", "ok google",
+"hey gurukul" and "hey mayank" among the near-miss negatives; and a new negative set of 7,539
+two-second windows from AudioSet shard 00 (everyday sounds), shard 09's speech, TV and radio clips,
+and FMA tracks 200 onwards, none of which are in the false-wake scoring sets. The training
+augmentation (unchanged from the first run) mixes AudioSet shard 09 and the first 120 FMA tracks under
+clips as background, and those overlap the scoring sets.
+
+Through the assistant's WakeWordDetector, same held-out sets as the first models:
+
+| Set | First models | Second models | Aim |
+|:--|:--|:--|:--|
+| 53.4 min of AudioSet sounds | 6.7 per hour | 3.4 per hour | under 0.5 |
+| 100 min of FMA music | 2.4 per hour | 1.2 per hour | under 0.5 |
+| 16.1 min of speech | 0 | 3.7 per hour (1 wake) | under 0.5 |
+| The owner's 16 held-back takes | 13/16 | 13/16 (19% missed) | under 5% |
+| 18 synthetic "Hey Guru/Maya ji" clips | 10/18 | 14/18 | |
+| 12 synthetic plain clips, same voices | 12/12 | 12/12 | |
+
+The pipeline's own benchmark chose a threshold of 0.65 (the first run 0.35): the owner's takes 16/16,
+unseen synthetic voices 56/80 (first run 62/80), 0 false wakes per hour on Svarah, 3 of 21 of the
+owner's recorded negatives woke it ("Hey Google" once, "Hey Mario" twice; first run 4 of 21).
+
+Still missing for an install: false wakes are 2 to 7 times the aim, and 3 of 16 of the owner's takes
+are missed through the assistant's detector though the pipeline benchmark wakes on all 16 (its
+threshold differs and it scores every 80 ms frame, where the assistant decides per 1.5 s chunk).
+Next: record the second held-out set above, check whether the detector's threshold (0.5 from the
+default sensitivity) or its chunking is what misses the 3 takes, and add real everyday sound from the
+room to the negatives.
