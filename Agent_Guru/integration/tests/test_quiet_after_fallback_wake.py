@@ -79,7 +79,9 @@ def assistant(tmp_path):
     orch.close_scheduler()
 
 
-@pytest.mark.parametrize(("text", "confidence"), [("Okay.", -0.4), ("La vidéo.", -1.3), ("Chak chak chak", -1.28)])
+# Each names a wake word, so it passes the name check and it is the quiet rule that stops it.
+@pytest.mark.parametrize(("text", "confidence"),
+                         [("Guru.", -0.4), ("Hey Maya, la vidéo.", -1.3), ("Guru chak chak chak", -1.28)])
 async def test_a_short_or_poorly_heard_fallback_wake_says_nothing(assistant, text, confidence):
     result = await assistant.turn(text, confidence)
     assert assistant.spoken == [] and assistant.model.asked == 0  # nosec B101
@@ -99,7 +101,7 @@ async def test_a_one_word_answer_is_kept_when_the_wake_was_not_the_fallback(assi
 
 
 async def test_a_low_confidence_from_an_earlier_turn_does_not_silence_the_next(assistant):
-    await assistant.turn("Chak chak chak", -1.28)
+    await assistant.turn("Guru chak chak chak", -1.28)
 
     class NoConfidence:
         def __init__(self, text, language, confidence):
@@ -107,3 +109,46 @@ async def test_a_low_confidence_from_an_earlier_turn_does_not_silence_the_next(a
 
     result = await assistant.turn("Hey Guru, open notepad please.", None, result_type=NoConfidence)
     assert result.error is None and assistant.spoken  # nosec B101
+
+
+
+# ---- the name check ----
+# 47 of 60 recorded false wakes were still answered after the quiet rule; Whisper wrote a
+# wake name in 16 of 16 of the owner's commands and in 1 of those 60.
+
+
+async def test_a_fallback_wake_that_names_nobody_is_dropped_silently(assistant):
+    # Fluent and confident, as speech heard by mistake is.
+    result = await assistant.turn("That's a bit of a wander around the pigeon complex.", -0.42)
+    assert assistant.spoken == [] and assistant.model.asked == 0  # nosec B101
+    assert result.error == "no_wake_name_after_fallback_wake"  # nosec B101
+
+
+@pytest.mark.parametrize("text", ["Heguru, what time is it?", "Peeb Maya. Tell me a joke.", "Himaya open notepad"])
+async def test_a_fallback_wake_that_names_guru_or_maya_goes_ahead(assistant, text):
+    result = await assistant.turn(text, -0.6)
+    assert result.error is None and assistant.spoken  # nosec B101
+
+
+async def test_with_a_trained_wake_model_the_name_is_not_checked(assistant):
+    # Not a fallback wake: the model heard the name itself.
+    result = await assistant.turn("What time is it?", -0.4, quiet=False)
+    assert result.error is None and assistant.spoken  # nosec B101
+
+
+async def test_a_named_but_garbled_fallback_wake_still_meets_the_quiet_rule(assistant):
+    result = await assistant.turn("Guru, Khoif, Manthaya, Zislain", -1.1)
+    assert result.error == "unsure_after_fallback_wake" and assistant.spoken == []  # nosec B101
+
+
+def test_the_name_check_is_on_only_while_the_fallback_decides_wakes():
+    from Agent_Guru.speech import wake_word_manager as wwm
+    from Agent_Guru.speech.audio.wake_word import WakeWordDetector
+
+    manager = wwm.WakeWordManager(wwm.WakeWordManagerConfig(platform="windows"))
+    assert manager.uses_fallback_detector is False  # nosec B101  not initialised: nothing decides
+    manager._detector = WakeWordDetector()
+    manager._detector._backend = "mfcc"
+    assert manager.uses_fallback_detector is True  # nosec B101
+    manager._detector._backend = "openwakeword"  # a trained model was found and loaded at startup
+    assert manager.uses_fallback_detector is False  # nosec B101

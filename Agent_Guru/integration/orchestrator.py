@@ -114,8 +114,9 @@ class WakeWordEvent:
     #: text. A question the assistant asks is answered only from here.
     source: str = ""
     #: Set by main.py when the wake came from the MFCC fallback, a loudness
-    #: gate: a turn whose transcript is nearly empty or barely understood is
-    #: then ended in silence instead of answered (see QUIET_*).
+    #: gate: a turn whose transcript names neither Guru nor Maya, or is nearly
+    #: empty or barely understood, is then ended in silence instead of answered
+    #: (see _run_turn and QUIET_*).
     quiet_if_unsure: bool = False
 
 
@@ -1177,6 +1178,10 @@ class IntegrationOrchestrator:
             if not result.transcript:
                 result.stages_completed = 8
                 return result
+            if wake_event.quiet_if_unsure and not self._names_a_wake_word(result.transcript):
+                result.error = "no_wake_name_after_fallback_wake"
+                result.stages_completed = 8
+                return result
             if wake_event.quiet_if_unsure and self._unsure(result.transcript):
                 result.error = "unsure_after_fallback_wake"
                 result.stages_completed = 8
@@ -1971,6 +1976,23 @@ class IntegrationOrchestrator:
             return await asyncio.to_thread(fn, audio_np, 16000)
         except Exception:
             return await asyncio.to_thread(fn, audio_np, 16000)
+
+    @staticmethod
+    def _names_a_wake_word(transcript: str) -> bool:
+        """True when the transcript of a fallback wake says Guru or Maya.
+
+        The fallback wakes on any loud sound, so talk in the room started turns: 47 of 60 false
+        wakes from recorded sound, music and speech were still answered after the quiet rule.
+        The app's own transcript, which already holds the wake chunk and the command, is
+        reused: no second speech recognition pass. Whisper base wrote a wake name in 16 of 16
+        of the owner's recorded commands and in 1 of those 60 false wakes.
+        """
+        from Agent_Guru.speech.audio.wake_word import wake_name
+
+        if wake_name(transcript):
+            return True
+        logger.debug("No wake name in what a fallback wake heard - not a turn")
+        return False
 
     @staticmethod
     def _unsure(transcript: str) -> bool:
