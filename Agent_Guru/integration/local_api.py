@@ -75,14 +75,15 @@ def create_app(orchestrator: Any) -> Any:
 
     get_api_key_manager().register_key(owner_key(), user_id="owner", role=Role.ADMIN, name="assistant owner")
     app = FastAPI(title="Agent Guru", docs_url=None, redoc_url=None, openapi_url=None)
-    turn_lock = asyncio.Lock()
 
     class TurnRequest(BaseModel):
         text: str = Field(min_length=1, max_length=_MAX_TEXT)
 
     async def run_turn(text: str, source: str) -> dict[str, Any]:
-        async with turn_lock:
-            result = await orchestrator.run_text_turn(text)
+        # No lock of its own any more: it kept API turns apart from each other
+        # but not from a voice turn. The orchestrator's turn gate serializes
+        # every source, and the source decides who may answer its questions.
+        result = await orchestrator.run_text_turn(text, source=source)
         status = getattr(result, "action_status", None)
         reply = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
         if not reply:

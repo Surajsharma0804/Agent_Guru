@@ -61,7 +61,7 @@ def test_a_refused_typed_turn_says_so():
     class Orchestrator:
         events = SimpleNamespace(publish=lambda event, **d: None)
 
-        async def run_text_turn(self, text):
+        async def run_text_turn(self, text, source="typed"):
             return SimpleNamespace(llm_response=None, action_result=None, action_status=ActionStatus.DENIED,
                                    awaiting_reply=False, sources=[], error=None)
 
