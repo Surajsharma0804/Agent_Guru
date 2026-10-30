@@ -4566,10 +4566,41 @@ class IntegrationOrchestrator:
         # The owner's next words answer a "Should I ...?" (_continue_tool_confirmation), so this loop
         # can ask; only the verified owner reaches it (pipeline_mode "full").
         loop = tool_loop.ToolLoop(self._toolbox, tools, stages=result.tool_stages, can_ask_owner=True)
+        self._weather_watch_preset(result.transcript or "", tools, loop)
         messages = list(request.messages)
         messages[0] = dataclasses.replace(messages[0], content=f"{messages[0].content}\n\n{tool_loop.TOOL_GUIDANCE}")
         self._fit_tool_prompt(messages, loop)
         return await self._run_tool_loop(result, request, loop, messages, None, prefetch=research_call if prefetch else None)
+
+    def _weather_watch_preset(self, transcript: str, tools: list[Any], loop: ToolLoop) -> None:
+        """Start the loop from the scheduling call the owner's words spell out, when they spell one out.
+
+        "Check the weather in Delhi every hour and tell me if it rains" was left to the model, which
+        had to name the weather tool, the place and what to watch for inside a scheduling call. It
+        never wrote the place or the words to watch for: 6 to 8 of 10 live runs ended unscheduled.
+        The place, the condition and the interval are read from the words in code (weather.
+        watch_from_words); the call still goes through the same checks and the owner's yes, and
+        the reply after it is the same sentence the question used.
+        """
+        from Agent_Guru.llm.models import ToolCall
+        from Agent_Guru.platform.features.weather import watch_from_words
+
+        offered = {f"{t.server}__{t.name}" for t in tools}
+        if not {"tasks__schedule_check", "guru__weather"} <= offered:
+            return
+        watch = watch_from_words(transcript)
+        if watch is None:
+            return
+        arguments: dict[str, Any] = {"tool": "guru__weather", "place": watch.place, "every_minutes": watch.every_minutes}
+        if watch.condition != "none":  # no condition is the weather tool's own default: report each time
+            arguments["condition"] = watch.condition
+        if watch.degrees is not None:
+            arguments["degrees"] = watch.degrees
+        loop.preset = ToolCall(name="tasks__schedule_check", arguments=arguments)
+        said = self._toolbox.describe("tasks", "schedule_check", arguments) if self._toolbox is not None else None
+        loop.preset_answer = f"Done. I'll {said}." if said else ""
+        logger.info("Weather watch from the owner's words: %s, %s %s, every %d min",
+                    watch.place, watch.condition, "" if watch.degrees is None else watch.degrees, watch.every_minutes)
 
     def _fit_tool_prompt(self, messages: list[Any], loop: ToolLoop) -> None:
         """Drop the oldest history until the prompt, the tools and their output fit the context window.
