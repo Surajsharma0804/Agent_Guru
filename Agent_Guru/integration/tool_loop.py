@@ -424,6 +424,11 @@ class ToolLoop:
         #: the loop. It used to be able to resend bad calls until the step
         #: budget ran out, and then the owner heard whatever it said last.
         self._refused_at: int | None = None
+        #: A call worked out in code from the owner's words, used as the first step instead of
+        #: asking the model, and the answer to give once the owner approved it and it ran. See
+        #: IntegrationOrchestrator._weather_watch_preset.
+        self.preset: ToolCall | None = None
+        self.preset_answer: str = ""
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
 
     def note_check(self, checked: Any) -> None:
@@ -504,7 +509,10 @@ class ToolLoop:
             last = (outcome.steps >= self.budget.max_steps + self._chain_nudges or self._spent()
                     or outcome.stop_reason == "repeat")
             started = time.time()
-            step = await model_step(messages, None if last else functions)
+            if self.preset is not None:
+                step, self.preset = ModelStep(text="", tool_calls=[self.preset]), None
+            else:
+                step = await model_step(messages, None if last else functions)
             outcome.steps += 1
             self._stage("tool_step", started, {
                 "step": outcome.steps,
@@ -644,6 +652,12 @@ class ToolLoop:
         call = ToolCall(name=pending.name, arguments=pending.arguments)
         messages.append(Message(role="assistant", content="", tool_calls=[call]))
         messages.append(Message(role="tool", name=call.name, content=await self._run_call(call, confirmed=True)))
+        if self.preset_answer and self.outcome.calls and self.outcome.calls[-1].status is ActionStatus.SUCCESS:
+            # Said from what was scheduled. The model's own reply after the yes promised things the
+            # task would not do ("I'll ping you right away if it starts raining" for a task that
+            # reported every hour).
+            self.outcome.answer, self.outcome.model_answer = self.preset_answer, False
+            return self._finish()
         return await self.run(messages, model_step)
 
     async def _fill_target(
