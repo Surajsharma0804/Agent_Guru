@@ -808,7 +808,15 @@ async def run() -> None:
     else:
         logger.warning("Microphone not calibrated: no working input device yet")
     await wake_manager.start_listening()
+    orch.microphone = wake_manager
     logger.info("Microphone open - listening for wake words.")
+    # Muting is session-only, so every start says it is listening and how to stop it.
+    from Agent_Guru.integration import local_api as _local_api
+
+    if _local_api.enabled():
+        logger.info("Microphone: on. Mute it with: python -m Agent_Guru mic mute")
+    else:
+        logger.info("Microphone: on. Muting needs AGENT_GURU_API = true in settings.toml (then: python -m Agent_Guru mic mute)")
 
     logger.info("[OK] Agent Guru is running.")
     logger.info("  GPU device  : %s", gpu_pool.device)
