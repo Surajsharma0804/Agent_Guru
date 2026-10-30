@@ -134,6 +134,14 @@ class TaskTools:
                 problems.append(f"{tool} changes things; a check may only use a read-only tool")
         if name == "schedule_check" and _contains_without_text(arguments):
             problems.append(_CONTAINS_NEEDS_TEXT)
+        if name == "schedule_check" and not problems and tool.endswith("__weather"):
+            from Agent_Guru.platform.features.weather import condition_problem
+
+            degrees = target_arguments.get("degrees")
+            problem = condition_problem(str(target_arguments.get("condition") or "none"),
+                                        degrees if isinstance(degrees, (int, float)) else None)
+            if problem:
+                problems.append(problem)
         return problems
 
     def missing_target(self, name: str, arguments: Any) -> str | None:
@@ -183,6 +191,17 @@ class TaskTools:
                 return f"every {value / 60:g} hours"
             return f"every {value:g} minutes"
 
+        if name == "schedule_check" and tool.endswith("__weather") and target_arguments.get("place"):
+            # Said from what will be stored: the place and the condition the weather tool checks.
+            # The question used to say "tell you what it finds each time" for a rain watch while
+            # the reply promised rain alerts; neither matched the other or the task.
+            from Agent_Guru.platform.features.weather import describe_condition
+
+            place = str(target_arguments["place"])[:60]
+            condition = str(target_arguments.get("condition") or "none")
+            degrees = target_arguments.get("degrees")
+            said = describe_condition(condition, degrees if isinstance(degrees, (int, float)) else None)
+            return f"check the weather in {place} {every(arguments.get('every_minutes'))} and {said}"
         if name == "schedule_check":
             when = every(arguments.get("every_minutes"))
             notify = arguments.get("notify_when", "always")
@@ -283,7 +302,10 @@ class TaskTools:
         if target.risk is not ToolRisk.READ_ONLY:
             msg = f"{tool} changes things; a check may only use a read-only tool"
             raise ValueError(msg)
-        if notify_when == "contains":
+        if target.name == "weather" and str(arguments.get("condition") or "none") != "none":
+            # The weather tool checks the condition; the task speaks only when it holds.
+            notify_when = "met"
+        elif notify_when == "contains":
             if _contains_without_text({"notify_when": notify_when, "contains_text": contains_text}):
                 raise ValueError(_CONTAINS_NEEDS_TEXT)
             notify_when = f"contains:{contains_text.strip()}"
