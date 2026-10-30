@@ -525,7 +525,7 @@ class ToolLoop:
                 # Nothing has run yet, or only calls that were refused: a
                 # promise to do it is still unkept.
                 ran_ok = any(c.status in {ActionStatus.SUCCESS, ActionStatus.UNVERIFIED} for c in outcome.calls)
-                if not ran_ok and promises_lookup(step.text):
+                if not ran_ok and (promises_lookup(step.text) or self._names_offered_tool(step.text)):
                     outcome.corrected = True
                     messages.append(Message(role="assistant", content=step.text))
                     messages.append(Message(role="system", content=LOOKUP_CORRECTION))
@@ -881,6 +881,20 @@ class ToolLoop:
             lines.append(f"note: {note}")
         lines.append(body)
         return "\n".join(lines)
+
+    def _names_offered_tool(self, text: str) -> bool:
+        """True if *text* names a tool it was offered, so it talked about the tool instead of calling it.
+
+        gemma4 answered "check the weather in Delhi every hour and tell me if
+        it rains" with "I can set that up for you, bro. I'll use the
+        `tasks__schedule_check` tool to check ..." and called nothing, in the
+        same words on 2 of 2 runs of the 10-run measurement, before and after
+        the argument repair. "use" is too common a verb to count as a promise
+        ("I'll use a formal tone"); a tool's name, which has an underscore in
+        it, is not something ordinary prose contains.
+        """
+        names = {key for key in self._tools} | {tool.name for tool in self._tools.values() if "_" in tool.name}
+        return any(re.search(rf"(?<![\w]){re.escape(name)}(?![\w])", text) for name in names)
 
     def _unfixed_refusal(self) -> ToolCallResult | None:
         """The last call refused for its arguments whose tool has not since run; None if none."""
