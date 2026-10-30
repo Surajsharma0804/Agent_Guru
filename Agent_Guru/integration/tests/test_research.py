@@ -417,7 +417,11 @@ async def test_read_page_only_reads_a_source_this_turn_returned(fake_web):
 
 
 async def test_research_claimed_without_a_search_is_corrected(fake_web):
-    model = Model(("According to Wikipedia, it is 42.", []), ("", [_research("web_research", query="q")]),
+    # The search here was query="q", shorter than the schema allows, so it was
+    # refused and never ran, and the loop then took "It's Modi [S1]." with no
+    # S1 behind it. The claim correction is what this checks, so the search
+    # it leads to must be one that runs.
+    model = Model(("According to Wikipedia, it is 42.", []), ("", [_research("web_research", query="who leads india")]),
                   ("It's Modi [S1].", []))
     orch = await _orchestrator(model)
     result = await orch.run_text_turn("who leads india")

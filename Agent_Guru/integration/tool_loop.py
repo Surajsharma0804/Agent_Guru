@@ -207,6 +207,13 @@ ANSWER_PLEASE = "Answer the owner now from the tool results above, in your own w
 #: Said instead when the model claims a change twice without a tool.
 NOT_DONE = "I haven't actually done that; none of my tools did it."
 
+#: Said in place of the model's reply when a call was refused for its
+#: arguments and the one repair did not fix it. The model's own reply there
+#: was an apology and a promise ("Let me try scheduling it again ... gimme a
+#: sec"), and nothing more happened, so the owner waited for a retry that
+#: never came.
+ARGUMENTS_UNFIXED = "I couldn't do that. My request to {tool} was wrong ({error}), and I couldn't fix it. Nothing was run."
+
 
 def claims_action(text: str) -> bool:
     """True if *text* says the assistant did something."""
@@ -399,6 +406,11 @@ class ToolLoop:
         self._outputs: list[tuple[str, str]] = []
         self._tool_seconds = 0.0
         self._output_chars = 0
+        #: The step in which a call was first refused for its arguments. The
+        #: model gets one repair after it; a call refused in a later step ends
+        #: the loop. It used to be able to resend bad calls until the step
+        #: budget ran out, and then the owner heard whatever it said last.
+        self._refused_at: int | None = None
         self.outcome = ToolLoopOutcome(answer="", exposed=list(self._tools))
 
     def note_check(self, checked: Any) -> None:
@@ -540,6 +552,10 @@ class ToolLoop:
                     messages.append(Message(role="system", content=ANSWER_PLEASE))
                     self._stage("tool_answer_requested", started, {"step": outcome.steps}, seconds=0.0)
                     continue
+            unfixed = self._unfixed_refusal()
+            if not step.tool_calls and unfixed is not None and not step.text.strip().endswith("?"):
+                # The repair step came and went without a call that passed.
+                return self._give_up(unfixed)
             if last or not step.tool_calls:
                 outcome.answer = step.text
                 if last and step.tool_calls:
@@ -562,13 +578,18 @@ class ToolLoop:
                     # run was read back for a yes ("Should I run
                     # schedule_check with {"arguments": {}}?") and would only
                     # have failed after it. The model gets the problem and
-                    # can correct the call.
+                    # can correct the call, once.
                     ran.append(call)
                     refused = ToolCallResult(
                         server=self._tools[call.name].server, tool=self._tools[call.name].name,
                         status=ActionStatus.FAILED, category="bad_arguments", error="; ".join(problems[:5]),
                     )
                     self.outcome.calls.append(refused)
+                    if self._refused_at is not None and outcome.steps > self._refused_at:
+                        self._stage("tool_arguments_unfixed", time.time(), {"name": call.name}, seconds=0.0)
+                        return self._give_up(refused)
+                    if self._refused_at is None:
+                        self._refused_at = outcome.steps
                     messages.append(Message(role="tool", name=call.name, content=self._tool_message(refused, call.name)))
                     continue
                 pending = self._needs_confirmation(call)
@@ -860,6 +881,20 @@ class ToolLoop:
             lines.append(f"note: {note}")
         lines.append(body)
         return "\n".join(lines)
+
+    def _unfixed_refusal(self) -> ToolCallResult | None:
+        """The last call refused for its arguments whose tool has not since run; None if none."""
+        ran = {(c.server, c.tool) for c in self.outcome.calls
+               if c.status in {ActionStatus.SUCCESS, ActionStatus.UNVERIFIED}}
+        refused = [c for c in self.outcome.calls if c.category == "bad_arguments" and (c.server, c.tool) not in ran]
+        return refused[-1] if refused and self._refused_at is not None else None
+
+    def _give_up(self, refused: ToolCallResult) -> ToolLoopOutcome:
+        """End the turn in plain words: the call was wrong, the repair did not fix it, nothing ran."""
+        error = re.sub(r"^arguments[.:]\s*", "", _clean(refused.error or "its arguments were wrong"))[:160]
+        self.outcome.answer = ARGUMENTS_UNFIXED.format(tool=refused.tool, error=error)
+        self.outcome.model_answer, self.outcome.stop_reason = False, "bad_arguments"
+        return self._finish()
 
     def _finish(self) -> ToolLoopOutcome:
         outcome = self.outcome
