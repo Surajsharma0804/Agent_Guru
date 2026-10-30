@@ -285,8 +285,8 @@ class ReminderManager:
         if every_s < MIN_CHECK_INTERVAL_S:
             msg = f"a check runs at most every {int(MIN_CHECK_INTERVAL_S // 60)} minutes"
             raise ValueError(msg)
-        if not (notify_when in {"always", "changed"} or notify_when.startswith("contains:")):
-            msg = "notify_when is always, changed, or contains:<text>"
+        if not (notify_when in {"always", "changed", "met"} or notify_when.startswith("contains:")):
+            msg = "notify_when is always, changed, met, or contains:<text>"
             raise ValueError(msg)
         return self._add(Reminder(
             reminder_id=f"check_{uuid.uuid4().hex[:12]}", message=message, fire_at=time.time() + first_in_s,
@@ -412,6 +412,18 @@ class ReminderManager:
             digest = hashlib.sha256(output.encode("utf-8")).hexdigest()
             changed, task.last_result = digest != task.last_result, digest
             wanted = task.notify_when
+            if wanted == "met":
+                # A watch for a condition (rain, a temperature) speaks the tool's one sentence
+                # when it holds and nothing otherwise. It used to be a "contains" match on the
+                # whole report, which said "chance of rain" every day, and spoke the first 240
+                # characters of it, source formatting included.
+                from Agent_Guru.platform.features.weather import MET
+
+                first = output.lstrip().split("\n", 1)[0]
+                if first.startswith(MET):
+                    await self._say(f"Your check, {task.message}: {first[len(MET):].strip()}")
+                    return status, "notified"
+                return status, "condition not met"
             if wanted == "always" or (wanted == "changed" and changed) or (
                 wanted.startswith("contains:") and wanted.split(":", 1)[1].strip().lower() in output.lower()
             ):
