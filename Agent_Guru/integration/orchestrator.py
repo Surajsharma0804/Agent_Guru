@@ -677,6 +677,9 @@ class IntegrationOrchestrator:
         self._turn_gate: asyncio.Lock | None = None
         self._turns_waiting = 0
         self._turn_count = 0
+        # The listening microphone (WakeWordManager), set by main.py, so the
+        # local API can mute it; None where nothing listens (tests, typed only).
+        self.microphone: Any = None
 
         # Wiring confirmed
         self.is_wired: bool = True
