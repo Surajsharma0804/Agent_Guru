@@ -410,13 +410,12 @@ def allowed_chats() -> set[str]:
     return _ids("TELEGRAM_ALLOWED_CHATS")
 
 
-async def serve(source: Source, orchestrator: Any, stop: asyncio.Event, lock: asyncio.Lock | None = None) -> None:
+async def serve(source: Source, orchestrator: Any, stop: asyncio.Event) -> None:
     """Answer the source's allowed senders until *stop* is set. Never raises; errors back off and retry."""
     problems = source.problems()
     if problems:
         logger.warning("%s inbound is on but cannot run: %s", source.name, "; ".join(problems))
         return
-    lock = lock or asyncio.Lock()
     backoff = 1.0
     primed = False
     logger.info("%s inbound: answering the owner", source.name)
@@ -442,13 +441,18 @@ async def serve(source: Source, orchestrator: Any, stop: asyncio.Event, lock: as
                 continue
             orchestrator.events.publish("message.in", channel=source.name, chat=message.chat, allowed=True,
                                         chars=len(message.text))
-            async with lock:
-                try:
-                    result = await orchestrator.run_text_turn(message.text[:_MAX_TEXT])
-                    reply = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
-                except Exception:
-                    logger.exception("%s turn failed", source.name)
-                    reply = "Sorry, something went wrong with that."
+            # One turn at a time comes from the orchestrator's turn gate, which
+            # also holds voice and typed turns; the lock this loop shared with
+            # the other channels kept them apart from each other only. The
+            # chat is part of the source, so only the chat that was asked a
+            # question can answer it.
+            try:
+                result = await orchestrator.run_text_turn(
+                    message.text[:_MAX_TEXT], source=f"channel:{source.name}:{message.chat}")
+                reply = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
+            except Exception:
+                logger.exception("%s turn failed", source.name)
+                reply = "Sorry, something went wrong with that."
             try:
                 if not await source.reply(message.chat, reply or "Done."):
                     logger.warning("%s reply not delivered", source.name)
@@ -460,13 +464,12 @@ async def serve(source: Source, orchestrator: Any, stop: asyncio.Event, lock: as
 
 
 async def poll(orchestrator: Any, stop: asyncio.Event, channel: TelegramChannel | None = None) -> None:
-    """Run every enabled source until *stop* is set, one turn at a time across all of them."""
-    lock = asyncio.Lock()
+    """Run every enabled source until *stop* is set; the orchestrator runs their turns one at a time."""
     names = enabled_sources()
     sources: list[Source] = [TelegramSource(channel) if n == "telegram" else SOURCES[n]() for n in names]
     if not sources:
         return
-    await asyncio.gather(*(serve(s, orchestrator, stop, lock) for s in sources))
+    await asyncio.gather(*(serve(s, orchestrator, stop) for s in sources))
 
 
 def run(argv: list[str]) -> int:

@@ -29,10 +29,12 @@ class Orchestrator:
     def __init__(self):
         self.events = Events()
         self.turns = []
+        self.sources = []
         self.running = 0
         self.overlap = False
 
-    async def run_text_turn(self, text):
+    async def run_text_turn(self, text, source="typed"):
+        self.sources.append(source)
         self.running += 1
         self.overlap = self.overlap or self.running > 1
         await asyncio.sleep(0.01)
@@ -73,12 +75,40 @@ async def test_only_the_owner_is_answered_and_a_stranger_hears_nothing():
     assert ("message.in", {"channel": "script", "chat": "c2", "allowed": False}) in orch.events.published  # nosec B101
 
 
-async def test_turns_from_every_source_run_one_at_a_time():
-    stop, orch, lock = asyncio.Event(), Orchestrator(), asyncio.Lock()
+async def test_turns_from_every_source_run_one_at_a_time(tmp_path, monkeypatch):
+    # One at a time now comes from the orchestrator's turn gate, which also
+    # holds voice and typed turns, so this runs the real orchestrator. It used
+    # to pass a lock shared by the channels only, which a voice turn ignored.
+    from Agent_Guru.integration.orchestrator import IntegrationOrchestrator
+
+    orch = IntegrationOrchestrator(
+        speech_engine=None, vision_engine=None, llm_runtime=None, platform_controller=None,
+        agent_orchestrator=None, memory=None, reasoning=None, security=None, policy=None, avatar=None,
+        deployment=None, gpu_pool=None, reminder_store=tmp_path / "r.json",
+    )
+    running, overlap, sources = 0, False, []
+
+    async def turn(event, result, *rest):
+        nonlocal running, overlap
+        running += 1
+        overlap = overlap or running > 1
+        sources.append(result.source)
+        await asyncio.sleep(0.01)
+        running -= 1
+        result.llm_response = "ok"
+        return result
+
+    monkeypatch.setattr(orch, "_run_turn", turn)
+    stop = asyncio.Event()
     a = Script([[Incoming("a", "owner", f"a{i}") for i in range(3)]], stop)
     b = Script([[Incoming("b", "owner", f"b{i}") for i in range(3)]], asyncio.Event())
-    await asyncio.gather(serve(a, orch, stop, lock), serve(b, orch, b.stop, lock))
-    assert len(orch.turns) == 6 and not orch.overlap  # nosec B101
+    try:
+        await asyncio.gather(serve(a, orch, stop), serve(b, orch, b.stop))
+    finally:
+        orch.close_scheduler()
+    assert len(sources) == 6 and not overlap  # nosec B101
+    # Each chat is its own source, so only the chat that was asked can answer.
+    assert set(sources) == {"channel:script:a", "channel:script:b"}  # nosec B101
 
 
 async def test_a_source_that_cannot_run_says_why_and_stops(caplog):
