@@ -708,9 +708,10 @@ async def run() -> None:
                 pass
 
         try:
-            # The MFCC fallback wakes on any loud sound; a turn it starts stays quiet when what
-            # was heard is too short or too poorly understood to be a command.
-            fallback = getattr(getattr(wake_manager, "_detector", None), "_backend", "") == "mfcc"
+            # The MFCC fallback wakes on any loud sound; a turn it starts goes ahead only when
+            # what was heard names Guru or Maya and is clear enough to be a command. A trained
+            # wake word model hears the name itself, so with one in use this is off.
+            fallback = wake_manager.uses_fallback_detector
             event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes, quiet_if_unsure=fallback)
             _thinking_tone()
             result = await orch.run_pipeline(event)
