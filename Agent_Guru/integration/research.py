@@ -41,6 +41,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from Agent_Guru.platform.features.weather import DEGREES_RANGE, WATCHED
+
 logger = logging.getLogger(__name__)
 
 #: Server name the research tools are listed under; the policy actions are
@@ -188,10 +190,14 @@ class ResearchTools:
                 "The weather now and for the next three days in a named place, from the Open-Meteo weather "
                 "service: temperature, conditions, rain chance. Use this for every weather question, not "
                 "web_research. Returns one source [S1]; say the place it names, which may differ from the "
-                "name asked about."),
+                "name asked about. condition (for a scheduled check): rain, temperature_above or "
+                "temperature_below with degrees, or none; the first line then says whether it holds."),
              "annotations": {"readOnlyHint": True, "openWorldHint": True},
-             "inputSchema": {"type": "object", "properties": {"place": {"type": "string", "minLength": 2, "maxLength": 100}},
-                             "required": ["place"], "additionalProperties": False}},
+             "inputSchema": {"type": "object", "properties": {
+                 "place": {"type": "string", "minLength": 2, "maxLength": 100},
+                 "condition": {"type": "string", "enum": list(WATCHED)},
+                 "degrees": {"type": "number", "minimum": DEGREES_RANGE[0], "maximum": DEGREES_RANGE[1]}},
+                 "required": ["place"], "additionalProperties": False}},
             {"name": "read_page", "description": (
                 "Read more of a web source an earlier web_research returned, by its id (for example S2)."),
              "annotations": {"readOnlyHint": True, "openWorldHint": True},
@@ -255,7 +261,7 @@ class ResearchTools:
             return " ".join(notes) or "No usable results.", False
         return "\n\n".join([*notes, *lines, _CITE]), False
 
-    async def _weather(self, place: str) -> tuple[str, bool]:
+    async def _weather(self, place: str, condition: str = "none", degrees: float | None = None) -> tuple[str, bool]:
         """Open-Meteo's report for *place*, as one numbered web source.
 
         Weather was answered from web_research, whose pages were about the
@@ -264,12 +270,31 @@ class ResearchTools:
         cites it and its numbers are held to it, and the place names it
         carries pass the same injection guard as page text.
         """
-        from Agent_Guru.platform.features.weather import WeatherError, get_weather
+        from Agent_Guru.platform.features.weather import (
+            MET,
+            NOT_MET,
+            WeatherError,
+            check_condition,
+            condition_problem,
+            get_weather,
+        )
 
+        problem = condition_problem(condition, degrees)
+        if problem:
+            return problem, True
         try:
             report = await get_weather(place)
         except WeatherError as exc:
             return str(exc), True
+        checked = ""
+        if condition != "none":
+            # First, so a scheduled check can speak this one sentence when the condition holds
+            # and stay silent when it does not (reminders.py, notify_when "met").
+            met, said = check_condition(report, condition, degrees)
+            said = await _guarded(said, f"weather service {report.url}")
+            if said is None:
+                return "The weather service's answer was withheld because it tried to give instructions.", True
+            checked = f"{MET if met else NOT_MET} {said}"
         passage = await _guarded(report.summary(), f"weather service {report.url}")
         if passage is None:
             return "The weather service's answer was withheld because it tried to give instructions.", True
@@ -277,7 +302,7 @@ class ResearchTools:
                                  url=report.url, provider="open-meteo", read="page", updated=report.observed_at)
         note = ("Say which place this is: it is the place the service resolved, which may not be the one meant."
                 if report.matches > 1 else "")
-        return "\n\n".join(part for part in (_format(source), note, _CITE) if part), False
+        return "\n\n".join(part for part in (checked, _format(source), note, _CITE) if part), False
 
     async def _read_page(self, source: str, focus: str = "") -> tuple[str, bool]:
         from Agent_Guru.platform.features.web_fetch import fetch_page
