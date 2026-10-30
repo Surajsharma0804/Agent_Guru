@@ -79,6 +79,9 @@ def create_app(orchestrator: Any) -> Any:
     class TurnRequest(BaseModel):
         text: str = Field(min_length=1, max_length=_MAX_TEXT)
 
+    class MicRequest(BaseModel):
+        muted: bool
+
     async def run_turn(text: str, source: str) -> dict[str, Any]:
         # No lock of its own any more: it kept API turns apart from each other
         # but not from a voice turn. The orchestrator's turn gate serializes
@@ -109,6 +112,26 @@ def create_app(orchestrator: Any) -> Any:
     @app.post("/v1/turn")
     async def turn(body: TurnRequest, _user: dict = Depends(get_current_user)) -> dict[str, Any]:  # noqa: B008
         return await run_turn(body.text, "api")
+
+    def mic_state() -> str:
+        mic = getattr(orchestrator, "microphone", None)
+        if mic is None:
+            return "none"
+        return "muted" if mic.muted else "listening"
+
+    @app.get("/v1/mic")
+    async def mic_view(_user: dict = Depends(get_current_user)) -> dict[str, str]:  # noqa: B008
+        return {"microphone": mic_state()}
+
+    @app.post("/v1/mic")
+    async def mic_set(body: MicRequest, _user: dict = Depends(get_current_user)) -> JSONResponse:  # noqa: B008
+        """Mute or unmute listening. There was no way to stop it listening short of quitting."""
+        mic = getattr(orchestrator, "microphone", None)
+        if mic is None:
+            return JSONResponse({"microphone": "none", "error": "nothing is listening"}, status_code=409)
+        mic.set_muted(body.muted)
+        orchestrator.events.publish("mic", muted=body.muted)
+        return JSONResponse({"microphone": mic_state()})
 
     @app.get("/v1/events")
     async def events(request: Request, _user: dict = Depends(get_current_user)) -> StreamingResponse:  # noqa: B008
@@ -263,6 +286,7 @@ def create_app(orchestrator: Any) -> Any:
             "cloud_allowed": os.environ.get("AGENT_GURU_ALLOW_CLOUD", "").lower() in {"1", "true", "yes", "on"},
             "accounts": connected(),
             "channels": sorted(name for name, c in CHANNELS.items() if c.configured()),
+            "microphone": mic_state(),
         }
 
     @app.get("/v1/turns")
