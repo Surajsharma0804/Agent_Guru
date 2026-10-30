@@ -40,6 +40,19 @@ def test_words_that_only_start_or_contain_the_name_are_not_wakes(said):
     assert wake_name(said) is None
 
 
+@pytest.mark.parametrize(("heard", "name"), [("Feguru,", "guru"), ("Yimayah", "maya"), ("Hemaia,", "maya"),
+                                             ("Thaemaya, Thaemaya,", "maya")])
+def test_how_whisper_wrote_the_owners_own_wake_takes(heard, name):
+    # From the half of the owner's takes used for training, said without a command.
+    assert wake_name(heard) == name
+
+
+@pytest.mark.parametrize("word", ["samaya", "satguru", "Ramayana"])
+def test_listed_greetings_do_not_let_other_words_through(word):
+    # "Any few letters before the name" would have let these Hindi words count as wakes.
+    assert wake_name(word) is None
+
+
 def test_a_name_said_inside_a_sentence_still_passes_this_check():
     # Not fixed here, and not fixable by text: "I told her hey Maya is late" names Maya.
     # Telling it from a wake needs the trained wake word model.
