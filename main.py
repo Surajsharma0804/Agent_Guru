@@ -410,6 +410,15 @@ async def run() -> None:
     speech     = _load_speech()
     vision     = _load_vision()
     llm        = _load_llm()
+    # Which Ollama is installed against the version the README was measured on; on a thread
+    # and not awaited, so a slow or stopped Ollama never holds the start. The task is kept in
+    # a name because the loop holds only a weak reference to it.
+    from Agent_Guru.llm.ollama_version import check_ollama_version
+
+    _ollama_host = os.environ.get("OLLAMA_HOST", "").strip() or "http://127.0.0.1:11434"
+    if "://" not in _ollama_host:
+        _ollama_host = f"http://{_ollama_host}"
+    _version_check = asyncio.create_task(asyncio.to_thread(check_ollama_version, _ollama_host))
     platform   = _load_platform()
     agents     = _load_agents()
     memory     = _load_memory()
