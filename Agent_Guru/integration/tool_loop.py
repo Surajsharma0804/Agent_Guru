@@ -225,6 +225,19 @@ def promises_lookup(text: str) -> bool:
     return bool(_PROMISED_LOOKUP.search(text) or _CLAIMED_LOOKUP.search(text))
 
 
+def asks_owner(text: str) -> bool:
+    """True if *text* puts a question to the owner instead of promising or claiming the work.
+
+    A reply ending in "?" used to count as asking the owner for what was
+    missing. gemma4 ends nearly every reply with small talk, so after a
+    refused call it said "I'm gonna try scheduling it again for you ... What
+    else is on your mind today?" and that passed as a question, in 3 of the
+    4 failures of a live 10-run measurement; nothing was scheduled.
+    """
+    stripped = text.strip()
+    return stripped.endswith("?") and not promises_lookup(stripped) and not claims_action(stripped)
+
+
 @dataclass(slots=True)
 class ModelStep:
     """What one model step wrote: text, and the tools it asked for."""
@@ -534,7 +547,7 @@ class ToolLoop:
                 refused = [c for c in outcome.calls if c.category == "bad_arguments"]
                 # A reply that asks the owner for what is missing ("Which
                 # city?") is the right answer, not a retry to force.
-                if not ran_ok and refused and not step.text.strip().endswith("?"):
+                if not ran_ok and refused and not asks_owner(step.text):
                     # One more step to correct the arguments, whatever the
                     # reply said: told "city is required", gemma4 corrected
                     # the call when given the step (1 of 1) and otherwise
@@ -553,7 +566,7 @@ class ToolLoop:
                     self._stage("tool_answer_requested", started, {"step": outcome.steps}, seconds=0.0)
                     continue
             unfixed = self._unfixed_refusal()
-            if not step.tool_calls and unfixed is not None and not step.text.strip().endswith("?"):
+            if not step.tool_calls and unfixed is not None and not asks_owner(step.text):
                 # The repair step came and went without a call that passed.
                 return self._give_up(unfixed)
             if last or not step.tool_calls:
