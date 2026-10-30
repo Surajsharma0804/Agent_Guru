@@ -632,3 +632,73 @@ async def test_an_hourly_weather_watch_repeats_the_weather_tool(open_meteo, tmp_
     finally:
         orch.close_scheduler()
         await orch.close_tools()
+
+
+# ---- watches the owner's words spell out ----
+# "Check the weather in Delhi every hour and tell me if it rains" was left to the
+# model, which never wrote the place or what to watch for (10 of 10 live runs
+# without the right task), and its reply promised rain alerts for a task that
+# reported every hour. The words are read in code; the question and the reply are
+# both said from the task that is stored.
+
+
+async def _watch_assistant(tmp_path, model):
+    from Agent_Guru.integration.task_tools import TaskTools, tasks_server
+
+    server = research_server()
+    server.local = ResearchTools()
+    tasks, task_tools = tasks_server(), TaskTools()
+    tasks.local = task_tools
+    engine = PolicyEngine()
+    install_default_policies(engine)
+    install_mcp_policies(engine, [server, tasks])
+    orch = IntegrationOrchestrator(
+        speech_engine=None, vision_engine=None, llm_runtime=model, platform_controller=None,
+        agent_orchestrator=None, memory=None, reasoning=None, security=None, policy=engine,
+        avatar=None, deployment=None, gpu_pool=None, mcp_servers=[server, tasks], reminder_store=tmp_path / "r.json",
+    )
+
+    async def no_web(*a, **k):
+        return ""
+
+    orch._fetch_web_context = no_web
+    task_tools.bind(orch)
+    orch._start_tools()
+    await orch._tools_starting
+    return orch, task_tools
+
+
+@pytest.mark.parametrize(("said", "stored", "notify", "words"), [
+    ("check the weather in Delhi every hour and tell me if it rains",
+     {"place": "Delhi", "condition": "rain"}, "met", "tell you only when it rains"),
+    ("check the temperature in Delhi every hour and tell me if it goes above 40",
+     {"place": "Delhi", "condition": "temperature_above", "degrees": 40.0}, "met", "tell you only when it is above 40 degrees"),
+    ("keep an eye on the weather in Delhi every hour", {"place": "Delhi"}, "always", "tell you what it finds each time"),
+])
+async def test_a_watch_is_scheduled_as_said_and_said_as_scheduled(tmp_path, said, stored, notify, words):
+    model = Model(("I can't do that, bro.", []))  # never asked before the question
+    orch, task_tools = await _watch_assistant(tmp_path, model)
+    try:
+        asked = await orch.run_text_turn(said)
+        assert model.requests == [] and asked.awaiting_reply  # nosec B101
+        question = asked.llm_response or ""
+        assert question.startswith(f"Should I check the weather in Delhi every hour and {words}?")  # nosec B101
+        done = await orch.run_text_turn("yes")
+        (task,) = orch._reminders().list_reminders()
+        assert (task.tool, task.arguments, task.every_s, task.notify_when) == ("weather", stored, 3600, notify)  # nosec B101
+        # Both sentences come from the stored task, so they cannot promise what it will not do.
+        from_task = task_tools.describe("schedule_check", {"tool": "guru__weather", **task.arguments, "every_minutes": 60})
+        assert question.startswith(f"Should I {from_task}?")  # nosec B101
+        assert (done.llm_response or done.action_result) == f"Done. I'll {from_task}."  # nosec B101
+    finally:
+        orch.close_scheduler()
+        await orch.close_tools()
+
+
+async def test_the_weather_tool_says_first_whether_the_condition_holds(open_meteo):
+    model = Model(("", [_research("weather", place="Delhi", condition="rain")]), ("It's drizzling [S1].", []))
+    orch = await _orchestrator(model)
+    await orch.run_text_turn("is it raining in Delhi")
+    shown = model.requests[1].messages[-1].content
+    met = shown.index("Condition met: It is raining in Delhi, National Capital Territory of Delhi, India now")
+    assert met < shown.index("[S1] Open-Meteo forecast")  # nosec B101  first, where the scheduler reads it
