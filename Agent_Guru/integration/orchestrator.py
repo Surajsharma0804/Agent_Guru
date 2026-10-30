@@ -109,6 +109,10 @@ class WakeWordEvent:
     #: A typed turn: the text stands in for the transcript, and nothing is
     #: spoken. See IntegrationOrchestrator.run_text_turn().
     text: str | None = None
+    #: Where the turn came from: "voice", "typed", "api", "a2a", "openai" or
+    #: "channel:<name>:<chat>". Empty means "voice" for audio and "typed" for
+    #: text. A question the assistant asks is answered only from here.
+    source: str = ""
 
 
 #: True while a typed turn runs. Set per task, so a voice turn running at the
@@ -117,6 +121,9 @@ _TEXT_TURN: contextvars.ContextVar[bool] = contextvars.ContextVar("agent_guru_te
 #: The model that wrote this turn's answer when routing chose another than
 #: OLLAMA_MODEL; reset at the start of each turn, read by the turn record.
 _ROUTED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("agent_guru_routed_model", default="")
+#: (source, turn number) of the turn this task is running, so the questions
+#: it asks are tied to the source that will be allowed to answer them.
+_TURN: contextvars.ContextVar[tuple[str, int]] = contextvars.ContextVar("agent_guru_turn", default=("voice", 0))
 
 
 @dataclass
@@ -321,6 +328,10 @@ class PipelineResult:
     error: str | None = None
     awaiting_reply: bool = False
     action_status: ActionStatus | None = None
+    #: Where the turn came from (WakeWordEvent.source) and its number in this
+    #: process; a pending question records both.
+    source: str = ""
+    turn_id: int = 0
     # (stage name, wall-clock start, seconds) in the order the stages ran.
     # Sources the turn's research tools returned, as cited in the answer:
     # id, kind, title, url and how much of each was read.
@@ -435,6 +446,13 @@ LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask
 #: utterance is an ordinary command again, so a question left unanswered
 #: cannot turn a later, unrelated sentence into a message to someone.
 MESSAGE_DRAFT_TTL_S = _env_seconds("AGENT_GURU_MESSAGE_DRAFT_TTL", 60.0)
+
+#: Turns that may wait while one runs. Voice turns arrive one at a time (the
+#: listen loop waits for each), so only typed, API and chat turns can pile up;
+#: past this many the newest is turned away with BUSY_REPLY and a warning,
+#: rather than queueing work the owner will have stopped waiting for.
+TURN_QUEUE_LIMIT = 4
+BUSY_REPLY = "I'm still working through earlier requests. Ask me again in a moment."
 
 #: Said instead of the missing recipient or text, the whole utterance and
 #: nothing else, to drop a draft. Matched whole: a message may well contain
@@ -646,8 +664,19 @@ class IntegrationOrchestrator:
         self._mcp_servers = list(mcp_servers or [])
         self._toolbox: MCPToolbox | None = None
         self._tools_starting: asyncio.Task[Any] | None = None
-        # A call that changes things, waiting for the owner's yes.
-        self._tool_pending: dict[str, Any] | None = None
+        # A call that changes things, waiting for the owner's yes, by the
+        # source that was asked (see _TURN).
+        self._tool_pending: dict[str, dict[str, Any]] = {}
+        # One turn at a time, whatever started it. Voice turns, typed turns
+        # (local API, ask, chat, dashboard), A2A, the OpenAI endpoint and chat
+        # channels each called run_pipeline on their own. The API and the
+        # channels had a lock each, which kept them apart from themselves but
+        # not from a voice turn: a false wake ran beside a typed turn, its
+        # reply leaked into the typed answer, and either could have taken the
+        # other's yes. Made on first use, like _sleeping_lock (CRIT-001).
+        self._turn_gate: asyncio.Lock | None = None
+        self._turns_waiting = 0
+        self._turn_count = 0
 
         # Wiring confirmed
         self.is_wired: bool = True
@@ -704,9 +733,10 @@ class IntegrationOrchestrator:
         # The token budget guard in _stage_llm handles overflow gracefully.
         self._chat_history: deque = deque(maxlen=24)  # 12 user + 12 assistant turns
 
-        # A message waiting for its recipient, its text or the user's yes:
-        # {"app", "contact", "message", "expires"}. See _continue_message_draft.
-        self._message_draft: dict[str, Any] | None = None
+        # A message waiting for its recipient, its text or the user's yes, by
+        # the source that was asked: {"app", "contact", "message", "expires",
+        # "turn"}. See _continue_message_draft.
+        self._message_draft: dict[str, dict[str, Any]] = {}
 
         # NOTE: there is intentionally NO self._pipeline_mode attribute.
         # pipeline_mode (speaker-verification outcome) is carried per-call on
@@ -1016,7 +1046,32 @@ class IntegrationOrchestrator:
             PipelineResult with all stage outputs populated.
 
         """
-        result = PipelineResult()
+        source = wake_event.source or ("typed" if wake_event.text is not None else "voice")
+        if self._turn_gate is None:
+            self._turn_gate = asyncio.Lock()
+        if self._turn_gate.locked():
+            if self._turns_waiting >= TURN_QUEUE_LIMIT:
+                logger.warning("Turn from %s turned away: %d turns already waiting", source, self._turns_waiting)
+                return PipelineResult(source=source, llm_response=BUSY_REPLY, error="busy")
+            logger.info("Turn from %s waits for the turn in progress", source)
+        self._turns_waiting += 1
+        try:
+            await self._turn_gate.acquire()
+        finally:
+            self._turns_waiting -= 1
+        try:
+            self._turn_count += 1
+            token = _TURN.set((source, self._turn_count))
+            try:
+                return await self._run_gated_pipeline(wake_event, source)
+            finally:
+                _TURN.reset(token)
+        finally:
+            self._turn_gate.release()
+
+    async def _run_gated_pipeline(self, wake_event: WakeWordEvent, source: str) -> PipelineResult:
+        """run_pipeline's body, run while this turn holds the turn gate."""
+        result = PipelineResult(source=source, turn_id=self._turn_count)
         result.personality = self._resolve_personality(wake_event.wake_word)
 
         import time as _time
@@ -1056,7 +1111,9 @@ class IntegrationOrchestrator:
                 with contextlib.suppress(asyncio.CancelledError):
                     await filler
 
-    async def run_text_turn(self, text: str, personality: Personality = Personality.GURU) -> PipelineResult:
+    async def run_text_turn(
+        self, text: str, personality: Personality = Personality.GURU, source: str = "typed",
+    ) -> PipelineResult:
         """One typed turn through the same stages as a spoken one, without speech in or out.
 
         The text is taken as the transcript and the reply is left in the
@@ -1065,7 +1122,7 @@ class IntegrationOrchestrator:
         policy, actions, tools, records.
         """
         wake_word = "Hey Maya" if personality == Personality.MAYA else "Hey Guru"
-        return await self.run_pipeline(WakeWordEvent(wake_word=wake_word, text=text))
+        return await self.run_pipeline(WakeWordEvent(wake_word=wake_word, text=text, source=source))
 
     async def _run_turn(
         self, wake_event: WakeWordEvent, result: PipelineResult, _wake_timestamp: float, _get_um: Any,
@@ -1119,7 +1176,7 @@ class IntegrationOrchestrator:
                 draft_reply = draft_outcome.text or _STATUS_REPLIES[draft_outcome.status]
                 result.intent = "communication:message_draft"
                 result.action_result, result.action_status = draft_reply, draft_outcome.status
-                result.awaiting_reply = self._message_draft is not None
+                result.awaiting_reply = result.source in self._message_draft
                 self._chat_history.append({"role": "user", "content": result.transcript, "emotion": "neutral"})
                 self._chat_history.append({"role": "assistant", "content": draft_reply})
                 result.stages_completed = 8
@@ -1290,7 +1347,7 @@ class IntegrationOrchestrator:
 
             # A draft started by this turn's action, or a tool call this
             # turn's answer asked about, is waiting for an answer.
-            result.awaiting_reply = self._message_draft is not None or self._tool_pending is not None
+            result.awaiting_reply = result.source in self._message_draft or result.source in self._tool_pending
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
@@ -4148,16 +4205,16 @@ class IntegrationOrchestrator:
         )
 
     def _start_message_draft(self, app: str, contact: str, message: str) -> str:
-        """Keep a message that lacks its recipient or text, and ask for it."""
-        self._message_draft = {
+        """Keep a message that lacks its recipient or text, and ask the source of this turn for it."""
+        source, turn = _TURN.get()
+        draft = self._message_draft[source] = {
             "app": app, "contact": contact, "message": message,
-            "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S,
+            "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S, "turn": turn,
         }
-        return self._message_draft_question()
+        return self._message_draft_question(draft)
 
-    def _message_draft_question(self) -> str:
-        draft = self._message_draft
-        assert draft is not None  # nosec B101 - only called with a draft
+    @staticmethod
+    def _message_draft_question(draft: dict[str, Any]) -> str:
         if not draft["contact"]:
             return "Who should I send it to?"
         who = (draft["contact"])
@@ -4175,18 +4232,28 @@ class IntegrationOrchestrator:
         any sentence, so the user hears exactly what will go before it goes.
         Anything but a yes to the read-back cancels it.
         """
-        draft = self._message_draft
+        source, _ = _TURN.get()
+        draft = self._message_draft.get(source)
         if draft is None:
             return None
-        if time.monotonic() > draft["expires"]:
-            self._message_draft = None
-            logger.info("Message draft to %r expired unanswered", draft["contact"])
-            return None
         said = transcript.strip()
+        if time.monotonic() > draft["expires"]:
+            del self._message_draft[source]
+            logger.info("Message draft to %r expired unanswered", draft["contact"])
+            from Agent_Guru.platform.features.confirmation import _parse_confirmation
+
+            # A yes that came too late was taken as a new command, so the
+            # owner heard an answer to "yes" and never learned the message
+            # was not sent.
+            if _parse_confirmation(said) is not None:
+                return ActionOutcome(
+                    f"That message waited more than {MESSAGE_DRAFT_TTL_S:.0f} seconds for an answer, so I "
+                    "didn't send it. Ask me again if you still want to.", ActionStatus.CANCELLED)
+            return None
 
         if not draft["contact"] or not draft["message"]:
             if said.lower().strip(" .,!?") in _DRAFT_CANCEL:
-                self._message_draft = None
+                del self._message_draft[source]
                 return ActionOutcome("Okay, I won't send anything.", ActionStatus.CANCELLED)
             if not draft["contact"]:
                 from Agent_Guru.platform.intent_recognizer import _RECIPIENT, _SEVERAL_RECIPIENTS
@@ -4201,9 +4268,9 @@ class IntegrationOrchestrator:
             else:
                 draft["message"] = said
             draft["expires"] = time.monotonic() + MESSAGE_DRAFT_TTL_S
-            return ActionOutcome(self._message_draft_question(), None)
+            return ActionOutcome(self._message_draft_question(draft), None)
 
-        self._message_draft = None
+        del self._message_draft[source]
         from Agent_Guru.platform.features.confirmation import _parse_confirmation
 
         if _parse_confirmation(said) is not True:
@@ -4507,9 +4574,10 @@ class IntegrationOrchestrator:
                 )
                 loop.note_check(checked)
         if outcome.pending is not None:
-            self._tool_pending = {
+            source, turn = _TURN.get()
+            self._tool_pending[source] = {
                 "pending": outcome.pending, "loop": loop, "messages": messages, "request": request,
-                "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S,
+                "expires": time.monotonic() + MESSAGE_DRAFT_TTL_S, "turn": turn,
             }
             result.awaiting_reply = True
         if outcome.calls:
@@ -4614,18 +4682,26 @@ class IntegrationOrchestrator:
         message draft is cancelled, and nothing runs. A restricted speaker
         cannot confirm.
         """
-        waiting = self._tool_pending
+        waiting = self._tool_pending.pop(result.source, None)
         if waiting is None:
-            return False
-        self._tool_pending = None
-        if time.monotonic() > waiting["expires"]:
-            logger.info("Tool confirmation for %s expired unanswered", waiting["pending"].name)
             return False
         from Agent_Guru.platform.features.confirmation import _parse_confirmation
 
         pending = waiting["pending"]
+        answer = _parse_confirmation(result.transcript or "")
+        expired = time.monotonic() > waiting["expires"]
+        if expired:
+            logger.info("Tool confirmation for %s expired unanswered", pending.name)
+            if answer is None:
+                return False
         result.intent = "external:tool_confirmation"
-        if pipeline_mode != "full" or _parse_confirmation(result.transcript or "") is not True:
+        if expired:
+            # A late yes was taken as a new command: the owner heard a reply
+            # to "yes" and could not tell that nothing had run.
+            reply = (f"That question waited more than {MESSAGE_DRAFT_TTL_S:.0f} seconds for an answer, so I "
+                     f"didn't run {pending.tool}. Ask me again if you still want it.")
+            result.action_result, result.action_status = reply, ActionStatus.CANCELLED
+        elif pipeline_mode != "full" or answer is not True:
             reply = f"Okay, I won't run {pending.tool}."
             result.action_result, result.action_status = reply, ActionStatus.CANCELLED
         else:

@@ -294,7 +294,7 @@ async def test_anything_but_yes_cancels_the_change(make, notes):
     await orch.run_text_turn("note that I need milk")
     result = await orch.run_text_turn("actually what's the time")
     assert result.action_status is ActionStatus.CANCELLED and notes.read_text(encoding="utf-8") == ""  # nosec B101
-    assert orch._tool_pending is None  # nosec B101
+    assert orch._tool_pending == {}  # nosec B101
 
 
 async def test_a_yes_inside_tool_output_confirms_nothing(make, notes):
@@ -315,7 +315,7 @@ async def test_a_change_is_never_made_twice_in_a_turn(make, notes):
     )
     await orch.run_text_turn("please keep a note of this for me")
     again = await orch.run_text_turn("yes")
-    assert not again.awaiting_reply and orch._tool_pending is None  # nosec B101  nothing left to say yes to
+    assert not again.awaiting_reply and orch._tool_pending == {}  # nosec B101  nothing left to say yes to
     assert notes.read_text(encoding="utf-8") == "once\n"  # nosec B101
     assert "repeat" in model.requests[-1].messages[-1].content or "repeat" in model.requests[-2].messages[-1].content  # nosec B101
 

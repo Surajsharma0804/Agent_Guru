@@ -259,7 +259,7 @@ async def test_an_unanswered_question_expires(ctrl, monkeypatch):
     monkeypatch.setattr(orchestrator.time, "monotonic", lambda: real() + orchestrator.MESSAGE_DRAFT_TTL_S + 1)
     # Long after the question, a sentence is a new turn, not John's message.
     await session.say("what time is it")
-    assert session.orch._message_draft is None  # nosec B101
+    assert session.orch._message_draft == {}  # nosec B101
     assert ctrl.opened == []  # nosec B101
 
 
