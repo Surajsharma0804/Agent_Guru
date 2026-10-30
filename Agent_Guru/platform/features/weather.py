@@ -96,7 +96,10 @@ class WeatherReport:
             now += f", precipitation {self.precipitation:g} {u.get('precipitation', '')} in the last 15 minutes"
         lines.append(now)
         for day in self.days:
-            rain = f", chance of rain {day.rain_chance}%" if day.rain_chance is not None else ""
+            # Not "chance of rain": a scheduled check told to say when the
+            # report contains "rain" matched those words on every run, rain
+            # or not, so a rain watch would have spoken every hour.
+            rain = f", chance of precipitation {day.rain_chance}%" if day.rain_chance is not None else ""
             lines.append(f"{day.date}: {day.conditions}, high {day.high:g}{u.get('temperature_2m', '')}, "
                          f"low {day.low:g}{u.get('temperature_2m', '')}{rain}")
         return "\n".join(lines)

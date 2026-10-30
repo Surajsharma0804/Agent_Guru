@@ -53,7 +53,17 @@ async def test_the_report_carries_numbers_with_their_units():
     assert "Place: Delhi, National Capital Territory of Delhi, India" in text
     assert "(the most populous of 10 places with that name)" in text
     assert "dense drizzle, 19.3°C, feels like 21.6°C, humidity 96%" in text
-    assert "2026-10-30: violent rain showers, high 23.8°C, low 18.8°C, chance of rain 100%" in text
+    assert "2026-10-30: violent rain showers, high 23.8°C, low 18.8°C, chance of precipitation 100%" in text
+
+
+async def test_only_rain_itself_makes_the_report_mention_rain():
+    # A check that tells the owner when the report contains "rain" must not
+    # fire on a dry day. The recorded forecast's last day is clear (code 0).
+    dry = _json("forecast_delhi.json")
+    dry["current"]["weather_code"] = 0
+    dry["daily"]["weather_code"] = [0, 1, 2]
+    report = await get_weather("Delhi", client=_client("geocoding_delhi.json", forecast=dry))
+    assert "rain" not in report.summary().lower()
     assert report.units["wind_speed_10m"] == "km/h"
 
 
