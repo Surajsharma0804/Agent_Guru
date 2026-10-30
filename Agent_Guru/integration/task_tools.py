@@ -117,16 +117,24 @@ class TaskTools:
         """What is wrong with a schedule_check or schedule_action call, without scheduling anything."""
         if name not in {"schedule_check", "schedule_action"} or self._orch is None:
             return []
+        # Every problem at once. The first one found used to be the only one
+        # reported, and the model gets one repair: "tell me every hour if it
+        # rains in Delhi" came as guru__weather without its place and with
+        # notify_when contains but no words; told only about the place, the
+        # repaired call was refused for the words, and 6 of 10 live runs
+        # ended unscheduled.
+        problems = []
         try:
             tool, target_arguments = self._split(arguments)
             target = await self._target(tool, target_arguments)
         except ValueError as exc:
-            return [str(exc)]
-        if name == "schedule_check" and target.risk is not ToolRisk.READ_ONLY:
-            return [f"{tool} changes things; a check may only use a read-only tool"]
+            problems.append(str(exc))
+        else:
+            if name == "schedule_check" and target.risk is not ToolRisk.READ_ONLY:
+                problems.append(f"{tool} changes things; a check may only use a read-only tool")
         if name == "schedule_check" and _contains_without_text(arguments):
-            return [_CONTAINS_NEEDS_TEXT]
-        return []
+            problems.append(_CONTAINS_NEEDS_TEXT)
+        return problems
 
     def missing_target(self, name: str, arguments: Any) -> str | None:
         """The tool a schedule call names when none of its own arguments came with it; else None."""
