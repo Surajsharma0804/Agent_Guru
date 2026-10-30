@@ -8,6 +8,7 @@ only read:
 
     web_research(query)        search the web and read the top pages
     read_page(source)          read more of a page a search returned
+    weather(place)             the weather now and three days ahead, from Open-Meteo
     search_documents(query)    the owner's documents (platform/features/documents.py)
     search_memory(query)       what the owner said in earlier conversations
 
@@ -180,8 +181,17 @@ class ResearchTools:
         tools = [
             {"name": "web_research", "description": (
                 "Search the web for a question and read the top pages. Returns numbered sources [S1], [S2] with "
-                "passages; cite them by id. Use for facts you do not know or that change over time."),
+                "passages; cite them by id. Use for facts you do not know or that change over time. Not for the "
+                "weather: use weather."),
              "annotations": {"readOnlyHint": True, "openWorldHint": True}, "inputSchema": _QUERY},
+            {"name": "weather", "description": (
+                "The weather now and for the next three days in a named place, from the Open-Meteo weather "
+                "service: temperature, conditions, rain chance. Use this for every weather question, not "
+                "web_research. Returns one source [S1]; say the place it names, which may differ from the "
+                "name asked about."),
+             "annotations": {"readOnlyHint": True, "openWorldHint": True},
+             "inputSchema": {"type": "object", "properties": {"place": {"type": "string", "minLength": 2, "maxLength": 100}},
+                             "required": ["place"], "additionalProperties": False}},
             {"name": "read_page", "description": (
                 "Read more of a web source an earlier web_research returned, by its id (for example S2)."),
              "annotations": {"readOnlyHint": True, "openWorldHint": True},
@@ -203,7 +213,7 @@ class ResearchTools:
 
     async def call(self, name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
         handler = {
-            "web_research": self._web_research, "read_page": self._read_page,
+            "web_research": self._web_research, "read_page": self._read_page, "weather": self._weather,
             "search_documents": self._search_documents, "search_memory": self._search_memory,
         }.get(name)
         if handler is None:
@@ -244,6 +254,30 @@ class ResearchTools:
         if not lines:
             return " ".join(notes) or "No usable results.", False
         return "\n\n".join([*notes, *lines, _CITE]), False
+
+    async def _weather(self, place: str) -> tuple[str, bool]:
+        """Open-Meteo's report for *place*, as one numbered web source.
+
+        Weather was answered from web_research, whose pages were about the
+        climate or a year old: "what's the weather in Delhi" came back with
+        no forecast. The report is a source like any web page, so the answer
+        cites it and its numbers are held to it, and the place names it
+        carries pass the same injection guard as page text.
+        """
+        from Agent_Guru.platform.features.weather import WeatherError, get_weather
+
+        try:
+            report = await get_weather(place)
+        except WeatherError as exc:
+            return str(exc), True
+        passage = await _guarded(report.summary(), f"weather service {report.url}")
+        if passage is None:
+            return "The weather service's answer was withheld because it tried to give instructions.", True
+        source = _register().add("web", title=f"Open-Meteo forecast for {report.place}", passage=passage,
+                                 url=report.url, provider="open-meteo", read="page", updated=report.observed_at)
+        note = ("Say which place this is: it is the place the service resolved, which may not be the one meant."
+                if report.matches > 1 else "")
+        return "\n\n".join(part for part in (_format(source), note, _CITE) if part), False
 
     async def _read_page(self, source: str, focus: str = "") -> tuple[str, bool]:
         from Agent_Guru.platform.features.web_fetch import fetch_page
@@ -395,5 +429,5 @@ def research_server() -> Any:
     from Agent_Guru.integration.mcp_tools import ServerConfig, ToolRisk, ToolRule
 
     rules = {name: ToolRule(allow=True, risk=ToolRisk.READ_ONLY)
-             for name in ("web_research", "read_page", "search_documents", "search_memory")}
+             for name in ("web_research", "read_page", "weather", "search_documents", "search_memory")}
     return ServerConfig(name=SERVER_NAME, command="(in process)", timeout=25.0, tools=rules)
