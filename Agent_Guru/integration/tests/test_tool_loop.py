@@ -671,3 +671,22 @@ async def test_valid_calls_are_unaffected(make, text):
     result = await orch.run_text_turn(f"echo {text}")
     assert result.llm_response == f"It said {text}."  # nosec B101
     assert len(model.requests) == 2  # nosec B101
+
+
+async def test_naming_a_tool_instead_of_calling_it_gets_the_lookup_correction(make):
+    # gemma4: "I'll use the `tasks__schedule_check` tool to check ..." and no
+    # call, the same words on 2 of 2 live runs of an hourly rain watch.
+    orch, model = await make(
+        say("Sure, I'll use the `test__echo` tool to say that back."),
+        say("", call("echo", text="hi")),
+        say("It said hi."),
+    )
+    result = await orch.run_text_turn("say hi back to me")
+    assert any(m.role == "system" and m.content == LOOKUP_CORRECTION for m in model.requests[1].messages)  # nosec B101
+    assert result.llm_response == "It said hi."  # nosec B101
+
+
+async def test_prose_with_no_tool_name_is_not_taken_for_a_promise(make):
+    orch, model = await make(say("I'd use a lighter tone with your landlord, honestly."))
+    result = await orch.run_text_turn("how should I word this to my landlord")
+    assert result.llm_response == "I'd use a lighter tone with your landlord, honestly." and len(model.requests) == 1  # nosec B101
