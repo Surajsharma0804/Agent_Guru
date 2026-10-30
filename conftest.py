@@ -232,6 +232,30 @@ def _refuse_ollama_connections() -> None:
         windows_events.IocpProactor.connect = iocp_connect  # type: ignore[method-assign]
 
 
+#: Web services the assistant calls itself, refused under test the same way.
+#: The weather tool (platform/features/weather.py) reaches Open-Meteo, and web
+#: research reaches Wikipedia, DuckDuckGo and Bing. A test that forgot its
+#: fakes passed or failed with the network and sent its words to the service:
+#: a weather turn test made a real Wikipedia search through the research
+#: prefetch, found by its source being titled "New Delhi".
+_REFUSED_HOSTS = ("open-meteo.com", "wikipedia.org", "duckduckgo.com", "bing.com")
+
+
+def _refuse_web_hosts() -> None:
+    """Make name lookups for the hosts in _REFUSED_HOSTS fail as they do offline."""
+    import socket
+
+    real_getaddrinfo = socket.getaddrinfo
+
+    def getaddrinfo(host: Any, *args: Any, **kwargs: Any) -> Any:
+        name = host.decode() if isinstance(host, bytes) else str(host or "")
+        if any(name.rstrip(".").lower() == h or name.rstrip(".").lower().endswith("." + h) for h in _REFUSED_HOSTS):
+            raise socket.gaierror(socket.EAI_NONAME, f"{name}: web services are off under test")
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    socket.getaddrinfo = getaddrinfo
+
+
 # ---------------------------------------------------------------------------
 # Windows: raise the per-test timeout, because it is a hang guard
 #
@@ -271,6 +295,7 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     if not _LIVE_LLM:
         _refuse_ollama_connections()
+    _refuse_web_hosts()
     if sys.platform != "win32":
         return
     timeout = config.getoption("timeout", default=None)
