@@ -512,3 +512,123 @@ def test_the_research_server_is_read_only_and_needs_no_program():
     assert {r.risk for r in server.tools.values()} == {ToolRisk.READ_ONLY} and server.local is None  # nosec B101
     assert isinstance(server, ServerConfig) and server.name == research.SERVER_NAME  # nosec B101
 
+
+
+# ---- weather ----
+# Weather was answered from web_research: the pages were about Delhi's
+# climate or a year old, and the answer had no forecast. Open-Meteo's own
+# responses, recorded once (platform/tests/fixtures/open_meteo), are served
+# here through httpx.MockTransport; nothing reaches the internet.
+
+
+@pytest.fixture
+def open_meteo(monkeypatch):
+    import json
+    from pathlib import Path
+
+    import httpx
+
+    from Agent_Guru.platform.features import weather
+
+    recorded = Path(__file__).resolve().parents[2] / "platform" / "tests" / "fixtures" / "open_meteo"
+    asked: list[str] = []
+
+    def answer(request):
+        asked.append(request.url.host)
+        name = "geocoding_delhi.json" if request.url.host.startswith("geocoding") else "forecast_delhi.json"
+        return httpx.Response(200, json=json.loads((recorded / name).read_text(encoding="utf-8")))
+
+    real = weather.get_weather
+
+    async def recorded_weather(place, **kwargs):
+        return await real(place, client=httpx.AsyncClient(transport=httpx.MockTransport(answer)))
+
+    monkeypatch.setattr(weather, "get_weather", recorded_weather)
+    return asked
+
+
+async def test_the_weather_comes_from_the_weather_service_with_the_place_it_resolved(open_meteo):
+    model = Model(("", [_research("weather", place="Delhi")]),
+                  ("Dense drizzle and 19.3°C in Delhi, National Capital Territory of Delhi, India [S1].", []))
+    orch = await _orchestrator(model)
+    result = await orch.run_text_turn("what's the weather in Delhi")
+    shown = model.requests[1].messages[-1].content
+    assert "Place: Delhi, National Capital Territory of Delhi, India" in shown  # nosec B101
+    assert "the most populous of 10 places" in shown and "Say which place this is" in shown  # nosec B101
+    assert "dense drizzle, 19.3°C" in shown  # nosec B101
+    assert [s["title"] for s in result.sources] == [  # nosec B101
+        "Open-Meteo forecast for Delhi, National Capital Territory of Delhi, India"]
+    assert result.sources[0]["kind"] == "web"  # nosec B101  labelled as from the web like any search
+    assert "19.3" in result.llm_response and open_meteo == ["geocoding-api.open-meteo.com", "api.open-meteo.com"]  # nosec B101
+    # No web search was run first: the research prefetch used to search the
+    # words of every weather question, and that put Wikipedia's "New Delhi"
+    # article in front of the model beside the report.
+    assert "tool_prefetch" not in [s.name for s in result.tool_stages]  # nosec B101
+
+
+async def test_offline_the_weather_tool_says_so_and_nothing_is_made_up(monkeypatch):
+    from Agent_Guru.platform.features import weather
+
+    async def offline(place, **kwargs):
+        raise weather.WeatherError("I can't reach the weather service; this computer may be offline.")
+
+    monkeypatch.setattr(weather, "get_weather", offline)
+    model = Model(("", [_research("weather", place="Delhi")]), ("I can't reach the weather service right now.", []))
+    orch = await _orchestrator(model)
+    result = await orch.run_text_turn("what's the weather in Delhi")
+    shown = model.requests[1].messages[-1].content
+    assert "status: failed" in shown and "can't reach the weather service" in shown  # nosec B101
+    assert result.sources == [] and result.action_status is ActionStatus.FAILED  # nosec B101
+
+
+async def test_the_action_stage_sends_news_to_a_search_but_not_the_weather():
+    searched = []
+    ctrl = SimpleNamespace(web_search=lambda query, engine: searched.append(query))
+    orch = IntegrationOrchestrator(
+        speech_engine=None, vision_engine=None, llm_runtime=None, platform_controller=ctrl,
+        agent_orchestrator=None, memory=None, reasoning=None, security=None, policy=None,
+        avatar=None, deployment=None, gpu_pool=None,
+    )
+    try:
+        assert await orch._action_information(ctrl, "weather", "weather in Delhi", "") is None  # nosec B101
+        assert await orch._action_information(ctrl, "news", "news today", "") == "Searching for news today"  # nosec B101
+    finally:
+        orch.close_scheduler()
+    assert searched == ["news today"]  # nosec B101
+
+
+async def test_an_hourly_weather_watch_repeats_the_weather_tool(open_meteo, tmp_path):
+    from Agent_Guru.integration.task_tools import TaskTools, tasks_server
+
+    watch = ToolCall(name="tasks__schedule_check", arguments={"tool": "guru__weather", "place": "Delhi",
+                                                              "every_minutes": 60})
+    model = Model(("", [watch]), ("Done, every hour.", []))
+    server = research_server()
+    server.local = ResearchTools()
+    tasks, task_tools = tasks_server(), TaskTools()
+    tasks.local = task_tools
+    engine = PolicyEngine()
+    install_default_policies(engine)
+    install_mcp_policies(engine, [server, tasks])
+    orch = IntegrationOrchestrator(
+        speech_engine=None, vision_engine=None, llm_runtime=model, platform_controller=None,
+        agent_orchestrator=None, memory=None, reasoning=None, security=None, policy=engine,
+        avatar=None, deployment=None, gpu_pool=None, mcp_servers=[server, tasks], reminder_store=tmp_path / "r.json",
+    )
+
+    async def no_web(*a, **k):
+        return ""
+
+    orch._fetch_web_context = no_web
+    task_tools.bind(orch)
+    orch._start_tools()
+    await orch._tools_starting
+    try:
+        asked = await orch.run_text_turn("keep an eye on the weather in Delhi every hour")
+        assert asked.awaiting_reply  # nosec B101
+        await orch.run_text_turn("yes")
+        (task,) = orch._reminders().list_reminders()
+        assert (task.server, task.tool, task.arguments, task.every_s) == ("guru", "weather", {"place": "Delhi"}, 3600)  # nosec B101
+    finally:
+        orch.close_scheduler()
+        await orch.close_tools()
