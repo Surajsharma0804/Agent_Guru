@@ -690,3 +690,15 @@ async def test_prose_with_no_tool_name_is_not_taken_for_a_promise(make):
     orch, model = await make(say("I'd use a lighter tone with your landlord, honestly."))
     result = await orch.run_text_turn("how should I word this to my landlord")
     assert result.llm_response == "I'd use a lighter tone with your landlord, honestly." and len(model.requests) == 1  # nosec B101
+
+
+async def test_small_talk_after_a_promise_is_not_a_question_to_the_owner(make):
+    # gemma4, after a refused schedule_check, in 3 of 4 live failures: a
+    # promise, then small talk ending in "?", which passed as asking the owner.
+    orch, model = await make(
+        say("", call("echo", text=12)),
+        say("My bad! I'm gonna try that again for you. What else is on your mind today?"),
+        say("Sorry, I'll get it sorted. Anything else on your mind?"),
+    )
+    result = await orch.run_text_turn("echo twelve")
+    assert result.llm_response == ARGUMENTS_UNFIXED.format(tool="echo", error="text: expected string, got integer 12")  # nosec B101
