@@ -142,7 +142,10 @@ def validate(value: Any, schema: dict[str, Any], *, where: str = "arguments", de
     if types is not None:
         listed = types if isinstance(types, list) else [types]
         if not any(_is_type(value, t) for t in listed):
-            return [f"{where}: expected {' or '.join(listed)}, got {_type_name(value)}"]
+            # The value is shown: "expected number, got string" left the model
+            # to guess what it had sent, and it resent the same thing.
+            shown = f" {value!r}"[:50] if isinstance(value, (str, int, float, bool)) else ""
+            return [f"{where}: expected {' or '.join(listed)}, got {_type_name(value)}{shown}"]
     if "const" in schema and value != schema["const"]:
         problems.append(f"{where}: must be {schema['const']!r}")
     if "enum" in schema and value not in schema["enum"]:
