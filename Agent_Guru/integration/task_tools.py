@@ -51,6 +51,17 @@ def tasks_server() -> ServerConfig:
     return ServerConfig(name=SERVER_NAME, command="(in process)", timeout=20.0, tools=rules)
 
 
+#: Checked before the owner is asked as well as when the check is made. It
+#: was only checked when made, so the owner was asked "Should I check ...
+#: every hour?", said yes, and then heard that the call had failed (1 of 10
+#: live runs of an hourly rain watch).
+_CONTAINS_NEEDS_TEXT = "notify_when contains needs contains_text, the words to look for"
+
+
+def _contains_without_text(arguments: dict[str, Any]) -> bool:
+    return arguments.get("notify_when") == "contains" and not str(arguments.get("contains_text") or "").strip()
+
+
 class TaskTools:
     """The task tools; bind() gives them the orchestrator whose scheduler and tools they use."""
 
@@ -112,6 +123,8 @@ class TaskTools:
             return [str(exc)]
         if name == "schedule_check" and target.risk is not ToolRisk.READ_ONLY:
             return [f"{tool} changes things; a check may only use a read-only tool"]
+        if name == "schedule_check" and _contains_without_text(arguments):
+            return [_CONTAINS_NEEDS_TEXT]
         return []
 
     def missing_target(self, name: str, arguments: Any) -> str | None:
@@ -262,9 +275,8 @@ class TaskTools:
             msg = f"{tool} changes things; a check may only use a read-only tool"
             raise ValueError(msg)
         if notify_when == "contains":
-            if not contains_text.strip():
-                msg = "contains needs contains_text"
-                raise ValueError(msg)
+            if _contains_without_text({"notify_when": notify_when, "contains_text": contains_text}):
+                raise ValueError(_CONTAINS_NEEDS_TEXT)
             notify_when = f"contains:{contains_text.strip()}"
         task = await self._orch._reminders().add_check(
             description, server=target.server, tool=target.name, arguments=arguments, every_s=every_minutes * 60,
