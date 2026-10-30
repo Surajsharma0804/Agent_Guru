@@ -75,14 +75,15 @@ class TaskTools:
         return [
             {"name": "list_tasks", "description": "List the owner's reminders and scheduled checks and actions.",
              "annotations": {"readOnlyHint": True}, "inputSchema": {"type": "object", "additionalProperties": False}},
-            # The example names the assistant's own web research tool. It named eval__get_weather, which
-            # exists only in the evaluation server, so in the live app gemma4 invented a weather tool
-            # to match ("weather__get_weather", 3 of 3 runs), the call was refused, and "keep an eye on
-            # the weather in Delhi every hour" ended in "I hit a snag".
+            # The example names the assistant's own weather tool (before it existed, web research). It
+            # named eval__get_weather, which exists only in the evaluation server, so in the live app
+            # gemma4 invented a weather tool to match ("weather__get_weather", 3 of 3 runs), the call
+            # was refused, and "keep an eye on the weather in Delhi every hour" ended in "I hit a snag".
+            # The error message for a check with nothing to repeat still named eval__get_weather.
             {"name": "schedule_check", "description": (
                 "Repeat a read-only lookup every so often and tell the owner what it finds. Give tool (its name as "
                 "you see it) and that tool's own arguments as further fields, for example "
-                '{"tool": "guru__web_research", "query": "Delhi weather now", "every_minutes": 60}. '
+                '{"tool": "guru__weather", "place": "Delhi", "every_minutes": 60}. '
                 "notify_when: always, changed, or contains (with contains_text)."),
              "annotations": {"readOnlyHint": False}, "inputSchema": {
                  "type": "object", "additionalProperties": True,
@@ -211,7 +212,7 @@ class TaskTools:
             if tool:
                 return tool, {}
             msg = ("name the tool to repeat and give its arguments as further fields, for example "
-                   '{"tool": "eval__get_weather", "city": "Delhi", "every_minutes": 60}')
+                   '{"tool": "guru__weather", "place": "Delhi", "every_minutes": 60}')
             raise ValueError(msg)
         server, name, made_arguments, _ = made[-1]
         return f"{server}__{name}", dict(made_arguments)
