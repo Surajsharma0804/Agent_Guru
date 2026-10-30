@@ -36,6 +36,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "model": ("Agent_Guru.utils.commands", "model", "the model in use, or switch to another installed one"),
     "memory": ("Agent_Guru.utils.commands", "memory", "what the assistant remembers about you, or forget one thing"),
     "tasks": ("Agent_Guru.utils.commands", "tasks", "reminders, checks and actions that are scheduled"),
+    "mic": ("Agent_Guru.utils.commands", "mic", "mute or unmute the running assistant's microphone"),
     "eval": ("Agent_Guru.utils.commands", "evaluate", "score the assistant on its evaluation set"),
     "bench": ("Agent_Guru.utils.commands", "bench", "time every stage of spoken turns"),
     "skills": ("Agent_Guru.reasoning.tools.skills.importer", "run", "import a skill after checking it, or find repeated tool sequences"),
