@@ -33,13 +33,22 @@ async def test_turns_the_model_can_answer_are_not_searched(run_turn, utterance):
     "utterance",
     [
         "Who is the Prime Minister of India currently?",
-        "what's the weather in Delhi",
     ],
 )
 async def test_questions_about_live_facts_are_searched(run_turn, utterance):
     turn = await run_turn(utterance)
 
     assert len(turn.web_queries) == 1
+
+
+async def test_the_weather_is_not_searched_for(run_turn):
+    # It was: the search gave pages about Delhi's climate and a year-old news
+    # item, and the answer had no forecast. The weather tool answers it
+    # (Open-Meteo, integration/research.py); searching as well put the stale
+    # pages in front of the model beside the report.
+    turn = await run_turn("what's the weather in Delhi")
+
+    assert turn.web_queries == []
 
 
 @pytest.mark.parametrize(

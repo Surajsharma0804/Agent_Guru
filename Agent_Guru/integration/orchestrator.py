@@ -2460,6 +2460,18 @@ class IntegrationOrchestrator:
             return needs_web_search(transcript)
         return False
 
+    @staticmethod
+    def _asks_weather(intent: str | None) -> bool:
+        """True when the turn asks for the weather, which the weather tool answers and no search does.
+
+        Weather went to a web search three ways: the prompt's search context,
+        the research prefetch, and a browser search in the action stage. The
+        search gave pages about Delhi's climate and a year-old news item, and
+        "what's the weather in Delhi" was answered without a forecast. The
+        weather tool (Open-Meteo, integration/research.py) answers it now.
+        """
+        return any(step.split(":", 2)[1:2] == ["weather"] for step in _intent_steps(intent or ""))
+
     async def _fetch_web_context(self, transcript: str, intent: str | None) -> str:
         """Fetch web search context when the intent says the turn needs it.
 
@@ -2475,6 +2487,8 @@ class IntegrationOrchestrator:
         from Agent_Guru.platform.features.web_search import search_web
 
         if not self._intent_needs_web(intent, transcript):
+            return ""
+        if self._asks_weather(intent):
             return ""
         web_snippet = await guard_external_text_async(await search_web(transcript) or "", "web search")
         if web_snippet:
@@ -4341,7 +4355,8 @@ class IntegrationOrchestrator:
     ) -> str | None:
         query = param.strip() or safe_intent
         action_lower = action.lower() if action else ""
-        if action_lower in ("weather", "news", "search"):
+        # Weather is not sent to a browser search: the weather tool answers it.
+        if action_lower in ("news", "search"):
             fn = getattr(ctrl, "web_search", None)
             if fn:
                 await asyncio.to_thread(fn, query, "google")
@@ -4495,9 +4510,9 @@ class IntegrationOrchestrator:
         from Agent_Guru.llm.models import ToolCall
 
         research_call = ToolCall(name="guru__web_research", arguments={"query": (result.transcript or "")[:300]})
-        prefetch = self._intent_needs_web(result.intent, result.transcript or "") and any(
-            f"{t.server}__{t.name}" == research_call.name for t in tools
-        )
+        prefetch = (self._intent_needs_web(result.intent, result.transcript or "")
+                    and not self._asks_weather(result.intent)
+                    and any(f"{t.server}__{t.name}" == research_call.name for t in tools))
         built = await self._build_llm_request(
             result.transcript or "", result.memory_context, result.detected_language,
             result.personality, result.intent, web_context=not prefetch,
