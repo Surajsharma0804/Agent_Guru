@@ -24,6 +24,7 @@ plain sentence when the network or the service fails.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -78,6 +79,8 @@ class WeatherReport:
     units: dict[str, str]
     days: list[DayForecast] = field(default_factory=list)
     url: str = ""
+    #: The WMO code behind `conditions`, for checks that need the kind of weather, not its name.
+    weather_code: int = -1
 
     def summary(self) -> str:
         """The report as plain lines, with every number's unit, for the model to answer from."""
@@ -146,7 +149,7 @@ def _report(place: dict[str, Any], matches: int, data: dict[str, Any], url: str)
         humidity=None if current.get("relative_humidity_2m") is None else int(current["relative_humidity_2m"]),
         precipitation=None if current.get("precipitation") is None else float(current["precipitation"]),
         wind=None if current.get("wind_speed_10m") is None else float(current["wind_speed_10m"]),
-        units={k: str(v) for k, v in units.items()}, days=days, url=url,
+        units={k: str(v) for k, v in units.items()}, days=days, url=url, weather_code=code,
     )
 
 
@@ -196,3 +199,128 @@ async def get_weather(place: str, *, client: Any = None, timeout_s: float = TIME
     finally:
         if own:
             await client.aclose()
+
+
+# ---- watching for a condition -------------------------------------------------------------
+# "Tell me if it rains" was left to the model: gemma4 had to write notify_when "contains" and
+# contains_text "rain" into a scheduling call, and in 30 live runs it never wrote the words, so
+# 6 to 8 of 10 rain watches failed. The condition is now a fixed vocabulary the weather tool
+# checks itself, and the owner's words are mapped to it in code (watch_from_words).
+
+#: The conditions the weather tool can watch for; the temperature ones take degrees Celsius
+#: as a separate number. An enum and a number, not one string with the limit inside: the tool
+#: schema checker refuses regular expressions (a server's pattern could take unbounded time).
+WATCHED = ("none", "rain", "temperature_above", "temperature_below")
+DEGREES_RANGE = (-50, 60)
+#: WMO codes that mean water is falling now: drizzle, rain, showers, thunderstorms.
+RAIN_CODES = frozenset({51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99})
+#: The first line of a report checked against a condition starts with one of these; the
+#: scheduler speaks a watched check only when it starts with MET.
+MET, NOT_MET = "Condition met:", "Condition not met:"
+
+
+def condition_problem(condition: str, degrees: float | None) -> str | None:
+    """What is wrong with a condition and its degrees together, or None."""
+    if condition not in WATCHED:
+        return f"condition is one of {', '.join(WATCHED)}"
+    if condition.startswith("temperature_") and degrees is None:
+        return f"condition {condition} needs degrees, the limit in degrees Celsius"
+    return None
+
+
+def check_condition(report: WeatherReport, condition: str, degrees: float | None = None) -> tuple[bool, str]:
+    """Whether *condition* holds now in *report*, and one sentence saying so for the owner."""
+    unit = report.units.get("temperature_2m", "")
+    now = f"{report.conditions}, {report.temperature:g}{unit}"
+    if condition == "rain":
+        raining = report.weather_code in RAIN_CODES or bool(report.precipitation)
+        said = f"It is raining in {report.place} now ({now})." if raining else f"No rain in {report.place} now ({now})."
+        return raining, said
+    problem = condition_problem(condition, degrees)
+    if problem:
+        raise ValueError(problem)
+    kind, limit = condition, float(degrees)  # type: ignore[arg-type]
+    if kind == "temperature_above":
+        met = report.temperature > limit
+        return met, f"It is {report.temperature:g}{unit} in {report.place}, {'above' if met else 'not above'} {limit:g}{unit}."
+    if kind == "temperature_below":
+        met = report.temperature < limit
+        return met, f"It is {report.temperature:g}{unit} in {report.place}, {'below' if met else 'not below'} {limit:g}{unit}."
+    msg = f"unknown condition {condition}"
+    raise ValueError(msg)
+
+
+def describe_condition(condition: str, degrees: float | None = None) -> str:
+    """What the owner is told a watch will do: the same words the confirmation and the reply use."""
+    if condition == "rain":
+        return "tell you only when it rains"
+    if condition == "temperature_above" and degrees is not None:
+        return f"tell you only when it is above {float(degrees):g} degrees"
+    if condition == "temperature_below" and degrees is not None:
+        return f"tell you only when it is below {float(degrees):g} degrees"
+    return "tell you what it finds each time"
+
+
+@dataclass(slots=True)
+class WeatherWatch:
+    """A recurring weather check the owner's words asked for."""
+
+    place: str
+    condition: str
+    every_minutes: int
+    degrees: float | None = None
+
+
+_WEATHER_WORDS = re.compile(r"\b(weather|rain\w*|temperature|degrees|baarish|barish|mausam)\b|बारिश|मौसम", re.IGNORECASE)
+_RAIN_WORDS = re.compile(r"\b(rains?|raining|rainy|rainfall|baarish|barish)\b|बारिश", re.IGNORECASE)
+_ABOVE = re.compile(r"\b(?:above|over|more than|higher than|exceeds?|crosses|goes (?:above|over|past)|hotter than)"
+                    r"\s+(-?\d{1,2}(?:\.\d)?)", re.IGNORECASE)
+_BELOW = re.compile(r"\b(?:below|under|less than|lower than|drops? (?:below|under)|falls? (?:below|under)|"
+                    r"colder than)\s+(-?\d{1,2}(?:\.\d)?)", re.IGNORECASE)
+_EVERY = re.compile(r"\bevery\s+(?:(\d{1,4})\s+)?(minutes?|mins?|hours?|hrs?)\b|\b(hourly|har ghante)\b", re.IGNORECASE)
+_WATCH = re.compile(r"\bkeep (?:an eye|checking|watching|track)\b|\b(?:watch|monitor)\b|"
+                    r"\b(?:tell|let|alert|notify|inform|ping)\s+me\b", re.IGNORECASE)
+_PLACE = re.compile(r"\b(?:in|at|for)\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,3}?)"
+                    r"(?=\s+(?:every|each|hourly|and|if|when|whenever|tell|let|please|till|until|today|now|"
+                    r"har|mein|ke)\b|\s*[?.,!]|\s*$)", re.IGNORECASE)
+_NOT_PLACES = frozenset({"the", "a", "an", "it", "me", "case", "degrees", "celsius", "minutes", "hours", "hour"})
+
+
+def watch_from_words(text: str) -> WeatherWatch | None:
+    """The recurring weather watch *text* asks for, or None when it does not clearly ask for one.
+
+    Clear means: it is about the weather, it asks to repeat or to be told (every hour, hourly,
+    keep an eye, tell me if), and it names a place after "in", "at" or "for". The condition is
+    rain for rain words (English and Hindi), temperature_above or _below for a number after
+    "above"/"below" and their synonyms, and none otherwise. Interval: what "every ..." says,
+    or an hour.
+    """
+    if not _WEATHER_WORDS.search(text):
+        return None
+    every = _EVERY.search(text)
+    if every is None and _WATCH.search(text) is None:
+        return None
+    place = None
+    for match in _PLACE.finditer(text):
+        words = match.group(1).strip(" .'-")
+        if words and words.lower() not in _NOT_PLACES and not words.lower().startswith(("the weather", "case ")):
+            place = words
+            break
+    if place is None:
+        return None
+    degrees = None
+    if _RAIN_WORDS.search(text):
+        condition = "rain"
+    elif (above := _ABOVE.search(text)) is not None:
+        condition, degrees = "temperature_above", float(above.group(1))
+    elif (below := _BELOW.search(text)) is not None:
+        condition, degrees = "temperature_below", float(below.group(1))
+    else:
+        condition = "none"
+    if degrees is not None and not DEGREES_RANGE[0] <= degrees <= DEGREES_RANGE[1]:
+        return None
+    minutes = 60
+    if every is not None and every.group(2):
+        count = int(every.group(1) or 1)
+        minutes = count if every.group(2).lower().startswith("min") else count * 60
+    return WeatherWatch(place=place, condition=condition, every_minutes=max(5, min(minutes, 10080)), degrees=degrees)
