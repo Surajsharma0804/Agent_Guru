@@ -98,7 +98,7 @@ the key is printed by `python -m Agent_Guru api key`.
 | **The computer** | "Open Notepad", "Set the volume to 40", "Take a screenshot", "Play the next song" | Each action is checked afterwards: it says *done* only when it saw the result |
 | **Messages** | "Send Rahul on WhatsApp: running late" | On WhatsApp it reads the draft back before sending; on every channel it reports *sent* only when the app or service confirmed it |
 | **Research** | "What changed in the new tax rules?" | Answers cite numbered sources; invented links and unsupported numbers are removed before you hear them |
-| **Weather** | "What's the weather in Delhi?" | From Open-Meteo (no key), not a web search; it says which place it found, since many names are shared |
+| **Weather** | "What's the weather in Delhi?", "Check the weather in Delhi every hour and tell me if it rains" | From Open-Meteo (no key), not a web search; it says which place it found, since many names are shared. A watch for rain or a temperature speaks only when it holds, and is confirmed in the words of the task that is stored |
 | **Scheduling** | "Remind me at 9 pm", "Check the Delhi weather every hour and tell me if it changes" | Actions run later only with your approval for that exact action, which expires |
 | **Your accounts** (optional) | "Any mail from Rahul about Friday?", "Add a dentist appointment at 4" | Sign-in on the provider's page; tokens are encrypted on disk; sending and adding wait for your yes |
 | **Tools** | Any [MCP](https://modelcontextprotocol.io) server you allow | Only the tools you allow, with the risk you declare, and every call audited |
@@ -371,16 +371,17 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
 
 ## Known limitations
 
-- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya". A first pair was trained here (see
-  [docs/developer/wake-word-training.md](docs/developer/wake-word-training.md)) but is not installed: through the
-  assistant's detector it gave 6.7 false wakes an hour on everyday sounds and missed 3 of 16 of the owner's takes,
-  and it has not been measured on new recordings in the room. Until a model passes, the fallback detector runs. It
-  reacts to loud sound and to talk in the room, not only to the wake phrase. A wake that no speech follows within
-  3 s is ignored, nothing read in the 3 s after a turn can wake it, and a fallback wake whose transcript has under
-  2 words or a confidence below -1.0 says nothing. On recorded background audio the first two cut false turns from
-  132 to 60 an hour for everyday sounds and from 132 to 37 for music, but not for talk (141 to 130); the third cut
-  false wakes that spoke from 53 to 47 of 60. `python -m Agent_Guru mic mute` stops it listening. The startup log
-  names the detector in use and why.
+- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya". Two pairs were trained here (see
+  [docs/developer/wake-word-training.md](docs/developer/wake-word-training.md)); neither is installed: through the
+  assistant's detector the better one gave 3.4 false wakes an hour on everyday sounds and missed 3 of 16 of the
+  owner's takes, and neither has been measured on new recordings in the room. Until a model passes, the fallback
+  detector runs; it wakes on loud sound, not only the wake phrase. A turn it starts goes ahead only if what was heard
+  names Guru or Maya ("ji" after the name is fine): on recorded background audio that cut false turns from 42.7 to
+  1.1 an hour on everyday sounds, 24.0 to 0.6 on music and 130.1 to 0.0 on talk. The cost is that a command whose
+  name speech recognition mishears is dropped: 3 of 16 of the owner's takes said alone, 10 of 80 unseen synthetic
+  voices; check yours with `scripts/name_check_eval.py`. A wake that no speech follows within 3 s, anything read in
+  the 3 s after a turn, and a transcript under 2 words or below -1.0 confidence are also ignored.
+  `python -m Agent_Guru mic mute` stops it listening. The startup log names the detector in use and why.
 - **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
   `low-vram` recipe switches to the smaller gemma4:e2b, which gets 6 of 11 tool cases right against 11 of 11 (see
   "Choosing a model"). Swapping between models takes 17 to 19 s.
