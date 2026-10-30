@@ -896,26 +896,22 @@ class WakeWordDetector:
         return self._match_spectral_fallback(audio)
 
     def _match_transcript(self, transcript: str) -> tuple[str, PersonalityType] | None:
-        """Check transcript for wake word keywords."""
-        t_lower = transcript.lower().strip()
+        """Which wake word the transcript names, by the one rule wake_name() applies everywhere.
 
-        for personality_name, keywords in (
-            ("maya", ("maya", "hey maya", "hi maya")),
-            ("guru", ("guru", "hey guru", "hi guru")),
-        ):
-            if not any(kw in t_lower for kw in keywords):
-                continue
-            phrases = [
-                p for p, pt in self.config.wake_words.items()
-                if pt.value.lower() == personality_name
-            ]
-            if phrases:
-                canonical = f"hey {personality_name}"
-                phrase = canonical if canonical in phrases else phrases[0]
-                logger.info("Wake word transcript: %r → %s", transcript, personality_name.upper())
-                return phrase, self.config.wake_words[phrase]
-
-        return None
+        This matched "guru" and "maya" anywhere in the text, so "gurukul" picked Guru and
+        "Mayank" picked Maya, while "Guru ji" counted only because the substring happened to
+        be inside it. Now the name must be a word, with "ji" as the one allowed suffix.
+        """
+        personality_name = wake_name(transcript)
+        if personality_name is None:
+            return None
+        phrases = [p for p, pt in self.config.wake_words.items() if pt.value.lower() == personality_name]
+        if not phrases:
+            return None
+        canonical = f"hey {personality_name}"
+        phrase = canonical if canonical in phrases else phrases[0]
+        logger.info("Wake word transcript: %r → %s", transcript, personality_name.upper())
+        return phrase, self.config.wake_words[phrase]
 
     def _match_spectral_fallback(self, audio: np.ndarray) -> tuple[str, PersonalityType]:
         """Spectral heuristic fallback for wake word matching."""
