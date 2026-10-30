@@ -342,6 +342,12 @@ and `scripts/tool_loop_eval.py` (11 cases).
 | qwen2.5:1.5b | 1.3 GB | 85 | 0.56 s | 2.03 s | 18/23 | 5/11 |
 | gemma3:1b | 1.0 GB | 94 | 0.55 s | 1.87 s | 10/23 | 4/11 |
 
+Tested Ollama version: 0.40.13. On 2026-10-30, with that version, gemma4:latest decoded at a median 30.5
+tokens/s (five runs of one fixed prompt, 200 tokens, the options the assistant sends: context 6144, all layers
+on the GPU, 100% GPU per `ollama ps`). The table above was measured on 0.40.3. A request without those
+options (no `num_gpu`) left 84% of the model on the CPU and ran at 7.4 tokens/s, so compare speeds only with
+the same options.
+
 The smaller models answer sooner, but by under 0.6 s to first audio, and they lose the tools: gemma4:e2b says it
 will check and calls nothing, qwen2.5:1.5b answers live questions without its tools and makes the facts up (a
 "heatwave" in Delhi, "sunny" in London), and Ollama does not offer tools to gemma3:1b at all. Keep the default
