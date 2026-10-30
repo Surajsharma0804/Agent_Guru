@@ -113,6 +113,10 @@ class WakeWordEvent:
     #: "channel:<name>:<chat>". Empty means "voice" for audio and "typed" for
     #: text. A question the assistant asks is answered only from here.
     source: str = ""
+    #: Set by main.py when the wake came from the MFCC fallback, a loudness
+    #: gate: a turn whose transcript is nearly empty or barely understood is
+    #: then ended in silence instead of answered (see QUIET_*).
+    quiet_if_unsure: bool = False
 
 
 #: True while a typed turn runs. Set per task, so a voice turn running at the
@@ -124,6 +128,21 @@ _ROUTED_MODEL: contextvars.ContextVar[str] = contextvars.ContextVar("agent_guru_
 #: (source, turn number) of the turn this task is running, so the questions
 #: it asks are tied to the source that will be allowed to answer them.
 _TURN: contextvars.ContextVar[tuple[str, int]] = contextvars.ContextVar("agent_guru_turn", default=("voice", 0))
+#: Whisper's mean log probability for this turn's transcript, when the STT
+#: result had one.
+_STT_CONFIDENCE: contextvars.ContextVar[float | None] = contextvars.ContextVar("agent_guru_stt_confidence",
+                                                                             default=None)
+
+#: A turn the MFCC fallback woke is ended in silence when its transcript has
+#: fewer words than this, or a lower confidence than QUIET_BELOW_CONFIDENCE.
+#: The fallback wakes on any loud sound, and each false wake spoke a reply of
+#: up to 17 s. Measured with the app's STT on 60 false wakes from recorded
+#: sound, music and speech and on the owner's 16 recorded wake commands: the
+#: commands had 3 to 8 words and confidences of -0.40 to -0.90; 6 of the 60
+#: false wakes fell below -1.0 and 8 were empty (already silent). Speech
+#: heard by mistake is fluent and confident, so this cannot stop those.
+QUIET_UNDER_WORDS = 2
+QUIET_BELOW_CONFIDENCE = -1.0
 
 
 @dataclass
@@ -1158,6 +1177,10 @@ class IntegrationOrchestrator:
             if not result.transcript:
                 result.stages_completed = 8
                 return result
+            if wake_event.quiet_if_unsure and self._unsure(result.transcript):
+                result.error = "unsure_after_fallback_wake"
+                result.stages_completed = 8
+                return result
 
             # Re-check personality from transcript
             self._correct_personality_from_transcript(result)
@@ -1950,8 +1973,23 @@ class IntegrationOrchestrator:
             return await asyncio.to_thread(fn, audio_np, 16000)
 
     @staticmethod
+    def _unsure(transcript: str) -> bool:
+        """True when the transcript is too short or too poorly heard to answer after a fallback wake."""
+        words = len(re.findall(r"[\w']+", transcript))
+        confidence = _STT_CONFIDENCE.get()
+        if words < QUIET_UNDER_WORDS or (confidence is not None and confidence < QUIET_BELOW_CONFIDENCE):
+            logger.info("Heard %d word(s) at confidence %s after a fallback wake - staying quiet",
+                        words, "unknown" if confidence is None else f"{confidence:.2f}")
+            return True
+        return False
+
+    @staticmethod
     def _parse_stt_result(result: Any) -> tuple[str, str]:
         """Parse STT result into (text, language) with confidence check."""
+        # Set on every result, None when it has no confidence (a cloud recogniser), so a poorly
+        # heard earlier turn's figure cannot silence this one.
+        confidence = getattr(result, "confidence", None)
+        _STT_CONFIDENCE.set(float(confidence) if isinstance(confidence, (int, float)) else None)
         if hasattr(result, "text") and hasattr(result, "language"):
             text = (result.text or "").strip()
             raw_language = result.language or ""
