@@ -255,3 +255,14 @@ async def test_listing_tasks_needs_no_yes_and_cancelling_does(setup):
 def test_a_scheduled_check_is_asked_about_in_words(arguments, said):
     """The question used to be the raw call: "Should I run schedule_check on tasks with {"arguments": {}, ...}?"."""
     assert TaskTools().describe("schedule_check", arguments) == said  # nosec B101
+
+
+async def test_a_check_that_could_only_fail_is_refused_before_the_owner_is_asked(setup):
+    # Live: "Should I check web research ... every hour?", the owner said yes,
+    # and only then was the call refused for a contains rule with no words.
+    bad = ToolCall(name="tasks__schedule_check", arguments={
+        "tool": "test__echo", "text": "Delhi weather", "every_minutes": 60, "notify_when": "contains"})
+    orch, model, _ = await setup.build(("", [bad]), ("Which words should I look for?", []))
+    result = await orch.run_text_turn("tell me every hour if it rains in Delhi")
+    assert not result.awaiting_reply and orch._reminders().list_reminders() == []  # nosec B101
+    assert "contains needs contains_text" in model.requests[1].messages[-1].content  # nosec B101
