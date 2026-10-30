@@ -66,6 +66,27 @@ except ImportError:
     _HAS_LIBROSA = False
 
 
+#: A wake name as the assistant's speech recognition writes it, built from what Whisper base
+#: wrote for 212 recorded and synthetic wake phrases each followed by a command: "guru" and
+#: "maya" as words (177), joined to a greeting ("himaya" 11, "heguru" 2, "keguru" 2,
+#: "peguru" 1), once plural ("gurus"), and the Devanagari spellings. The name must end the
+#: word, apart from "ji" (Guru ji, Guruji, Maya ji) or the plural, so "gurukul", "gurujii"
+#: and "mayank" are not names.
+_WAKE_NAME = re.compile(
+    r"(?<![\w])(?:he|hi|ke|pe)?(guru|maya)(?:ji|s)?(?![\w])|(?<![\w])(गुरु|गुरू|माया)(?:जी)?(?![\w])",
+    re.IGNORECASE,
+)
+
+
+def wake_name(text: str) -> str | None:
+    """"guru" or "maya" when *text* says a wake name, else None."""
+    found = _WAKE_NAME.search(text or "")
+    if found is None:
+        return None
+    name = (found.group(1) or found.group(2)).lower()
+    return "maya" if name in ("maya", "माया") else "guru"
+
+
 class WakeWordError(GuruSpeechError):
     """Raised when wake word detection encounters an unrecoverable error."""
 
