@@ -19,6 +19,7 @@ import pytest
 from Agent_Guru.integration.mcp_tools import ServerConfig, ToolRisk, ToolRule, install_mcp_policies
 from Agent_Guru.integration.orchestrator import ActionStatus, IntegrationOrchestrator, WakeWordEvent
 from Agent_Guru.integration.tool_loop import (
+    ARGUMENTS_UNFIXED,
     LOOKUP_CORRECTION,
     NOT_DONE,
     TOOL_GUIDANCE,
@@ -608,3 +609,65 @@ async def test_a_capped_spoken_answer_is_cut_where_speech_is_cut(audit, notes):
         assert "for the super" not in (result.llm_response or "")  # nosec B101
     finally:
         await orch.close_tools()
+
+
+# A call with wrong arguments never runs, gets one repair, and then fails in
+# plain words. A refused call used to go back to the model until the step
+# budget ran out, and the owner then heard the model's last words: after a
+# refusal, an apology and a promise ("Let me try scheduling it again ...
+# gimme a sec") with nothing behind it. write_note's notes file shows whether
+# anything ran.
+async def test_a_call_with_wrong_arguments_is_not_run(make, notes):
+    orch, model = await make(say("", call("write_note", note=7)), say("", call("write_note", note=8)))
+    await orch.run_text_turn("note seven")
+    assert notes.read_text(encoding="utf-8") == ""  # nosec B101  neither call ran
+
+
+async def test_the_model_is_told_exactly_what_was_wrong(make):
+    orch, model = await make(say("", call("echo", text=12)), say("", call("echo", text="12")), say("It said 12."))
+    await orch.run_text_turn("echo twelve")
+    told = model.requests[1].messages[-1].content
+    assert "expected string, got integer 12" in told  # nosec B101  the value it sent, not only its type
+
+
+async def test_one_repair_that_works_is_used(make):
+    orch, model = await make(say("", call("echo", text=12)), say("", call("echo", text="12")), say("It said 12."))
+    result = await orch.run_text_turn("echo twelve")
+    assert result.llm_response == "It said 12."  # nosec B101
+
+
+async def test_a_second_bad_call_ends_the_turn_in_plain_words(make, notes):
+    orch, model = await make(
+        say("", call("write_note", note=7)),
+        say("", call("write_note", note=8)),
+        say("", call("write_note", note="this third call is never offered the chance")),
+    )
+    result = await orch.run_text_turn("note seven")
+    assert len(model.requests) == 2  # nosec B101  the model was not asked a third time
+    assert result.llm_response.startswith("I couldn't do that. My request to write_note was wrong")  # nosec B101
+    assert "expected string, got integer 8" in result.llm_response and "Nothing was run." in result.llm_response  # nosec B101
+    assert notes.read_text(encoding="utf-8") == ""  # nosec B101
+
+
+async def test_a_promise_instead_of_a_repair_is_replaced_by_the_plain_failure(make):
+    orch, model = await make(
+        say("", call("echo", text=12)),
+        say("Oops, I messed up the tool call. Let me try again, gimme a sec."),
+        say("Sorry about that, I'll get it sorted."),
+    )
+    result = await orch.run_text_turn("echo twelve")
+    assert result.llm_response == ARGUMENTS_UNFIXED.format(tool="echo", error="text: expected string, got integer 12")  # nosec B101
+
+
+async def test_asking_the_owner_for_what_is_missing_is_still_allowed(make):
+    orch, model = await make(say("", call("echo", text=12)), say("What should I echo?"))
+    result = await orch.run_text_turn("echo something")
+    assert result.llm_response == "What should I echo?"  # nosec B101
+
+
+@pytest.mark.parametrize("text", ["hi", "hello there"])
+async def test_valid_calls_are_unaffected(make, text):
+    orch, model = await make(say("", call("echo", text=text)), say(f"It said {text}."))
+    result = await orch.run_text_turn(f"echo {text}")
+    assert result.llm_response == f"It said {text}."  # nosec B101
+    assert len(model.requests) == 2  # nosec B101
