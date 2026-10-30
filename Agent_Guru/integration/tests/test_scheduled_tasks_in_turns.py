@@ -266,3 +266,15 @@ async def test_a_check_that_could_only_fail_is_refused_before_the_owner_is_asked
     result = await orch.run_text_turn("tell me every hour if it rains in Delhi")
     assert not result.awaiting_reply and orch._reminders().list_reminders() == []  # nosec B101
     assert "contains needs contains_text" in model.requests[1].messages[-1].content  # nosec B101
+
+
+async def test_every_problem_with_a_check_is_reported_at_once(setup):
+    # Live: guru__weather without its place and notify_when contains without
+    # words. Told only about the place, the one repair fixed that and was then
+    # refused for the words, so the watch was never scheduled.
+    bad = ToolCall(name="tasks__schedule_check", arguments={
+        "tool": "test__echo", "text": 5, "every_minutes": 60, "notify_when": "contains"})
+    orch, model, _ = await setup.build(("", [bad]), ("Which words should I look for?", []))
+    await orch.run_text_turn("tell me every hour if it rains in Delhi")
+    told = model.requests[1].messages[-1].content
+    assert "do not fit the tool" in told and "contains needs contains_text" in told  # nosec B101
