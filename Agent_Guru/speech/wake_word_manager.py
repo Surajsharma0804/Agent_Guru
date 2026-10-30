@@ -717,6 +717,11 @@ class WakeWordManager:
         )
         self._last_recalibration: float = time.monotonic()
         self._room_too_loud: bool = False
+        # Muted by the owner (python -m Agent_Guru mic mute). There was no way
+        # to stop it listening short of quitting, and the loudness-gate wake
+        # detector started turns on room talk and the TV. Kept in memory
+        # only: every start begins listening, and says how to mute.
+        self._muted: bool = False
 
         logger.info("WakeWordManager created - platform=%s", self._config.platform)
 
@@ -853,6 +858,8 @@ class WakeWordManager:
         if not self._initialized or self._detector is None:
             msg = "Call initialize() before detect()"
             raise RuntimeError(msg)
+        if self._muted:
+            return None
 
         if audio is None:
             if self._audio_capture is None:
@@ -1047,7 +1054,7 @@ class WakeWordManager:
             audio capture device is not available.
 
         """
-        if self._audio_capture is None:
+        if self._audio_capture is None or self._muted:
             return b""
 
         loop = asyncio.get_running_loop()
@@ -1078,6 +1085,24 @@ class WakeWordManager:
     def microphone_available(self) -> bool:
         """False while the input stream is lost and being reopened."""
         return self._audio_capture is not None and self._audio_capture.failing_since is None
+
+    @property
+    def muted(self) -> bool:
+        """True while the owner has muted listening."""
+        return self._muted
+
+    def set_muted(self, muted: bool) -> None:
+        """Mute or unmute listening.
+
+        The listen loop owns the input stream, so it is the loop that closes
+        it (the OS stops recording) and opens it again; this only says which
+        is wanted. Audio from a read already under way when the mute came
+        reaches detect(), which hears nothing while muted, and command capture
+        returns nothing.
+        """
+        if muted != self._muted:
+            self._muted = muted
+            logger.warning("Microphone %s by the owner", "muted" if muted else "unmuted")
 
     @property
     def platform(self) -> str:
@@ -1149,6 +1174,25 @@ class WakeWordManager:
                     if self._power_mode == PowerMode.SLEEP
                     else self._config.active_poll_interval
                 )
+
+                if self._muted:
+                    if self._audio_capture is not None:
+                        capture, self._audio_capture = self._audio_capture, None
+                        await asyncio.to_thread(capture.close)
+                        logger.info("Microphone closed while muted")
+                    await asyncio.sleep(max(poll_interval, 0.1))
+                    continue
+                if self._audio_capture is None:
+                    self._audio_capture = _AudioCapture(
+                        sample_rate=self._config.wake_word_config.sample_rate,
+                        duration=self._config.audio_capture_duration,
+                        platform_name=self._config.platform,
+                    )
+                    await asyncio.to_thread(self._audio_capture.open)
+                    if self._detector is not None:
+                        # Not woken by the first sound in the room after unmuting.
+                        self._detector.start_cooldown()
+                    logger.info("Microphone open again - listening for wake words")
 
                 if self._audio_capture is not None:
                     # BUG-018: capture() is a blocking synchronous call (sleeps
