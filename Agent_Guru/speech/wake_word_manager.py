@@ -1087,6 +1087,16 @@ class WakeWordManager:
         return self._audio_capture is not None and self._audio_capture.failing_since is None
 
     @property
+    def uses_fallback_detector(self) -> bool:
+        """True while the MFCC fallback decides wakes: no trained wake word model is in use.
+
+        Turns it starts are checked for a wake name before they are answered (main.py); a
+        trained model hears the name itself, so the check switches itself off when one is
+        installed and chosen at startup.
+        """
+        return self._detector is not None and self._detector._backend == "mfcc"
+
+    @property
     def muted(self) -> bool:
         """True while the owner has muted listening."""
         return self._muted
