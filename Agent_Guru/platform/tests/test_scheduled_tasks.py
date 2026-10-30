@@ -327,3 +327,32 @@ async def test_old_reminder_files_still_load(store):
     await manager.restore()
     assert [r.message for r in manager.list_reminders()] == ["call John"]  # nosec B101
     manager.close()
+
+
+# A watch for a condition (rain, a temperature) used to be a "contains" match on
+# the whole report, which said "chance of rain" every day, and it spoke the first
+# 240 characters of the report, source formatting included.
+
+MET_OUTPUT = ("Condition met: It is raining in Delhi, National Capital Territory of Delhi, India now "
+              "(light rain, 23.5°C).\n\n[S1] Open-Meteo forecast for Delhi <https://api.open-meteo.com/...>")
+NOT_MET_OUTPUT = ("Condition not met: No rain in Delhi, National Capital Territory of Delhi, India now "
+                  "(partly cloudy, 23.5°C).\n\n[S1] Open-Meteo forecast ... chance of precipitation 100%")
+
+
+async def test_a_watch_speaks_only_the_sentence_and_only_when_the_condition_holds(store):
+    manager = _manager(store, Runner(NOT_MET_OUTPUT, MET_OUTPUT, NOT_MET_OUTPUT))
+    task = await manager.add_check("the Delhi rain watch", server="guru", tool="weather",
+                                   arguments={"place": "Delhi", "condition": "rain"},
+                                   every_s=MIN_CHECK_INTERVAL_S, first_in_s=3600, notify_when="met")
+    for _ in range(3):
+        await manager._run(task)
+    assert manager.said == ["Your check, the Delhi rain watch: It is raining in Delhi, National Capital Territory "  # nosec B101
+                            "of Delhi, India now (light rain, 23.5°C)."]
+
+
+async def test_a_watch_whose_tool_failed_still_says_so(store):
+    manager = _manager(store, Runner(status="failed"))
+    task = await manager.add_check("the Delhi rain watch", server="guru", tool="weather", arguments={},
+                                   every_s=MIN_CHECK_INTERVAL_S, first_in_s=3600, notify_when="met")
+    assert await manager._run(task) == "failed"  # nosec B101
+    assert manager.said == ["Your check, the Delhi rain watch, didn't work this time."]  # nosec B101
