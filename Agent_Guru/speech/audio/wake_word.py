@@ -69,11 +69,14 @@ except ImportError:
 #: A wake name as the assistant's speech recognition writes it, built from what Whisper base
 #: wrote for 212 recorded and synthetic wake phrases each followed by a command: "guru" and
 #: "maya" as words (177), joined to a greeting ("himaya" 11, "heguru" 2, "keguru" 2,
-#: "peguru" 1), once plural ("gurus"), and the Devanagari spellings. The name must end the
-#: word, apart from "ji" (Guru ji, Guruji, Maya ji) or the plural, so "gurukul", "gurujii"
-#: and "mayank" are not names.
+#: "peguru" 1), once plural ("gurus"), and the Devanagari spellings. The owner's own wake
+#: takes said alone, without a command, added "Feguru", "Yimayah", "Hemaia" and "Thaemaya"
+#: (from the half used for training only; the held-back half was measured, not fitted).
+#: The greetings are listed, not "any few letters": those would also match the Hindi words
+#: "samaya" and "satguru". The name must end the word, apart from "ji" (Guru ji, Guruji,
+#: Maya ji) or the plural, so "gurukul", "gurujii" and "mayank" are not names.
 _WAKE_NAME = re.compile(
-    r"(?<![\w])(?:he|hi|ke|pe)?(guru|maya)(?:ji|s)?(?![\w])|(?<![\w])(गुरु|गुरू|माया)(?:जी)?(?![\w])",
+    r"(?<![\w])(?:he|hi|ke|pe|fe|yi|the|thae)?(guru|maya|maia|mayah)(?:ji|s)?(?![\w])|(?<![\w])(गुरु|गुरू|माया)(?:जी)?(?![\w])",
     re.IGNORECASE,
 )
 
@@ -84,7 +87,7 @@ def wake_name(text: str) -> str | None:
     if found is None:
         return None
     name = (found.group(1) or found.group(2)).lower()
-    return "maya" if name in ("maya", "माया") else "guru"
+    return "guru" if name in ("guru", "गुरु", "गुरू") else "maya"
 
 
 class WakeWordError(GuruSpeechError):
