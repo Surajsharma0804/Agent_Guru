@@ -98,6 +98,7 @@ the key is printed by `python -m Agent_Guru api key`.
 | **The computer** | "Open Notepad", "Set the volume to 40", "Take a screenshot", "Play the next song" | Each action is checked afterwards: it says *done* only when it saw the result |
 | **Messages** | "Send Rahul on WhatsApp: running late" | On WhatsApp it reads the draft back before sending; on every channel it reports *sent* only when the app or service confirmed it |
 | **Research** | "What changed in the new tax rules?" | Answers cite numbered sources; invented links and unsupported numbers are removed before you hear them |
+| **Weather** | "What's the weather in Delhi?" | From Open-Meteo (no key), not a web search; it says which place it found, since many names are shared |
 | **Scheduling** | "Remind me at 9 pm", "Check the Delhi weather every hour and tell me if it changes" | Actions run later only with your approval for that exact action, which expires |
 | **Your accounts** (optional) | "Any mail from Rahul about Friday?", "Add a dentist appointment at 4" | Sign-in on the provider's page; tokens are encrypted on disk; sending and adding wait for your yes |
 | **Tools** | Any [MCP](https://modelcontextprotocol.io) server you allow | Only the tools you allow, with the risk you declare, and every call audited |
@@ -284,6 +285,7 @@ flowchart TD
 | *(none)* | start the assistant |
 | `doctor` | check the machine |
 | `ask` / `chat` | ask the running assistant, typed |
+| `mic` | mute or unmute the running assistant's microphone (`mic mute`, `mic unmute`); muting closes the microphone until you unmute or restart |
 | `config` | show or change `settings.toml`, checked |
 | `model` / `models` | the model in use, or switch; the installed models and whether they fit the GPU |
 | `recipes` | list, show or apply a named set of settings (`default`, `low-vram`, `private`, `research`) |
@@ -369,13 +371,16 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
 
 ## Known limitations
 
-- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya", and none has been trained yet, so the
-  fallback detector runs. It reacts to loud sound and to talk in the room, not only to the wake phrase. A wake that no
-  speech follows within 3 s is ignored, and nothing read in the 3 s after a turn can wake it. On recorded background
-  audio that cut false turns from 132 to 60 an hour for everyday sounds and from 132 to 37 for music, but not for
-  talk (141 to 130). The startup log names the detector in use and why. With `openwakeword` installed and trained
-  models named `hey_guru.onnx` and `hey_maya.onnx` in `%LOCALAPPDATA%\agent_guru\wake_models`, that detector is
-  used instead.
+- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya". A first pair was trained here (see
+  [docs/developer/wake-word-training.md](docs/developer/wake-word-training.md)) but is not installed: through the
+  assistant's detector it gave 6.7 false wakes an hour on everyday sounds and missed 3 of 16 of the owner's takes,
+  and it has not been measured on new recordings in the room. Until a model passes, the fallback detector runs. It
+  reacts to loud sound and to talk in the room, not only to the wake phrase. A wake that no speech follows within
+  3 s is ignored, nothing read in the 3 s after a turn can wake it, and a fallback wake whose transcript has under
+  2 words or a confidence below -1.0 says nothing. On recorded background audio the first two cut false turns from
+  132 to 60 an hour for everyday sounds and from 132 to 37 for music, but not for talk (141 to 130); the third cut
+  false wakes that spoke from 53 to 47 of 60. `python -m Agent_Guru mic mute` stops it listening. The startup log
+  names the detector in use and why.
 - **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
   `low-vram` recipe switches to the smaller gemma4:e2b, which gets 6 of 11 tool cases right against 11 of 11 (see
   "Choosing a model"). Swapping between models takes 17 to 19 s.
