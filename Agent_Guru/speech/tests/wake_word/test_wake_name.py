@@ -32,10 +32,10 @@ def test_ji_is_allowed_after_the_name(said, name):
 
 @pytest.mark.parametrize("said", [
     # "jii" is not the "ji" suffix, joined or spaced (the owner's decision).
-    pytest.param("guru jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
-    pytest.param("maya jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
-    pytest.param("Hey Guru jii, what time is it?", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
-    pytest.param("Hey Maya, jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    "guru jii",
+    "maya jii",
+    "Hey Guru jii, what time is it?",
+    "Hey Maya, jii",
     "gurujii",
     "Hey gurukul is my school",   # a different word that starts with the name
     "hey gurujii",                # joined, but not "ji"
@@ -75,7 +75,7 @@ def test_a_name_said_inside_a_sentence_still_passes_this_check():
     ("Himaya, open notepad", ("hey maya", PersonalityType.MAYA)),
     ("the gurukul is near the market", None),
     ("Mayank is coming home", None),
-    pytest.param("Hey Guru jii", None, marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    ("Hey Guru jii", None),
 ])
 def test_the_detector_chooses_the_personality_by_the_same_rule(said, chosen):
     assert WakeWordDetector()._match_transcript(said) == chosen
