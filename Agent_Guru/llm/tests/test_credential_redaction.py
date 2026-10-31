@@ -21,7 +21,13 @@ GH_PAT = "github" + "_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyzABCDEFGH
 GH_OAUTH = "gh" + "o_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"
 OPENAI = "sk-" + "proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56Qr78St90Uv12"
 SLACK = "xo" + "xb-1234567890123-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx"
-STRIPE = "sk_" + "live_51H8abcdefGHIJKLmnopQRSTuvwxYZ0123456789"
+# The Stripe key is cut finer than the others. Written as "sk_" plus one
+# piece, that piece was "live_" and 40 characters, which is the published
+# form of a GoCardless live access token, and GitHub's secret scanning
+# raised it as a public leak although the characters are a made-up
+# alphabet run. No piece here is long enough to match a provider pattern;
+# the joined value, and so what the test checks, is unchanged.
+STRIPE = "sk_" + "live" + "_" + "".join(["51H8abcdef", "GHIJKLmnop", "QRSTuvwxYZ", "0123456789"])
 TELEGRAM = "123456789:" + "AAHfiqksKZ8WmR2zSjiQ7_v4TMAKdiHm9T0"
 
 SECRETS = [
