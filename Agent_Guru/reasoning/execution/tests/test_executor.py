@@ -1,18 +1,40 @@
 """Tests for synchronous execution engine."""
 
+import threading
 import time
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from Agent_Guru.reasoning.execution import executor as executor_module
 from Agent_Guru.reasoning.execution.executor import (
     ExecutionController,
     ExecutionResult,
     SyncExecutor,
 )
 from Agent_Guru.reasoning.models.action import Action
+
+
+class _VirtualClock:
+    """Stands in for the executor's time module: seconds pass only through advance()."""
+
+    def __init__(self) -> None:
+        self._now = 0.0
+        self._lock = threading.Lock()
+
+    def advance(self, seconds: float) -> None:
+        with self._lock:
+            self._now += seconds
+
+    def monotonic(self) -> float:
+        with self._lock:
+            return self._now
+
+    perf_counter = monotonic
+    sleep = staticmethod(time.sleep)
 
 
 class TestExecutionResult:
@@ -517,6 +539,24 @@ class TestExecutionTimeoutProperties:
 
         **Validates: Requirements 6.2, 10.1**
         """
+        # The executor runs on a clock that moves only when the tool says so.
+        # With the real clock this test slept for the duration and then
+        # required execution_time < timeout, a wall-clock ceiling on the whole
+        # call: thread start, the tool, the wait and the join. On 2026-10-31 a
+        # stall of the whole test process made one 10 ms call measure 0.82 s
+        # against a 0.42 s timeout. The executor had done nothing wrong, the
+        # result came back on time and correct, and the suite went red.
+        # 30 runs idle and 30 under 24 busy processes passed, and 1,200
+        # instrumented calls never came within 200 ms of their timeout, so
+        # the ceiling was measuring the machine, not the executor.
+        #
+        # On the virtual clock the tool takes exactly its duration. The tool
+        # stays running until a second thread has moved the clock on and lets
+        # it finish, so the executor really is waiting on its deadline while
+        # the tool works: an executor that gave up early (checked by making
+        # its deadline ignore the budget) fails here, and a stall of the
+        # process cannot use up a deadline that only the clock moves.
+        clock = _VirtualClock()
         executor = SyncExecutor(default_timeout=timeout, max_retries=0)
 
         action = Action(
@@ -524,16 +564,30 @@ class TestExecutionTimeoutProperties:
             tool_id="fast_tool",
             parameters={"duration": execution_duration, "value": result_value},
         )
+        calls = []
+        started, finish = threading.Event(), threading.Event()
 
         def fast_tool_function(params):
             """Tool function that completes within timeout."""
-            time.sleep(params["duration"])
+            started.set()
+            finish.wait(10)  # bounded, so a broken executor cannot hang the run
+            calls.append(params["value"])
             return {"result": params["value"] * 2}
 
-        # Execute action
-        result = executor.execute(action, fast_tool_function)
+        def tool_work():
+            started.wait(10)
+            clock.advance(execution_duration)
+            finish.set()
+
+        worker = threading.Thread(target=tool_work, daemon=True)
+        worker.start()
+        with patch.object(executor_module, "time", clock):
+            result = executor.execute(action, fast_tool_function)
+        worker.join(10)
 
         # Property assertions
+        assert calls == [result_value], "The tool should run once, to the end"  # nosec B101
+        assert result.execution_time == pytest.approx(execution_duration)  # nosec B101
         assert (  # nosec B101
             result.success is True
         ), f"Expected success for timeout={timeout}s, duration={execution_duration}s"
