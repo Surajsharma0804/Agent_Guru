@@ -21,19 +21,30 @@ from Agent_Guru.speech.models import PersonalityType
     ("हे गुरु जी", "guru"),
     ("हे गुरुजी", "guru"),
     ("माया जी", "maya"),
-    # The name stands as its own word here; what follows is a new word, as after a comma.
-    ("Hey Guru jii, what time is it?", "guru"),
+    ("Guru ji", "guru"),
+    ("Maya ji", "maya"),
+    # A real word that only starts with "ji" after the name is not a suffix at all.
+    ("Hey Guru, jitna ho sake jaldi", "guru"),
 ])
 def test_ji_is_allowed_after_the_name(said, name):
     assert wake_name(said) == name
 
 
 @pytest.mark.parametrize("said", [
+    # "jii" is not the "ji" suffix, joined or spaced (the owner's decision).
+    pytest.param("guru jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    pytest.param("maya jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    pytest.param("Hey Guru jii, what time is it?", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    pytest.param("Hey Maya, jii", marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
+    "gurujii",
     "Hey gurukul is my school",   # a different word that starts with the name
     "hey gurujii",                # joined, but not "ji"
     "Gurugram traffic",
+    "Gurugram",
     "Mayank is here",
+    "Mayank",
     "Mayapur temple",
+    "Mayapur",
     "the jiguru of it",
 ])
 def test_words_that_only_start_or_contain_the_name_are_not_wakes(said):
@@ -64,6 +75,7 @@ def test_a_name_said_inside_a_sentence_still_passes_this_check():
     ("Himaya, open notepad", ("hey maya", PersonalityType.MAYA)),
     ("the gurukul is near the market", None),
     ("Mayank is coming home", None),
+    pytest.param("Hey Guru jii", None, marks=pytest.mark.xfail(strict=False, reason="the jii rule lands in the next commit")),
 ])
 def test_the_detector_chooses_the_personality_by_the_same_rule(said, chosen):
     assert WakeWordDetector()._match_transcript(said) == chosen
