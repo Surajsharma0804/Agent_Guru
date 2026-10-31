@@ -371,12 +371,13 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
 
 ## Known limitations
 
-- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya". Two pairs were trained here (see
-  [docs/developer/wake-word-training.md](docs/developer/wake-word-training.md)); neither is installed: through the
-  assistant's detector the better one gave 3.4 false wakes an hour on everyday sounds and missed 3 of 16 of the
-  owner's takes, and neither has been measured on new recordings in the room. Until a model passes, the fallback
+- **False wakes**: openWakeWord ships no model for "Hey Guru" or "Hey Maya". Three pairs were trained here (see
+  [docs/developer/wake-word-training.md](docs/developer/wake-word-training.md)); none is installed: through the
+  assistant's detector, on audio no model was trained with, the newest wakes on all 16 of the owner's held-back
+  takes and gave no false wakes in 56 minutes of everyday sounds, but 2 in 100 minutes of music (1.2 an hour,
+  against an aim of 0.5), and none has been measured on new recordings in the room. Until a model passes, the fallback
   detector runs; it wakes on loud sound, not only the wake phrase. A turn it starts goes ahead only if what was heard
-  names Guru or Maya ("ji" after the name is fine): on recorded background audio that cut false turns from 42.7 to
+  names Guru or Maya ("ji" after the name is fine, "jii" is not): on recorded background audio that cut false turns from 42.7 to
   1.1 an hour on everyday sounds, 24.0 to 0.6 on music and 130.1 to 0.0 on talk. The cost is that a command whose
   name speech recognition mishears is dropped: 3 of 16 of the owner's takes said alone, 10 of 80 unseen synthetic
   voices; check yours with `scripts/name_check_eval.py`. A wake that no speech follows within 3 s, anything read in
