@@ -1,9 +1,9 @@
 # Training the Hey Guru and Hey Maya wake words
 
-Two pairs of "Hey Guru" and "Hey Maya" models have been trained on this laptop (2026-10-30 and
-2026-10-31; results at the end of this page). Neither is installed: measured through the assistant's
-own detector on the fixed held-out sets, both miss openWakeWord's aims, and neither has been measured
-on new recordings in the owner's room. openWakeWord ships models for alexa, hey jarvis, hey mycroft,
+Three pairs of "Hey Guru" and "Hey Maya" models have been trained on this laptop (2026-10-30, and
+twice on 2026-10-31; results at the end of this page). None is installed: measured through the
+assistant's own detector on audio no model was trained with, all three wake more often on music than
+openWakeWord's aim, and none has been measured on new recordings in the owner's room. openWakeWord ships models for alexa, hey jarvis, hey mycroft,
 hey rhasspy, weather and timers only (under CC BY-NC-SA 4.0, non-commercial). Until a model is
 installed the assistant uses the MFCC fallback, which wakes on loud sound; a turn it starts goes
 ahead only when what was heard names Guru or Maya (see "The name check"). The startup log says which
@@ -18,7 +18,9 @@ detector runs (`WakeWordDetector initialised - backend=mfcc: ...`).
 | A100 runbook (SLURM) | `wakeword_training/runner/RUNBOOK.md` | not yet run on the A100 |
 | One command for all of it | `scripts/train_wake_words.py` | this page |
 | Measurement through the assistant's own detector | `scripts/wake_word_eval.py` | harness checked, see below |
-| Background audio for false accepts | `scripts/build_wake_background.py` | 53.4 min of sounds, 100 min of music |
+| Which background clips training may use and which are only scored | `scripts/wake_audio_pools.json`, written by `scripts/split_wake_pools.py` | a test fails if a clip is in both |
+| Background audio for false accepts | `scripts/build_wake_background.py` | 56.2 min of sounds, 100 min of music, from the scoring pool |
+| In-room held-out takes through the assistant's detector | `scripts/room_wake_eval.py` | waiting for recordings |
 | Recording takes | `wakeword_training/scripts/record_wake.py` | 24 tests pass |
 
 The model files go in `%LOCALAPPDATA%\agent_guru\wake_models` as `hey_guru.onnx` and
@@ -58,22 +60,38 @@ your room. Record after the data folder was packed (2026-10-02), under a speaker
 ### A second held-out set: distance and TV
 
 The first held-out set (the 16 takes of 2026-10-01 held back from training) stays fixed so every
-model is compared on it. The second covers what that one does not:
+model is compared on it. It was recorded close to the microphone in one sitting. The second covers
+three distances, each quiet and with the TV on, 25 takes of each phrase per condition. Use the
+microphone and the seat the assistant normally hears you from.
 
-```
-.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_far --takes 10
-.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_tv --takes 10
-.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker suraj_cmds --commands
-```
+1. Find the microphone's device number:
+   `.venv\Scripts\python wakeword_training\scripts\record_wake.py --list-devices`
+2. Quiet room, TV off, nobody talking. Record at three distances, adding `--device <n>` if the
+   default is not that microphone:
+   - within arm's length: `.venv\Scripts\python wakeword_training\scripts\record_wake.py --speaker room_near_quiet --takes 25`
+   - 2 metres away: `... --speaker room_2m_quiet --takes 25`
+   - across the room, as far as you would ever call it from: `... --speaker room_far_quiet --takes 25`
+3. TV on, playing speech (news or a talk show) at the volume you watch at. Repeat the three distances
+   with `room_near_tv`, `room_2m_tv` and `room_far_tv`.
+4. Optional, for false wakes in your own room: with the TV on and people talking as on an ordinary
+   evening, and nobody saying Guru or Maya, record 10 minutes, up to three times:
 
-- `suraj_far`: stand 3 to 4 metres from the microphone, facing it for half the takes and away for
-  the rest.
-- `suraj_tv`: a TV or YouTube video playing speech at an ordinary volume, you at your usual seat.
-- `suraj_cmds`: 20 whole commands ("Hey Guru, what time is it", "Guru, stop", "Hey Maya ji, read my
-  messages"), at different distances as the prompts say. Then measure the fallback's name check on
-  them: `.venv\Scripts\python scripts\name_check_eval.py wakeword_training\recordings\suraj_cmds`.
-  Every take it lists as dropped is a command that would have gone unanswered.
-- Never pack these into the data folder; training must not see them.
+   ```
+   mkdir wakeword_training\recordings\room_sound
+   .venv\Scripts\python -c "import sounddevice as sd, soundfile as sf; a = sd.rec(600 * 16000, samplerate=16000, channels=1, dtype='float32'); sd.wait(); sf.write(r'wakeword_training\recordings\room_sound\score_1.wav', a, 16000)"
+   ```
+
+   (`score_2.wav` and `score_3.wav` for the others). These are scored only; training does not read them.
+5. The 20-command batch for the name check: `... --speaker suraj_cmds --commands`. Then
+   `.venv\Scripts\python scripts\name_check_eval.py wakeword_training\recordings\suraj_cmds`. Every
+   take it lists as dropped is a command that would have gone unanswered; the aim is under 1 in 20.
+6. Measure any model folder on all of it:
+   `wakeword_training\venv-oww\Scripts\python scripts\room_wake_eval.py --models <folder with hey_guru.onnx and hey_maya.onnx>`.
+   A condition that was not recorded is listed as "not recorded", not as a result.
+
+All seven speaker folders are listed in `wakeword_training\recordings\bench_only.txt`, so
+`pack_recordings.py` sends them to the benchmark only and training never hears them. Keep that list
+when you add a held-out speaker.
 
 ## 2. Background audio for false accepts
 
@@ -81,10 +99,18 @@ model is compared on it. The second covers what that one does not:
 wakeword_training\venv-313\Scripts\python scripts\build_wake_background.py wakeword_training\bench
 ```
 
-This writes `bg_noise.npy` and `bg_music.npy` from the data folder's AudioSet and FMA files. The
-16.1 minutes of speech in `wakeword_training\bench\wake_neg.npy` is the third set. These are real
-recordings mixed by script, not your room; for your room, record 15 minutes of an ordinary evening
-(TV on, people talking) without saying the wake word, and add it the same way.
+This writes `bg_noise.npy` and `bg_music.npy` from the clips in the scoring pool of
+`scripts/wake_audio_pools.json`: AudioSet balanced shard 01 (341 clips with no speech, singing, TV or
+radio label, 56.2 min) and the first 200 tracks of FMA file 00001 (100 min), both under
+`inputs\score_pool` in the data folder. Training reads only the training pool and stops on any clip
+that is not in it. The 16.1 minutes of speech in `wakeword_training\bench\wake_neg.npy` is the third
+set; training never reads it. These are real recordings mixed by script, not your room (see step 4
+of the second held-out set).
+
+Until 2026-10-31 these sets were built from AudioSet shard 09 and the first 200 tracks of FMA file
+00000, which training also mixed under its examples: all 325 sound clips and 120 of the 200 music
+tracks had been heard in training. Figures on those sets (the first and second models below) are not
+comparable with figures on the scoring pool.
 
 ## 3. Train
 
@@ -210,3 +236,43 @@ threshold differs and it scores every 80 ms frame, where the assistant decides p
 Next: record the second held-out set above, check whether the detector's threshold (0.5 from the
 default sensitivity) or its chunking is what misses the 3 takes, and add real everyday sound from the
 room to the negatives.
+
+## Why the assistant's detector missed takes the benchmark caught (2026-10-31)
+
+The 3 takes missed by the assistant's detector were all lost to its cooldown. For 3 s after a wake
+the detector returned before openWakeWord saw any audio. Two takes began inside a cooldown and were
+never scored; one began just after it and was scored spliced onto audio from before the gap (0.005
+through the detector, 0.974 for the same samples fed without a gap). Where both paths scored the same
+audio the scores agreed within 0.03, so the threshold, resampling and scaling were not the cause.
+The detector now feeds the model through the cooldown and only holds back the wake. Both earlier
+model pairs then wake on 16 of 16 takes, false wakes are unchanged, and CPU per 1.5 s chunk while
+listening stays at 79 ms (a chunk in cooldown now costs 78 ms instead of 0).
+
+## Rescored on the scoring pool (2026-10-31)
+
+Through the assistant's detector, after the cooldown fix:
+
+| Set | First models | Second models | Third models | Aim |
+|:--|:--|:--|:--|:--|
+| 56.2 min of unheard sounds | 5 wakes, 5.3 per hour | 0 | 0 | under 0.5 |
+| 100 min of unheard music | 4 wakes, 2.4 per hour | 2 wakes, 1.2 per hour | 2 wakes, 1.2 per hour | under 0.5 |
+| 16.1 min of speech | 0 | 1 wake, 3.7 per hour | 0 | under 0.5 |
+| The owner's 16 held-back takes | 16/16 | 16/16 | 16/16 | under 5% missed |
+| 48 synthetic Hindi takes | | | 44/48 | |
+
+On the old, overlapping sets the first and second models had shown 6.7 and 3.4 false wakes an hour on
+sounds: training on those clips had not made the old figures look better. The counts are small; 0
+wakes in 56 minutes is consistent with anything up to about 3 an hour.
+
+## Third models (2026-10-31, laptop, not installed)
+
+Retrained from the second run's Parler clips and features with the split pools: the extra negatives
+are now all of AudioSet shards 00 and 09 and all 493 tracks of FMA file 00000 (12,014 two-second
+windows, was 7,539), since none of them is scored any more. The run took 1 hour 31 minutes (training
+69, the benchmark 14). The
+pipeline's benchmark chose a threshold of 0.45: the owner's takes 16/16, unseen synthetic voices 55/80
+(second run 56/80), Hindi 45/48, 0.29 false wakes per hour on Svarah, 3 of 21 of the owner's recorded
+negatives woke it ("Hey Google" once, "Hey Mario" twice).
+
+Not installed: 2 false wakes in 100 minutes of music is 1.2 an hour, over the 0.5 aim, and the in-room
+held-out set has not been recorded. No room sound was recorded, so none is among the negatives.
