@@ -75,8 +75,15 @@ except ImportError:
 #: The greetings are listed, not "any few letters": those would also match the Hindi words
 #: "samaya" and "satguru". The name must end the word, apart from "ji" (Guru ji, Guruji,
 #: Maya ji) or the plural, so "gurukul", "gurujii" and "mayank" are not names.
+#:
+#: "ji" is the only suffix, and "jii" is not it, joined or spaced (the owner's decision). The
+#: joined form already failed because the word must end after "ji"; the spaced form "guru
+#: jii" passed, because "guru" stood as its own word and anything may follow a name. So the
+#: name is also refused when what follows it, past any spaces or punctuation, is "jii". That
+#: is one condition on the suffix, not a list of phrases, and real words that merely start
+#: with "ji" ("jitna", "jinke") after a name are left alone.
 _WAKE_NAME = re.compile(
-    r"(?<![\w])(?:he|hi|ke|pe|fe|yi|the|thae)?(guru|maya|maia|mayah)(?:ji|s)?(?![\w])|(?<![\w])(गुरु|गुरू|माया)(?:जी)?(?![\w])",
+    r"(?<![\w])(?:he|hi|ke|pe|fe|yi|the|thae)?(guru|maya|maia|mayah)(?:ji|s)?(?![\w])(?![\W_]*jii)|(?<![\w])(गुरु|गुरू|माया)(?:जी)?(?![\w])",
     re.IGNORECASE,
 )
 
