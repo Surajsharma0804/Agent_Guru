@@ -363,7 +363,7 @@ segments==2.4.0
 sentence-transformers==6.1.0
 sentencepiece==0.2.2
 sentry-sdk==2.72.0
-setuptools==84.0.0
+setuptools==84.1.0
 shellingham==1.5.4
 silero-vad==6.2.3
 simple-websocket==1.1.0
