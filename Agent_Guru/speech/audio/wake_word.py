@@ -369,6 +369,16 @@ class WakeWordDetector:
 
         now = time.time()
         if now - self._last_detection_time < self.config.cooldown_seconds:
+            # The cooldown stops a second wake; it used to stop openWakeWord
+            # hearing the audio as well. The model scores a rolling window of
+            # features, so after skipped chunks it scored new speech spliced
+            # onto audio from before the gap: on the owner's 16 held-back
+            # takes one "Hey Maya" just after a cooldown scored 0.005 here and
+            # 0.974 on the same samples fed without a gap, and two takes that
+            # began inside a cooldown were never scored at all, so 3 of 16
+            # were missed. Fed through the cooldown, all 16 wake.
+            if self._backend == "openwakeword" and self._oww_model is not None:
+                await self._detect_openwakeword(audio, now, fire=False)
             return None
 
         if self._backend == "porcupine":
@@ -578,12 +588,15 @@ class WakeWordDetector:
     # Backend implementations
     # ------------------------------------------------------------------
 
-    async def _detect_openwakeword(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
+    async def _detect_openwakeword(
+        self, audio: np.ndarray, now: float, *, fire: bool = True,
+    ) -> WakeWordDetection | None:
         """Detect with the openWakeWord models loaded for the wake words.
 
         Each model is named after its phrase, so the model that fired says
         which wake word was spoken; the Whisper guess at Guru or Maya that
-        the MFCC fallback needs is not used here.
+        the MFCC fallback needs is not used here. With *fire* False the audio
+        only moves the model's state forward, as during a cooldown.
         """
         try:
             if self._oww_model is None:
@@ -627,6 +640,8 @@ class WakeWordDetector:
                     self.config.sample_rate,
                 )
 
+            if not fire:
+                return None
             # Threshold: 0.5 is a good balance of sensitivity vs false positives
             threshold = max(0.3, 1.0 - self.config.sensitivity)
             phrase = self._oww_phrases.get(best_name)
