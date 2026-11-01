@@ -235,30 +235,37 @@ class ConnectionPool:
         timeout = timeout or self.timeout
 
         try:
-            # Try to get connection from pool with timeout
+            # An idle connection if there is one, else a new one if the pool has
+            # room, and only then a wait. This waited on the idle queue first,
+            # for the whole timeout (5 s by default), and looked at whether it
+            # could open a connection only afterwards: a second caller of a
+            # min_size=1 pool waited 5.002 s for a connection the pool could have
+            # opened at once (issue #11).
             try:
-                conn = self._pool.get(timeout=timeout)
+                conn = self._pool.get_nowait()
             except Empty:
-                # Pool empty, check if we can create new connection
                 can_create = False
                 with self._lock:
                     if self._total_connections < self.max_size:
                         self._total_connections += 1  # Reserve slot
                         can_create = True
                 if can_create:
-                    # Create connection outside lock
-                    conn = self._create_connection_unlocked()
+                    conn = self._open_reserved()
                 else:
-                    # Pool exhausted
-                    with self._lock:
-                        self._failed_acquisitions += 1
-                    msg = f"Connection pool exhausted (max_size={self.max_size})"
-                    raise TimeoutError(msg) from None
+                    remaining = max(0.0, timeout - (time.time() - start_time))
+                    try:
+                        conn = self._pool.get(timeout=remaining)
+                    except Empty:
+                        with self._lock:
+                            self._failed_acquisitions += 1
+                        msg = f"Connection pool exhausted (max_size={self.max_size})"
+                        raise TimeoutError(msg) from None
             # Check connection health
             if not conn.is_healthy():
-                # Replace unhealthy connection
+                # Replace unhealthy connection. Its slot carries over to the new
+                # one, and is given back if the new one cannot be opened.
                 conn.connection.close()
-                conn = self._create_connection_unlocked()
+                conn = self._open_reserved()
 
             # Mark as in use
             conn.mark_used()
@@ -288,6 +295,20 @@ class ConnectionPool:
         except TimeoutError:
             with self._lock:
                 self._failed_acquisitions += 1
+            raise
+
+    def _open_reserved(self) -> PooledConnection:
+        """Open a connection for a slot the caller has already counted, giving the slot back if it fails.
+
+        The slot used to stay counted when the open raised (the database locked, a transient I/O
+        error), so every failed open cost one slot for good, and after max_size failures the pool
+        reported itself exhausted and never opened a connection again (issue #11).
+        """
+        try:
+            return self._create_connection_unlocked()
+        except BaseException:
+            with self._lock:
+                self._total_connections -= 1
             raise
 
     def _create_connection_unlocked(self) -> PooledConnection:
