@@ -11,6 +11,14 @@ Design Decisions:
 - Track execution latency per tool
 - Implement exponential backoff for retries
 - Capture structured results with error handling
+
+When a late result counts as a timeout (issue #9, decided by the owner): a tool whose result is
+ready at or after its deadline is a TIMEOUT for the caller, even though the value exists. The waiter
+can wake late - the process was paused, or the wait returned just after the deadline - and find the
+tool finished; it used to hand that value back as a success, so whether a slow tool timed out
+depended on when the waiting thread was scheduled, not on how long the tool took. Now the deadline
+decides: a result ready before it is a success, one ready at or after it is a timeout, and the value
+is dropped.
 """
 
 import time
@@ -346,10 +354,14 @@ class SyncExecutor:
 
                     # Try to get result with short timeout
                     try:
-                        return future.result(timeout=min(poll_interval, remaining))
+                        value = future.result(timeout=min(poll_interval, remaining))
                     except concurrent.futures.TimeoutError:
                         # Not done yet, continue polling
                         continue
+                    if time.monotonic() >= deadline:
+                        # Ready only at or after the deadline: a timeout (module docstring).
+                        break
+                    return value
 
                 # Timeout exceeded
                 abandoned = True
@@ -365,7 +377,7 @@ class SyncExecutor:
             deadline = time.monotonic() + timeout
             while True:
                 try:
-                    return future.result(timeout=max(deadline - time.monotonic(), 0.0))
+                    value = future.result(timeout=max(deadline - time.monotonic(), 0.0))
                 except concurrent.futures.TimeoutError as e:
                     # On Python 3.11+ concurrent.futures.TimeoutError IS the
                     # builtin TimeoutError, so a tool that raises TimeoutError of
@@ -379,6 +391,12 @@ class SyncExecutor:
                     future.cancel()
                     msg = f"Execution exceeded timeout of {timeout}s"
                     raise TimeoutError(msg) from e
+                # Every path through the handler above raises or continues.
+                if time.monotonic() >= deadline:
+                    # Ready only at or after the deadline: a timeout (module docstring).
+                    msg = f"Execution exceeded timeout of {timeout}s"
+                    raise TimeoutError(msg)
+                return value
         finally:
             # Give-up paths do NOT wait. The orphaned worker finishes on its
             # own time instead of holding the caller past the deadline it was
