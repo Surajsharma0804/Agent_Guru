@@ -102,7 +102,6 @@ class TestNoOscillations:
 
     @settings(
         max_examples=50,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -245,7 +244,6 @@ class TestNoUnboundedGrowth:
 
     @settings(
         max_examples=30,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(num_events=st.integers(min_value=100, max_value=300))
@@ -287,7 +285,6 @@ class TestNoUnboundedGrowth:
 
     @settings(
         max_examples=30,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -362,7 +359,6 @@ class TestConvergenceToStability:
 
     @settings(
         max_examples=20,  # Reduced from 40 for faster execution
-        deadline=15000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -471,7 +467,6 @@ class TestRateLimiting:
 
     @settings(
         max_examples=30,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(num_rapid_changes=st.integers(min_value=10, max_value=30))
@@ -524,7 +519,6 @@ class TestRateLimiting:
 
     @settings(
         max_examples=30,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(num_attempts=st.integers(min_value=5, max_value=15))
@@ -585,7 +579,6 @@ class TestFeedbackPatternRobustness:
 
     @settings(
         max_examples=50,
-        deadline=15000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -653,7 +646,6 @@ class TestFeedbackPatternRobustness:
 
     @settings(
         max_examples=40,
-        deadline=15000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -738,7 +730,6 @@ class TestMetricsStability:
 
     @settings(
         max_examples=40,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -784,7 +775,6 @@ class TestMetricsStability:
 
     @settings(
         max_examples=40,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(num_events=st.integers(min_value=100, max_value=200))
@@ -835,7 +825,6 @@ class TestExtendedPeriodStability:
 
     @settings(
         max_examples=15,  # Reduced from 30 for faster execution
-        deadline=20000,
         suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
     )
     @given(
@@ -983,7 +972,6 @@ class TestStabilityReportConsistency:
 
     @settings(
         max_examples=30,
-        deadline=10000,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
