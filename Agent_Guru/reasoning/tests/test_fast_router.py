@@ -378,7 +378,7 @@ class TestProperties:
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
-        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_match_never_crashes(self, input_text):
         """Property: match() never crashes on any input."""
@@ -399,7 +399,7 @@ class TestProperties:
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
-        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_match_deterministic(self, input_text):
         """Property: Same input produces same output."""
@@ -419,7 +419,7 @@ class TestProperties:
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
-        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_confidence_always_valid(self, input_text):
         """Property: Confidence is always between 0.0 and 1.0."""
@@ -434,7 +434,7 @@ class TestProperties:
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
-        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_latency_always_positive(self, input_text):
         """Property: Latency is always positive."""
