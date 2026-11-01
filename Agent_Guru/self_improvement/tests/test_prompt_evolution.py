@@ -902,7 +902,7 @@ class TestPromptEvolutionProperties:
         success_count=st.integers(min_value=0, max_value=100),
         failure_count=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=10, deadline=1000)  # Increase deadline to 1000ms for database operations
+    @settings(max_examples=10)  # Increase deadline to 1000ms for database operations
     def test_property_success_rate_always_between_0_and_1(self, success_count, failure_count):
         """Property: Success rate must always be between 0 and 1."""
         assume(success_count + failure_count > 0)  # Avoid division by zero
@@ -1778,7 +1778,7 @@ class TestMonotonicPromptQualityImprovement:
         base_success_rate=st.floats(min_value=0.3, max_value=0.6),
         improvement_per_version=st.floats(min_value=0.05, max_value=0.15),
     )
-    @settings(max_examples=50, deadline=2000)
+    @settings(max_examples=50)
     def test_property_prompt_quality_improves_monotonically(
         self, num_versions, base_success_rate, improvement_per_version
     ):
@@ -1977,7 +1977,7 @@ class TestMonotonicPromptQualityImprovement:
         num_versions=st.integers(min_value=3, max_value=8),
         metric_type=st.sampled_from(["success_rate", "hallucination_rate", "failure_rate"]),
     )
-    @settings(max_examples=50, deadline=2000)
+    @settings(max_examples=50)
     def test_property_quality_improves_across_multiple_metrics(
         self, num_versions, metric_type
     ):
@@ -2071,7 +2071,7 @@ class TestMonotonicPromptQualityImprovement:
         poor_success_rate=st.floats(min_value=0.2, max_value=0.5),
         improved_success_rate=st.floats(min_value=0.7, max_value=0.95),
     )
-    @settings(max_examples=50, deadline=2000)
+    @settings(max_examples=50)
     def test_property_poor_prompts_always_replaced_by_better(
         self, num_poor_prompts, poor_success_rate, improved_success_rate
     ):
@@ -2185,7 +2185,7 @@ class TestMonotonicPromptQualityImprovement:
         num_versions=st.integers(min_value=5, max_value=10),
         noise_level=st.floats(min_value=0.0, max_value=0.1),
     )
-    @settings(max_examples=50, deadline=2000)
+    @settings(max_examples=50)
     def test_property_monotonic_improvement_with_noise(
         self, num_versions, noise_level
     ):
