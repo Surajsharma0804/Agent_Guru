@@ -253,7 +253,7 @@ mypy_extensions==1.1.0
 narwhals==2.27.1
 networkx==3.6.1
 nlpaug==1.1.11
-nltk==3.10.3
+nltk==3.10.4
 nodeenv==1.11.0
 noisereduce==3.0.3
 numba==0.68.0
