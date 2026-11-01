@@ -610,6 +610,15 @@ class _Pyttsx3Engine:
 #: The child process's whole job: read the text on stdin, write one WAV file.
 #: A library given in argv[5] is loaded before pyttsx3, so pyttsx3's dlopen of
 #: libespeak-ng.so.1 (that library's soname) returns the parent's copy.
+#:
+#: It then waits, up to 10 s, until the WAV file holds frames. pyttsx3 2.99's
+#: eSpeak driver marks itself idle before it starts synthesis and writes the
+#: file only when eSpeak's own thread reports the end of the message, so
+#: runAndWait() can return first and the process used to exit with an empty
+#: file. The caller then logged "synthesis failed (exit 0)" and played
+#: silence. Measured on Linux under CPU load (24 busy loops on 12 CPUs): the
+#: audio quality test got silence in 9 runs of 10; idle in 0 of 10. The wait
+#: ends as soon as the frames are there, so a normal call is not slowed.
 _PYTTSX3_SCRIPT = """
 import sys
 path, voice, rate, volume, library = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4]), sys.argv[5]
@@ -625,6 +634,16 @@ engine.setProperty("rate", rate)
 engine.setProperty("volume", volume)
 engine.save_to_file(text, path)
 engine.runAndWait()
+import os, time, wave
+end = time.monotonic() + 10
+while time.monotonic() < end:
+    try:
+        with wave.open(path, "rb") as f:
+            if f.getnframes() > 0:
+                break
+    except (OSError, EOFError, wave.Error):
+        pass
+    time.sleep(0.05)
 """
 #: A call is ended after this long plus one second per this many characters.
 _PYTTSX3_BASE_TIMEOUT_S = 15.0
