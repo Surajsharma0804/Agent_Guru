@@ -141,16 +141,19 @@ class DatabasePool:
         conn = None
         try:
             # Try to get connection from pool
+            # A connection joins _in_use in the same lock block that takes or
+            # opens it. It used to join only in a later block, so every caller
+            # that reached the max_size check before the first one added its
+            # connection saw room and opened another: six overlapping callers
+            # of a max_size=2 pool held six connections (issue #11).
             async with self._lock:
                 generation = self._generation
                 if self._pool:
                     conn = self._pool.pop()
+                    self._in_use.add(conn)
                 elif len(self._in_use) < self.max_size:
-                    # Create new connection if under max size
                     conn = await self._create_connection()
-                else:
-                    # Wait for connection to become available
-                    pass
+                    self._in_use.add(conn)
 
             # Wait for connection if none available
             if conn is None:
@@ -163,6 +166,7 @@ class DatabasePool:
                         if self._pool:
                             generation = self._generation
                             conn = self._pool.pop()
+                            self._in_use.add(conn)
                             break
 
                     if asyncio.get_running_loop().time() - start_time > self.timeout:
@@ -174,8 +178,8 @@ class DatabasePool:
             # than hand out a connection that outlives the close.
             async with self._lock:
                 stale = self._generation != generation
-                if not stale:
-                    self._in_use.add(conn)
+                if stale:
+                    self._in_use.discard(conn)
             if stale:
                 conn.close()
                 conn = None
