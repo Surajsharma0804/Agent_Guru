@@ -197,15 +197,19 @@ class TestWindowsIntegration:
     )
     def test_get_service_status_not_found(self):
         """Test getting status for non-existent service."""
+        # The precondition is checked before the call. The guard used to be an
+        # `except RuntimeError` around pytest.raises(match="Service not found"),
+        # but with pywin32 missing the "pywin32 required" RuntimeError does not
+        # match, so pytest.raises turned it into an AssertionError: the test
+        # failed instead of skipping, and the skip could never run.
+        from Agent_Guru.platform.windows import integration as windows_integration
+
+        if not windows_integration.PYWIN32_AVAILABLE:
+            pytest.skip("pywin32 not installed: services cannot be queried")
         integration = WindowsIntegration()
-        
-        try:
-            with pytest.raises(RuntimeError, match="Service not found"):
-                integration.get_service_status("NonExistentService12345")
-        except RuntimeError as e:
-            if "pywin32 required" in str(e):
-                pytest.skip("pywin32 not available")
-            raise
+
+        with pytest.raises(RuntimeError, match="Service not found"):
+            integration.get_service_status("NonExistentService12345")
     
     # Process Management Tests
     
