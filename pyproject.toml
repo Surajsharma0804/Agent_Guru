@@ -232,7 +232,12 @@ nostr = [
 ]
 
 dev = [
-    "pytest>=7.4.0",
+    # Below 9.2 until pytest-benchmark supports it. pytest 9.2.0 (2026-10-27)
+    # dropped the item attribute pytest-benchmark 5.3.0, its newest release,
+    # reads, so the 4 tests that use the benchmark fixture errored at setup
+    # in every fresh install built the way CI builds one. Measured in one clean
+    # Python 3.11 environment: the benchmark test errors on 9.2.0, passes on 9.1.1.
+    "pytest>=7.4.0,<9.2",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     # pytest.ini passes --timeout=30 in addopts, so pytest does not even
