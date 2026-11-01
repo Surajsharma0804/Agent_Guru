@@ -744,30 +744,34 @@ class TestEdgeCases:
         """Test that latency tracking is accurate."""
         from Agent_Guru.reasoning.latency.controller import PipelineStage
         
+        import types
+        from unittest.mock import patch
+
+        import Agent_Guru.reasoning.latency.controller as controller_module
+        import Agent_Guru.reasoning.latency.tracker as tracker_module
+
+        # The controller runs on a clock the test moves. With the real clock the
+        # controller's window (start_stage to end_stage) enclosed the test's own
+        # measurement of a short sleep, so a pause of the process just outside
+        # that sleep counted for the controller and not for the test: on the
+        # Linux py3.12 CI rebuild of 2026-11-01 it measured 844.53 ms for 2.64 ms
+        # of elapsed time. Earlier the test compared against the requested sleep
+        # and failed whenever the sleep overslept. On the virtual clock the stage
+        # takes exactly `latency`, and only the controller's arithmetic decides.
+        now = [1000.0]
+        clock = types.SimpleNamespace(perf_counter=lambda: now[0])
         controller = LatencyController()
-        
+
         stage = PipelineStage.INPUT_NORMALIZATION
-        timer = controller.start_stage(stage)
+        # The controller times budgets and the tracker computes duration_ms, each
+        # from its own time import, so both read the virtual clock.
+        with patch.object(controller_module, "time", clock), patch.object(tracker_module, "time", clock):
+            timer = controller.start_stage(stage)
+            now[0] += latency
+            metrics = controller.end_stage(timer)
 
-        # Simulate work - capped at 10ms so 50 examples finish in <1s total.
-        # The elapsed time is measured here, independently of the controller.
-        # This compared the controller with the REQUESTED sleep, but
-        # time.sleep oversleeps whenever the thread is not rescheduled at once
-        # (it failed during a concurrent pip install with the controller
-        # measuring correctly: a 25 ms oversleep reads as a 25 ms error).
-        # Compared with what really elapsed, the tolerance can be 5 ms instead
-        # of 20, and a tracker that is wrong still fails.
-        started = time.perf_counter()
-        time.sleep(latency)
-        actual = time.perf_counter() - started
-
-        metrics = controller.end_stage(timer)
-
-        # Get measured latency
         measured = metrics.duration_ms / 1000.0  # Convert to seconds
-
-        assert abs(measured - actual) < 0.005, \
-            f"Controller measured {measured * 1000:.2f} ms for {actual * 1000:.2f} ms of elapsed time"  # nosec B101
+        assert measured == pytest.approx(latency, abs=1e-9),             f"Controller measured {measured * 1000:.4f} ms for {latency * 1000:.4f} ms of elapsed time"  # nosec B101
 
     @given(
         error_count=st.integers(min_value=1, max_value=10)
