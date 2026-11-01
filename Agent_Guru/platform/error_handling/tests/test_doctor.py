@@ -265,3 +265,26 @@ async def test_the_settings_check_reports_what_was_ignored_and_why(tmp_path, mon
     assert result.status is HealthStatus.DEGRADED and "OPENAI_API_KEY (secrets" in result.message  # nosec B101
     (tmp_path / "settings.toml").write_text("not toml =", encoding="utf-8")
     assert (await doctor.check_settings()).status is HealthStatus.UNHEALTHY  # nosec B101
+
+
+class _PortAudioWillNotStart:
+    """Import hook that makes `import sounddevice` raise, as it does on a Linux host with no sound server."""
+
+    def find_spec(self, name, path=None, target=None):
+        if name == "sounddevice":
+            raise RuntimeError("Error initializing PortAudio: 'PulseAudio_Initialize: Can't connect to server'")
+        return None
+
+
+@pytest.mark.parametrize(("check", "component"), [(doctor.check_microphone, "microphone"),
+                                                  (doctor.check_speaker, "speaker")])
+def test_an_audio_backend_that_will_not_start_is_reported_not_raised(monkeypatch, check, component):
+    # On Ubuntu 26.04 with no sound server, importing sounddevice raises PortAudioError. The
+    # checks imported it before their try, so the error escaped, the health manager's gather
+    # re-raised it, and `doctor` ended with a traceback instead of a report of every component.
+    monkeypatch.delitem(sys.modules, "sounddevice", raising=False)
+    monkeypatch.setattr(sys, "meta_path", [_PortAudioWillNotStart(), *sys.meta_path])
+    result = asyncio.run(check())
+    assert result.name == component  # nosec B101
+    assert result.status == HealthStatus.UNHEALTHY  # nosec B101
+    assert "PortAudio" in result.message  # nosec B101
