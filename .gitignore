@@ -30,6 +30,10 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+# AgentGuru.spec is the hand-written build file for the Windows exe, not one
+# PyInstaller generates. Ignored with the rest, it never reached git, so
+# deployment/tests/test_app_icon.py failed on every clean checkout, CI included.
+!AgentGuru.spec
 
 # Installer logs
 pip-log.txt
