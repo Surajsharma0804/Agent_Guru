@@ -46,10 +46,11 @@ def level(a, rms):
 
 rng = np.random.default_rng(7)
 parts, meta = {"noise": [], "music": []}, {"noise": 0, "music": 0}
-for row in score_rows("audioset_bal_train_01.parquet"):
-    a = level(to16k(row["audio"]["bytes"]), float(rng.uniform(0.01, 0.04)))
-    if a is not None: parts["noise"].append(a); meta["noise"] += 1
-for row in score_rows("fma_small_train_00001.parquet"):
+for name in sorted(n for n in POOLS["score"] if n.startswith("audioset")):
+    for row in score_rows(name):
+        a = level(to16k(row["audio"]["bytes"]), float(rng.uniform(0.01, 0.04)))
+        if a is not None: parts["noise"].append(a); meta["noise"] += 1
+for row in (r for n in sorted(n for n in POOLS["score"] if n.startswith("fma")) for r in score_rows(n)):
     a = level(to16k(row["audio"]["bytes"]), float(rng.uniform(0.01, 0.04)))
     if a is not None: parts["music"].append(a); meta["music"] += 1
 for k, v in parts.items():
