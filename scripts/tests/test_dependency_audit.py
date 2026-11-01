@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -206,9 +207,15 @@ def test_acceptance_file_rejects_accept_forever(tmp_path):
 
 
 def test_the_repository_acceptance_file_is_valid():
-    repo = Path(__file__).resolve().parents[2]
-    entries = da.load_acceptances(repo / ".github" / "dependency-audit-accepted.toml")
-    assert entries, "the committed acceptance file should parse and be non-empty"
+    # This asserted that the file was non-empty, which also caught a wrong
+    # path: load_acceptances() returns [] for a file that does not exist.
+    # Once nltk 3.10.4 fixed the last accepted advisory the file has no
+    # entries, which is the state to aim for, so the path is checked
+    # directly and the loader must keep every entry the file declares.
+    path = Path(__file__).resolve().parents[2] / ".github" / "dependency-audit-accepted.toml"
+    assert path.is_file(), f"{path} is missing"  # nosec B101
+    declared = tomllib.loads(path.read_text(encoding="utf-8")).get("accepted", [])
+    assert len(da.load_acceptances(path)) == len(declared)  # nosec B101
 
 
 # --- end to end ------------------------------------------------------------
