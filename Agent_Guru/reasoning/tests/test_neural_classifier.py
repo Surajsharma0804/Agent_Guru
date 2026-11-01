@@ -199,40 +199,55 @@ class TestNeuralIntentClassifierInit:
         with pytest.raises(RuntimeError, match="ONNX Runtime not available"):
             NeuralIntentClassifier()
 
-    def test_onnx_import_error_handling(self):
-        """Test that ImportError is properly handled when ONNX not available."""
-        # This test verifies lines 54-56 are covered
-        import sys
+    def test_an_exported_onnx_model_loads_and_classifies_one_input(self, tmp_path):
+        """A model exported to ONNX loads in onnxruntime and runs through the classifier's own inference.
 
-        # Save original module
-        original_ort = sys.modules.get("onnxruntime")
+        This was test_onnx_import_error_handling, whose body was a try around `pass`: it imported
+        nothing, asserted nothing and passed whatever the code did (issue #8), and it deleted the
+        classifier module from sys.modules without putting it back. The ImportError path it named
+        is covered by test_init_without_onnx above. This exports a small model with the classifier's
+        interface - input_ids and attention_mask in, one row of class logits out - and runs it
+        through _classify_sync, which tokenises, calls the session and turns logits into intents.
+        """
+        torch = pytest.importorskip("torch", reason="torch is needed to export an ONNX model")
+        pytest.importorskip("onnx", reason="onnx is needed to export an ONNX model")
+        ort = pytest.importorskip("onnxruntime", reason="onnxruntime is needed to run the model")
+        labels = ["greeting", "weather", "timer", "music"]
+        seq = 16
 
-        try:
-            # Remove onnxruntime from modules to simulate ImportError
-            if "onnxruntime" in sys.modules:
-                del sys.modules["onnxruntime"]
+        class TinyClassifier(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.embed = torch.nn.Embedding(100, 8)
+                self.head = torch.nn.Linear(8, len(labels))
 
-            # Mock the import to raise ImportError
-            with patch.dict("sys.modules", {"onnxruntime": None}):
-                # Reload the module to trigger the import error path
+            def forward(self, input_ids, attention_mask):
+                hidden = self.embed(input_ids) * attention_mask.unsqueeze(-1)
+                return self.head(hidden.mean(dim=1))
 
-                # Force reimport by deleting from cache
-                if "Agent_Guru.reasoning.intent.neural_classifier" in sys.modules:
-                    del sys.modules["Agent_Guru.reasoning.intent.neural_classifier"]
+        path = tmp_path / "model.onnx"
+        ids = torch.zeros((1, seq), dtype=torch.int64)
+        torch.onnx.export(TinyClassifier().eval(), (ids, torch.ones_like(ids)), str(path),
+                          input_names=["input_ids", "attention_mask"], output_names=["logits"],
+                          dynamo=False)
 
-                # Now import with mocked failure
-                with patch(
-                    "builtins.__import__", side_effect=ImportError("No module named 'onnxruntime'")
-                ):
-                    try:
-                        # This should trigger the except ImportError block
-                        pass
-                    except Exception:
-                        pass  # nosec B110
-        finally:
-            # Restore original module
-            if original_ort is not None:
-                sys.modules["onnxruntime"] = original_ort
+        session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        assert [i.name for i in session.get_inputs()] == ["input_ids", "attention_mask"]  # nosec B101
+        classifier = NeuralIntentClassifier(ClassifierConfig(max_length=seq))
+        classifier.session = session
+        classifier.id_to_label = dict(enumerate(labels))
+        classifier.tokenizer = lambda text, **kw: {
+            "input_ids": np.arange(seq, dtype=np.int64).reshape(1, seq),
+            "attention_mask": np.ones((1, seq), dtype=np.int64),
+        }
+        logits = session.run(None, {"input_ids": np.zeros((1, seq), np.int64),
+                                    "attention_mask": np.ones((1, seq), np.int64)})[0]
+        assert logits.shape == (1, len(labels))  # nosec B101
+
+        result = classifier._classify_sync("what is the weather today")
+        assert result.intent_type in labels  # nosec B101
+        assert 0.0 < result.confidence <= 1.0  # nosec B101
+        assert len(result.alternative_intents) == 2  # nosec B101
 
 
 # ============================================================================
