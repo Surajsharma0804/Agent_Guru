@@ -29,7 +29,7 @@ onnxscript>=0.6.0
 opencv-python>=4.8.0,<5  # 5.x removed CascadeClassifier, used by every face fallback
 opencv-contrib-python>=4.8.0,<5
 insightface>=0.7.3
-pillow>=10.0.0
+pillow>=13.0.0
 
 # Scientific Computing
 # numpy 2: kokoro-onnx 0.5.0, the voice, requires numpy>=2.0.2. A cap below
@@ -65,7 +65,7 @@ sentence-transformers>=5.6.0  # earlier: custom code from local models (GHSA-jhr
 #   pytorch-lightning  -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
 networkx>=3.0
 celery>=5.3.0
-nltk>=3.8.1
+nltk>=3.10.4
 pytorch-lightning>=2.0.0
 
 # Text-to-Speech (FREE, LOCAL, NATURAL)
