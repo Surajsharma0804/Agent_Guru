@@ -50,9 +50,13 @@ class TestMicrophoneCapture:
         # devices at all and MicrophoneCapture correctly raises AudioInputError
         # - asserting otherwise would be asserting that the machine has a
         # microphone, which is not a property of this code.
-        import sounddevice as sd
-
+        # The import is inside the try. Importing sounddevice initialises
+        # PortAudio, and on a Linux host with no sound server (the Ubuntu 26.04
+        # CI runners) that import itself raises PortAudioError, so the skip
+        # below never ran and the test failed on every Linux leg.
         try:
+            import sounddevice as sd
+
             devices = sd.query_devices()
         except Exception as exc:  # pragma: no cover - depends on the host
             pytest.skip(f"UNVERIFIED on this host: no audio backend ({exc})")
