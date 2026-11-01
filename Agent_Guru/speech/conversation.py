@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import heapq
+import itertools
 import logging
 import time
 from collections import OrderedDict, deque
@@ -12,6 +13,9 @@ from types import MappingProxyType
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+#: Order of every turn added in this process, across speakers. See add_turn.
+_TURN_SEQUENCE = itertools.count()
 
 __all__ = ["BargeInHandler", "ConversationManager", "ProsodyConfig", "SpeakerDiarization"]
 
@@ -123,7 +127,12 @@ class ConversationContext:
     def add_turn(self, text: str, role: str = "user") -> None:
         """Record one utterance, evicting the oldest if the buffer is full."""
         now = time.time()
-        self.turns.append({"role": role, "text": text, "ts": now})
+        # "seq" breaks ties between turns with the same timestamp. Windows reads
+        # the clock in steps of about 15.6 ms, so turns added within one step
+        # shared a "ts", and merge_contexts, which ordered by "ts" alone, put all
+        # of one speaker's tied turns first: two speakers' turns came out of the
+        # order they were said in, on the Windows and macOS CI legs.
+        self.turns.append({"role": role, "text": text, "ts": now, "seq": next(_TURN_SEQUENCE)})
         self.last_active = now
 
 
@@ -287,7 +296,7 @@ class SpeakerDiarization:
         streams = [
             self._contexts[sid].turns for sid in speaker_ids if sid in self._contexts
         ]
-        merged.turns.extend(heapq.merge(*streams, key=lambda t: t.get("ts", 0)))
+        merged.turns.extend(heapq.merge(*streams, key=lambda t: (t.get("ts", 0), t.get("seq", 0))))
         return merged
 
 
