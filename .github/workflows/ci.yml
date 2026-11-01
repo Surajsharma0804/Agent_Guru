@@ -39,37 +39,37 @@ name: CI - Agent Guru
 #
 #   * push and pull_request: the gate. Linux only - lint, security, mypy and
 #     pytest on Python 3.11, 3.12 and 3.13.
-#   * schedule (weekly) and workflow_dispatch (by hand): the platform run.
-#     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13), plus the
-#     dependency audit, which is under a minute of Linux time.
+#   * schedule (monthly) and workflow_dispatch (by hand): the platform run.
+#     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13), the real Kokoro
+#     TTS tests, and the dependency audit, which also runs on every push.
 #
 # Why. GitHub bills Linux minutes 1x, Windows 2x and macOS 10x against a
-# 3,000 minute monthly allowance, and each test leg takes about 19 minutes:
+# 3,000 minute monthly allowance. Measured from the job timings of real runs
+# (each job is rounded up to whole minutes):
 #
-#   old matrix, every push and PR:
-#     3 Linux legs    x 19 min x  1  =  57
-#     3 Windows legs  x 19 min x  2  = 114
-#     1 macOS leg     x 19 min x 10  = 190
-#                                     -----
-#                                      361 billed minutes per run
+#   gate run, every push and PR (runs for e2da5086 and b7e3df45, 2026-10-31):
+#     3 Linux pytest legs, 27 to 35 min each        =  96 to  97
+#     7 lint, security, mypy and status jobs, 1 each =   7
+#                                                    ---------
+#                                                     103 to 104 billed minutes
 #
-#   Linux only: 57 billed minutes per run.
+#   platform run (scheduled runs of 2026-10-18 and 2026-10-25):
+#     3 Windows legs, 50 to 62 min each, x 2  = 330 to 338
+#     1 macOS leg, 38 to 41 min, x 10         = 380 to 410
+#     Kokoro TTS and dependency audit, Linux  =   7 to   8
+#                                              -----------
+#                                               718 to 755 billed minutes
 #
-# (The lint, security and mypy jobs add a few minutes on top of either.)
-# At 361 minutes a run the allowance covered about eight pushes a month, and
-# it ran out on 2026-09-24, after which GitHub refused every job. At 57 it
-# covers about fifty.
+# The platform run used to be weekly. At about 4.3 runs a month that is
+# 3,100 to 3,250 billed minutes, more than the whole allowance before a single
+# push, which is how the allowance kept running out. Monthly it costs 718 to
+# 755, which leaves about 2,250 minutes, roughly 21 gate runs a month. Each
+# platform run started by hand costs another 718 to 755, so start one only
+# when a change needs Windows or macOS evidence.
 #
-# The Windows and macOS legs were already non-blocking (continue-on-error),
-# so 304 of every 361 minutes bought a signal that no pull request was gated
-# on. They now run weekly and on demand instead.
-#
-#   weekly platform run: 304 billed minutes x about 4.3 runs a month
-#                        = about 1,300 billed minutes a month
-#
-# That leaves about 1,700 minutes, roughly 30 Linux gate runs a month. Each
-# extra platform run triggered by hand costs another 304. A nightly schedule
-# would cost about 9,100 minutes a month, three times the allowance.
+# The 2026-09 figures this note used to give (19 minutes a leg, 57 billed
+# minutes a gate run, 304 a platform run) were estimates from before the
+# suite grew; they undercounted every run by about half.
 # ---------------------------------------------------------------------------
 on:
   push:
@@ -77,8 +77,10 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Sundays 03:00 UTC. Scheduled runs use the default branch.
-    - cron: "0 3 * * 0"
+    # 03:00 UTC on the first of each month. Scheduled runs use the default
+    # branch. It was weekly, which alone cost more than the monthly allowance;
+    # see the measured figures above.
+    - cron: "0 3 1 * *"
   workflow_dispatch:
 
 permissions:
@@ -86,7 +88,7 @@ permissions:
 
 # A new push to the same branch makes the previous run's result irrelevant.
 # Platform runs get their own group: they run on main too, and sharing the
-# group would let a push to main cancel a weekly run, or the reverse.
+# group would let a push to main cancel a monthly run, or the reverse.
 concurrency:
   group: >-
     ${{ github.workflow }}-${{ github.ref }}-${{
@@ -358,11 +360,13 @@ jobs:
   #     like a check that passed.
   #   * Puts the result where it will be read: a one-line headline and
   #     tables in the job summary, an error annotation for each blocking
-  #     finding, and, on the weekly scheduled run, a GitHub issue labelled
+  #     finding, and, on the monthly scheduled run, a GitHub issue labelled
   #     dependency-audit. The issue is opened on the first failure, commented
-  #     on each week while it stays unresolved, and closed when the audit is
-  #     clean. Advisories are published without any push, so without the
-  #     weekly run a new critical could sit unseen until the next pull request.
+  #     on each month while it stays unresolved, and closed when the audit is
+  #     clean. Advisories are published without any push, so between pushes a
+  #     new critical can now sit unseen for up to a month; every push and pull
+  #     request still runs the audit and blocks on it. Dependabot alerts on the
+  #     Security tab are not tied to this schedule.
   #
   # Runs on every event, the schedule included, and "CI status" requires it
   # on pushes and pull requests. It takes well under a minute: pinned files
@@ -447,7 +451,7 @@ jobs:
   # Gate 3 - the actual test suite.
   # Blocking on Linux across the declared Python range, on every push and
   # pull request. Windows and macOS, which the README also calls
-  # production-ready, run in the platform run (weekly and on demand); see
+  # production-ready, run in the platform run (monthly and on demand); see
   # the cost note at the top of this file.
   #
   # The Windows and macOS legs are not a gate. The suite had never run in
@@ -613,7 +617,7 @@ jobs:
   # or thousands of times. pytest.ini leaves them out of every other run: on a
   # laptop CPU test_property_9 alone took 35 to 45 minutes, and on Windows the
   # first per-test overrun ended the whole suite, so nothing after them ever
-  # ran. They run here, weekly with the platform run and on demand.
+  # ran. They run here, monthly with the platform run and on demand.
   #
   # Per-test timeouts stay on. --timeout=3600 is the limit for the tests that
   # carry no timeout marker (the stress tests, which would otherwise inherit
@@ -623,11 +627,11 @@ jobs:
   # fail until those limits are revisited. On Linux a timeout fails only that
   # test, not the run.
   #
-  # Cost: roughly 90 to 170 Linux minutes a run from those timings, plus about
-  # 35 to 45 for the two test_voice_cloner.py tests, so about 500 to 850 of the
-  # 3,000 monthly minutes on top of the platform run. It
-  # shares the weekly trigger because a second cron would also start the
-  # Windows and macOS legs above.
+  # Cost: this job took 5.9 and 6.6 minutes in the scheduled runs of
+  # 2026-10-18 and 2026-10-25, so 6 to 7 billed Linux minutes a run; the 90 to
+  # 170 this note used to estimate from laptop timings did not happen on the
+  # runner. It shares the monthly trigger because a second cron would also
+  # start the Windows and macOS legs above.
   # ---------------------------------------------------------------------------
   tts-model-tests:
     name: pytest - real Kokoro TTS (scheduled)
