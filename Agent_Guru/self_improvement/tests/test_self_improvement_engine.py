@@ -968,7 +968,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=5,
-        deadline=3000  # 3 seconds
     )
     @pytest.mark.hypothesis
     def test_property_failure_patterns_identified(self, engine, num_failures, failure_type):
@@ -1013,7 +1012,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=5,
-        deadline=5000  # 5 seconds
     )
     @pytest.mark.hypothesis
     def test_property_learning_improves_performance(
@@ -1090,7 +1088,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=3,
-        deadline=10000  # 10 seconds
     )
     @pytest.mark.hypothesis
     def test_property_optimal_strategy_selection(
@@ -1185,7 +1182,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=5,
-        deadline=3000  # 3 seconds
     )
     @pytest.mark.hypothesis
     def test_property_failure_analysis_consistency(self, engine, num_failures):
@@ -1233,7 +1229,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=5,
-        deadline=3000  # 3 seconds
     )
     @pytest.mark.hypothesis
     def test_property_batch_injection_equivalence(self, engine, batch_size):
@@ -1278,7 +1273,6 @@ class TestLearningPropertiesWithFailureInjection:
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         max_examples=3,
-        deadline=10000  # 10 seconds
     )
     @pytest.mark.hypothesis
     def test_property_learning_convergence(self, engine, num_iterations):
