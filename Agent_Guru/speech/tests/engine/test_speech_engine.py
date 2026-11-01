@@ -48,14 +48,56 @@ def require_tts_backend() -> None:
     error; either way, with no backend on the machine there is nothing here to
     assert about synthesised audio.
     """
-    from Agent_Guru.speech.tts.tts_engine import TTSEngine, downloads_disabled
+    from Agent_Guru.speech.tts import tts_engine
+    from Agent_Guru.utils.verified_files import problems, stamp_matches
 
-    backend = TTSEngine().active_backend
-    if backend == "none" or (backend == "kokoro" and downloads_disabled()):
+    backend = tts_engine.TTSEngine().active_backend
+    if backend == "none":
         pytest.skip(
             "UNVERIFIED on this host: no local TTS backend "
             "(Kokoro model not cached and pyttsx3 unavailable)",
         )
+    # This used to skip whenever the backend was Kokoro and downloads were off.
+    # The root conftest.py always turns downloads off, and active_backend says
+    # "kokoro" only when both model files are already on disk, so the four
+    # synthesis tests skipped on every machine, including one with the model
+    # cached and verified, while the message said it was not cached. A
+    # download is needed only when a file fails its pin, so only that skips.
+    if backend == "kokoro" and tts_engine.downloads_disabled():
+        directory = tts_engine._MODEL_PATH.parent
+        if not stamp_matches(directory, tts_engine.KOKORO_PINS) and any(
+            problems(path, tts_engine._PINS_BY_NAME[path.name])
+            for path in (tts_engine._MODEL_PATH, tts_engine._VOICES_PATH)
+        ):
+            pytest.skip(
+                "UNVERIFIED on this host: the Kokoro files on disk fail their pins "
+                "and downloads are off (AGENT_GURU_NO_DOWNLOAD)",
+            )
+
+
+def test_tts_guard_runs_with_a_verified_kokoro_cache(monkeypatch):
+    """A cached, verified Kokoro with downloads off is a backend to test, not a skip."""
+    from Agent_Guru.speech.tts import tts_engine
+
+    monkeypatch.setenv("AGENT_GURU_NO_DOWNLOAD", "1")
+    monkeypatch.setattr(tts_engine.TTSEngine, "active_backend", property(lambda self: "kokoro"))
+    monkeypatch.setattr("Agent_Guru.utils.verified_files.stamp_matches", lambda directory, pins: True)
+    try:
+        require_tts_backend()
+    except pytest.skip.Exception as skipped:
+        pytest.fail(f"skipped with a verified cache: {skipped}")
+
+
+def test_tts_guard_skips_when_the_cache_fails_its_pins(monkeypatch):
+    """With downloads off and a file failing its pin, synthesis would need the network: that skips."""
+    from Agent_Guru.speech.tts import tts_engine
+
+    monkeypatch.setenv("AGENT_GURU_NO_DOWNLOAD", "1")
+    monkeypatch.setattr(tts_engine.TTSEngine, "active_backend", property(lambda self: "kokoro"))
+    monkeypatch.setattr("Agent_Guru.utils.verified_files.stamp_matches", lambda directory, pins: False)
+    monkeypatch.setattr("Agent_Guru.utils.verified_files.problems", lambda path, pin: "size differs")
+    with pytest.raises(pytest.skip.Exception):
+        require_tts_backend()
 
 
 class TestSpeechEngine:
