@@ -77,7 +77,7 @@ class TestEmotionDetectionProperties:
     """
     
     @given(audio_samples())
-    @settings(max_examples=100, deadline=5000)
+    @settings(max_examples=100)
     @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_detection_completeness(self, audio_data):
         """
@@ -154,7 +154,7 @@ class TestEmotionDetectionProperties:
         assert result.timestamp > 0  # nosec B101
     
     @given(audio_samples())
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=50)
     @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_detection_consistency(self, audio_data):
         """
@@ -181,7 +181,7 @@ class TestEmotionDetectionProperties:
             assert result1.emotion_scores[emotion] == result2.emotion_scores[emotion]  # nosec B101
     
     @given(st.lists(audio_samples(), min_size=2, max_size=10))
-    @settings(max_examples=30, deadline=10000)
+    @settings(max_examples=30)
     @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_history_tracking(self, audio_list):
         """
@@ -239,7 +239,7 @@ class TestEmotionDetectionConfidenceCalibration:
     """
     
     @given(st.floats(min_value=0.0, max_value=0.005))
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=50)
     @pytest.mark.usefixtures("requires_librosa")
     def test_low_quality_audio_confidence(self, noise_level):
         """
@@ -278,7 +278,7 @@ class TestEmotionDetectionConfidenceCalibration:
             assert 0.0 <= score <= 1.0  # nosec B101
     
     @given(audio_samples(min_duration=1.0, max_duration=3.0))
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=50)
     @pytest.mark.usefixtures("requires_librosa")
     def test_clean_audio_confidence(self, audio_data):
         """
@@ -303,7 +303,7 @@ class TestEmotionDetectionConfidenceCalibration:
         assert result.emotion_scores[result.primary_emotion] == result.confidence  # nosec B101
     
     @given(st.floats(min_value=0.1, max_value=2.0))
-    @settings(max_examples=30, deadline=5000)
+    @settings(max_examples=30)
     @pytest.mark.usefixtures("requires_librosa")
     def test_duration_impact_on_quality(self, duration):
         """
