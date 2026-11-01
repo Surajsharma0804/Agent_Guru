@@ -4,6 +4,9 @@ Integration tests for platform integration.
 Tests audio device access and system control operations.
 """
 
+import sys
+import types
+
 import pytest
 from unittest.mock import Mock, patch
 
@@ -14,6 +17,24 @@ from Agent_Guru.speech.exceptions import AudioInputError, GuruSpeechError
 from Agent_Guru.platform.os_controller import OperationResult, OperationCategory
 
 
+@pytest.fixture
+def sounddevice_stand_in(monkeypatch):
+    """A sounddevice module that needs no PortAudio, for tests that mock its functions anyway.
+
+    These tests replace query_devices and default with mocks, but patch() first imports the real
+    sounddevice to find them, and importing it initialises PortAudio. On a Linux host with no sound
+    server, such as the Ubuntu 26.04 CI runners, that raises PortAudioError ("PulseAudio_Initialize:
+    Can't connect to server") before any mock applies, and all 7 of these tests failed on every
+    Linux leg. The code under test imports sounddevice inside its own try, so it gets this module.
+    """
+    module = types.ModuleType("sounddevice")
+    module.query_devices = lambda *a, **k: []
+    module.default = types.SimpleNamespace(device=[None, None])
+    monkeypatch.setitem(sys.modules, "sounddevice", module)
+    return module
+
+
+@pytest.mark.usefixtures("sounddevice_stand_in")
 class TestPlatformIntegrationAudioDevices:
     """Tests for audio device management."""
     
@@ -423,6 +444,7 @@ class TestPlatformIntegrationFileOperations:
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("sounddevice_stand_in")
 class TestPlatformIntegrationEndToEnd:
     """End-to-end integration tests."""
     
