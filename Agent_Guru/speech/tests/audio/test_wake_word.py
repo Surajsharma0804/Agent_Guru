@@ -231,7 +231,7 @@ class TestWakeWordDetectorProperties:
         audio_length=st.integers(min_value=1000, max_value=48000),
         amplitude=st.floats(min_value=0.01, max_value=1.0)
     )
-    @settings(max_examples=50, deadline=2000)
+    @settings(max_examples=50)
     def test_property_detect_handles_various_audio_lengths(
         self,
         audio_length: int,
@@ -257,7 +257,7 @@ class TestWakeWordDetectorProperties:
     @given(
         sensitivity=st.floats(min_value=0.0, max_value=1.0)
     )
-    @settings(max_examples=20, deadline=1000)
+    @settings(max_examples=20)
     def test_property_sensitivity_bounds(self, sensitivity: float):
         """
         Property: Sensitivity should accept any value between 0.0 and 1.0.
@@ -273,7 +273,7 @@ class TestWakeWordDetectorProperties:
     @given(
         n_detections=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10)
     @pytest.mark.asyncio
     async def test_property_dual_wake_word_support(self, n_detections: int):
         """
@@ -304,7 +304,7 @@ class TestWakeWordDetectorProperties:
     @given(
         audio_length=st.integers(min_value=8000, max_value=32000)
     )
-    @settings(max_examples=30, deadline=2000)
+    @settings(max_examples=30)
     def test_property_detection_latency(self, audio_length: int):
         """
         Property: Detection should complete within 200ms for typical audio lengths.
@@ -327,7 +327,7 @@ class TestWakeWordDetectorProperties:
     @given(
         n_iterations=st.integers(min_value=5, max_value=20)
     )
-    @settings(max_examples=10, deadline=5000)
+    @settings(max_examples=10)
     @pytest.mark.asyncio
     async def test_property_false_positive_rate(self, n_iterations: int):
         """
@@ -362,7 +362,7 @@ class TestWakeWordDetectorProperties:
     @given(
         wake_word=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('Ll', 'Lu', 'Nd', 'Zs')))
     )
-    @settings(max_examples=20, deadline=1000)
+    @settings(max_examples=20)
     @pytest.mark.asyncio
     async def test_property_add_remove_wake_word(self, wake_word: str):
         """
