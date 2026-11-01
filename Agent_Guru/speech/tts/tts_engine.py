@@ -595,7 +595,18 @@ class _Pyttsx3Engine:
                                done.stderr.decode("utf-8", "replace")[-300:])
                 return _silence_wav(text)
             with open(tmp, "rb") as f:
-                return f.read()
+                data = f.read()
+            if data[:4] == b"FORM":
+                # macOS: pyttsx3's NSSpeechSynthesizer driver writes AIFF whatever the
+                # file is called, and every caller reads WAV. The macOS CI leg got
+                # b"FORM" where it expected b"RIFF", and the audio quality test raised
+                # wave.Error. Converted here, in the one place the bytes come back.
+                converted = _aiff_to_wav(data)
+                if converted is None:
+                    logger.warning("pyttsx3 wrote an AIFF encoding this cannot convert; playing silence")
+                    return _silence_wav(text)
+                return converted
+            return data
         except subprocess.TimeoutExpired:
             logger.warning("pyttsx3 synthesis gave no audio within %.0f s; the process was ended", deadline)
             return _silence_wav(text)
@@ -945,6 +956,53 @@ def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
         return audio, sr
     except Exception:
         return np.zeros(12000, dtype=np.float32), 24000
+
+def _aiff_to_wav(data: bytes) -> bytes | None:
+    """Uncompressed PCM AIFF or AIFF-C (big-endian, or little-endian "sowt") as WAV bytes, else None.
+
+    Python's aifc module was removed in 3.13 and soundfile is only a test dependency, so the few
+    chunks needed are read here: COMM for the format and SSND for the samples.
+    """
+    import struct
+
+    if len(data) < 12 or data[:4] != b"FORM" or data[8:12] not in (b"AIFF", b"AIFC"):
+        return None
+    channels = width = rate = None
+    big_endian, frames = True, b""
+    pos = 12
+    while pos + 8 <= len(data):
+        cid, size = data[pos:pos + 4], struct.unpack(">I", data[pos + 4:pos + 8])[0]
+        body = data[pos + 8:pos + 8 + size]
+        if cid == b"COMM" and len(body) >= 18:
+            channels, _, bits = struct.unpack(">hIh", body[:8])
+            exponent, mantissa = struct.unpack(">HQ", body[8:18])  # 80-bit IEEE extended sample rate
+            rate = round(mantissa * 2.0 ** ((exponent & 0x7FFF) - 16383 - 63))
+            width = (bits + 7) // 8
+            if data[8:12] == b"AIFC":
+                kind = body[18:22]
+                if kind == b"sowt":
+                    big_endian = False
+                elif kind not in (b"NONE", b"twos"):
+                    return None
+        elif cid == b"SSND" and len(body) >= 8:
+            offset = struct.unpack(">I", body[:4])[0]
+            frames = body[8 + offset:]
+        pos += 8 + size + (size & 1)
+    if not channels or not width or not rate or width not in (1, 2, 3, 4):
+        return None
+    if width == 1:
+        frames = bytes((b + 128) & 0xFF for b in frames)  # AIFF 8-bit is signed, WAV 8-bit is unsigned
+    elif big_endian:
+        samples = np.frombuffer(frames[: len(frames) - len(frames) % width], dtype=np.uint8).reshape(-1, width)
+        frames = samples[:, ::-1].tobytes()
+    out = io.BytesIO()
+    with wave.open(out, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(width)
+        wf.setframerate(rate)
+        wf.writeframes(frames)
+    return out.getvalue()
+
 
 def _silence_wav(text: str, sample_rate: int = 24000) -> bytes:
     """Generate silence WAV proportional to text length."""
