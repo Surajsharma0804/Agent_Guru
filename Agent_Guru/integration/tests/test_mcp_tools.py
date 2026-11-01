@@ -272,7 +272,11 @@ async def test_a_server_sees_only_the_environment_it_needs_and_is_given(audit, n
     finally:
         await box.close()
     assert "AGENT_GURU_TEST_TOKEN" not in names and "NOTES_SERVER_KEY" in names  # nosec B101
-    assert {n.upper() for n in names} <= mcp_client._BASE_ENV | {"NOTES_SERVER_KEY"}  # nosec B101
+    # macOS adds __CF_USER_TEXT_ENCODING to the environment of every process it starts, so the
+    # server reports it although the client never passed it; the macOS CI legs failed on exactly
+    # that one name. Nothing else is allowed beyond what the client hands over.
+    added_by_the_os = {"__CF_USER_TEXT_ENCODING"} if sys.platform == "darwin" else set()
+    assert {n.upper() for n in names} <= mcp_client._BASE_ENV | {"NOTES_SERVER_KEY"} | added_by_the_os  # nosec B101
 
 
 # ---- the protocol ----
