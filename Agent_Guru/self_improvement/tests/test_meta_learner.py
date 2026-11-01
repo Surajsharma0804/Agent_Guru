@@ -504,7 +504,7 @@ class TestPropertyBased:
     @given(
         num_executions=st.integers(min_value=1, max_value=30)
     )
-    @settings(max_examples=20, deadline=2000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_process_execution_idempotent(
         self,
         num_executions
@@ -548,7 +548,7 @@ class TestPropertyBased:
         train_size=st.integers(min_value=10, max_value=30),
         test_variation=st.floats(min_value=0.8, max_value=1.2)
     )
-    @settings(max_examples=25, deadline=1000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=25, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_patterns_generalize_to_new_tasks(
         self,
         train_size,
@@ -808,7 +808,7 @@ class TestIntegration:
         initial_data_size=st.integers(min_value=10, max_value=20),
         additional_data_size=st.integers(min_value=10, max_value=30)
     )
-    @settings(max_examples=15, deadline=2000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_predictions_improve_with_more_data(
         self,
         initial_data_size,
