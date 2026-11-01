@@ -321,11 +321,15 @@ class TestBackgroundServiceManager:
 
         import psutil
 
+        import threading
+
         process = psutil.Process(os.getpid())
         baseline_mb = process.memory_info().rss / (1024 * 1024)
+        threads_before = {t.ident for t in threading.enumerate()}
 
         service.start()
         time.sleep(0.1)
+        started_threads = [t.name for t in threading.enumerate() if t.ident not in threads_before]
 
         metrics = service.get_metrics()
         service.stop()
@@ -335,10 +339,14 @@ class TestBackgroundServiceManager:
             f"sleep mode added {added_mb:.1f} MB "
             f"({baseline_mb:.1f} -> {metrics.memory_mb:.1f} MB)"
         )
-        # CPU is sampled over a 100 ms window inside get_metrics(), so it is
-        # already a rate rather than a total; 30% leaves room for a loaded
-        # runner while still catching a spin-loop.
-        assert metrics.cpu_percent < 30  # nosec B101
+        # Sleep mode does no work of its own: the service is a state machine
+        # whose only timer belongs to wake mode, so entering sleep must start
+        # no thread, and a spin loop would need one. This replaced
+        # `metrics.cpu_percent < 30`, which sampled the CPU of the whole test
+        # process over 100 ms - every thread earlier tests left behind - and
+        # failed at 31.0 in a pre-push full suite while passing 20 runs of 20
+        # alone. A count of threads does not depend on how busy the machine is.
+        assert started_threads == [], f"sleep mode started threads: {started_threads}"  # nosec B101
     
     # ========================================================================
     # STATE MANAGEMENT
