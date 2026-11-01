@@ -9,8 +9,6 @@ either code; they are the regression tests for 3.11, where CI runs them.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 
