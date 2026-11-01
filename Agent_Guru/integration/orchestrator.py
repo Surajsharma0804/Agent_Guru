@@ -1162,10 +1162,19 @@ class IntegrationOrchestrator:
                     if wake_event.text is not None:
                         result.transcript, result.detected_language = wake_event.text.strip(), ""
                     else:
-                        result.transcript, result.detected_language = await asyncio.wait_for(
-                            self._stage_stt(wake_event.audio, result.personality),
-                            timeout=STT_TIMEOUT_S,
-                        )
+                        # asyncio.timeout, not asyncio.wait_for. On Python 3.11
+                        # wait_for runs the stage as a separate task with a copy
+                        # of this context, so the confidence _parse_stt_result
+                        # sets in _STT_CONFIDENCE never came back here, and the
+                        # quiet rule for fallback wakes saw None: on 3.11 a
+                        # garbled transcript after a noise wake was answered.
+                        # From 3.12 wait_for runs in this task; asyncio.timeout
+                        # does on every supported version, with the same
+                        # TimeoutError.
+                        async with asyncio.timeout(STT_TIMEOUT_S):
+                            result.transcript, result.detected_language = await self._stage_stt(
+                                wake_event.audio, result.personality,
+                            )
                 except TimeoutError:
                     logger.warning(
                         "STT stage exceeded %.1fs - treating the utterance as unheard",
@@ -1360,15 +1369,18 @@ class IntegrationOrchestrator:
             if needs_llm and not llm_done:
                 with _timed(result, "answer"):
                     try:
-                        result.llm_response = await asyncio.wait_for(
-                            self._stage_llm(
+                        # asyncio.timeout for the same reason as the STT stage:
+                        # under wait_for on Python 3.11 the model _build_llm_request
+                        # routed to was set in a copied context, so the turn
+                        # record credited the configured default model and the
+                        # turn router learned from the wrong model's outcomes.
+                        async with asyncio.timeout(LLM_TIMEOUT_S):
+                            result.llm_response = await self._stage_llm(
                                 result.transcript, result.memory_context,
                                 result.detected_language,
                                 personality=result.personality,
                                 intent=result.intent,
-                            ),
-                            timeout=LLM_TIMEOUT_S,
-                        )
+                            )
                     except TimeoutError:
                         logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
                         result.llm_response = LLM_TIMEOUT_REPLY
