@@ -202,9 +202,14 @@ async def check_cpu_and_memory() -> ComponentHealth:
 async def check_microphone() -> ComponentHealth:
     """Opens the default input for half a second and checks samples arrive."""
     import numpy as np
-    import sounddevice as sd
 
+    # The import is inside the try. On a Linux host with no sound server (Ubuntu 26.04's
+    # PortAudio tries PulseAudio) importing sounddevice raises PortAudioError. Outside the try
+    # it escaped this check, the health manager's gather re-raised it, and `doctor` ended with
+    # a traceback instead of reporting every component.
     try:
+        import sounddevice as sd
+
         device = sd.query_devices(kind="input")
     except Exception as exc:
         return _fail("microphone", f"no input device: {exc}")
@@ -227,9 +232,11 @@ async def check_microphone() -> ComponentHealth:
 
 async def check_speaker(play: bool = False) -> ComponentHealth:
     import numpy as np
-    import sounddevice as sd
 
+    # Inside the try for the reason given in check_microphone.
     try:
+        import sounddevice as sd
+
         device = sd.query_devices(kind="output")
     except Exception as exc:
         return _fail("speaker", f"no output device: {exc}")
