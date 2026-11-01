@@ -35,7 +35,7 @@ onnxscript>=0.6.0
 opencv-python>=4.8.0,<5  # 5.x removed CascadeClassifier, used by every face fallback
 opencv-contrib-python>=4.8.0,<5
 insightface>=0.7.3
-pillow>=10.0.0
+pillow>=13.0.0
 
 # Scientific Computing
 # numpy 2: kokoro-onnx 0.5.0, the voice, requires numpy>=2.0.2. A cap below
@@ -88,7 +88,7 @@ langchain-community>=0.0.20
 #   pytorch-lightning  -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
 networkx>=3.0
 celery>=5.3.0
-nltk>=3.8.1
+nltk>=3.10.4
 pytorch-lightning>=2.0.0
 
 # Configuration & Utilities
@@ -161,7 +161,7 @@ pynput>=1.7.6  # Keyboard/mouse input monitoring
 # most other text formats work without them.
 python-pptx>=0.6.23
 python-docx>=1.1.0
-pypdf>=4.0.0
+pypdf>=6.21.4
 
 # Optional: Enhanced Features
 # Uncomment if needed:
