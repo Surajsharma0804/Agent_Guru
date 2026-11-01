@@ -507,7 +507,7 @@ class TestConversationStateManagerProperties:
         conversation_id=st.text(min_size=1, max_size=100).filter(lambda x: x.strip()),
         user_id=st.text(min_size=1, max_size=100).filter(lambda x: x.strip()),
     )
-    @settings(deadline=500)
+    @settings()
     async def test_set_and_get_always_consistent(self, conversation_id: str, user_id: str):
         """Property: Set and get are always consistent."""
         manager = ConversationStateManager()
@@ -530,7 +530,7 @@ class TestConversationStateManagerProperties:
     @given(
         num_conversations=st.integers(min_value=1, max_value=20),
     )
-    @settings(deadline=1000)
+    @settings()
     async def test_active_count_always_accurate(self, num_conversations: int):
         """Property: Active count is always accurate."""
         manager = ConversationStateManager(max_conversations=100)
@@ -781,7 +781,7 @@ class TestHistoryManagementProperties:
         num_turns=st.integers(min_value=1, max_value=50),
         max_turns=st.integers(min_value=1, max_value=20),
     )
-    @settings(deadline=1000)
+    @settings()
     async def test_prune_respects_max_turns(self, num_turns: int, max_turns: int):
         """Property: After pruning, turns <= max_turns."""
         manager = ConversationStateManager()
@@ -816,7 +816,7 @@ class TestHistoryManagementProperties:
     @given(
         num_turns=st.integers(min_value=21, max_value=50),
     )
-    @settings(deadline=1000)
+    @settings()
     async def test_compression_always_reduces_size(self, num_turns: int):
         """Property: Compression always reduces turn count when needed."""
         manager = ConversationStateManager()
@@ -1063,7 +1063,7 @@ class TestEntityTrackingProperties:
         current_turn=st.integers(min_value=20, max_value=50),
         max_turns=st.integers(min_value=5, max_value=15),
     )
-    @settings(deadline=1000)
+    @settings()
     async def test_expire_removes_old_entities(
         self, num_entities: int, current_turn: int, max_turns: int
     ):
