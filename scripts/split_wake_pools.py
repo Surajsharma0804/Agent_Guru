@@ -9,9 +9,9 @@ AudioSet shard 09 and the first 120 FMA tracks, while the false-wake sets were s
 with no speech label and the first 200 FMA tracks: all 325 sound clips and 120 of the 200 music
 tracks had been heard in training, so the false wakes counted on them were low by an unknown amount.
 
-The scoring pool comes from two files neither the first nor the second models read: AudioSet balanced
-shard 01 (its clips with no speech, singing, TV or radio label) and FMA file 00001 (its first 200
-tracks). A clip id is the stem of the clip's audio path: the YouTube id for AudioSet (the same as its
+The scoring pool comes from files no model trained here has read: AudioSet balanced shards 01 to 05
+(their clips with no speech, singing, TV or radio label) and FMA files 00001 and 00002 (the first 200
+tracks of each). A clip id is the stem of the clip's audio path: the YouTube id for AudioSet (the same as its
 video_id column), the zero-padded track number for FMA, which is also the name training writes it as.
 """
 import json
@@ -39,12 +39,17 @@ def main() -> int:
     score: dict[str, list[str]] = {}
     for name in ("audioset_bal_train_00.parquet", "audioset_bal_train_09.parquet", "fma_small_train_00000.parquet"):
         train[name] = [i for i, _ in ids(DATA / "background" / name)]
-    shard01 = ids(DATA / "score_pool" / "audioset_bal_train_01.parquet", labels=True)
-    score["audioset_bal_train_01.parquet"] = [i for i, lab in shard01 if not any(w in lab for w in SPEECHY)]
-    train["audioset_bal_train_01.parquet"] = [i for i, lab in shard01 if any(w in lab for w in SPEECHY)]
-    fma1 = [i for i, _ in ids(DATA / "score_pool" / "fma_small_train_00001.parquet")]
-    score["fma_small_train_00001.parquet"] = fma1[:MUSIC_SCORE_TRACKS]
-    train["fma_small_train_00001.parquet"] = fma1[MUSIC_SCORE_TRACKS:]
+    # AudioSet shards 02 to 05 and FMA file 00002 were added on 2026-11-02: showing under 0.5 false
+    # wakes an hour with no wake at all needs 7.4 hours of wake-free audio, and the first two
+    # scoring files held 2.6 hours. No model trained so far has read any of them.
+    for name in [f"audioset_bal_train_0{i}.parquet" for i in (1, 2, 3, 4, 5)]:
+        shard = ids(DATA / "score_pool" / name, labels=True)
+        score[name] = [i for i, lab in shard if not any(w in lab for w in SPEECHY)]
+        train[name] = [i for i, lab in shard if any(w in lab for w in SPEECHY)]
+    for name in ("fma_small_train_00001.parquet", "fma_small_train_00002.parquet"):
+        tracks = [i for i, _ in ids(DATA / "score_pool" / name)]
+        score[name] = tracks[:MUSIC_SCORE_TRACKS]
+        train[name] = tracks[MUSIC_SCORE_TRACKS:]
     pools = {"train": train, "score": score}
     shared = set().union(*train.values()) & set().union(*score.values())
     if shared:
