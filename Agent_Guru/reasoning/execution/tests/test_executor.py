@@ -1270,3 +1270,66 @@ def test_a_wait_that_wakes_early_does_not_abandon_the_tool(monkeypatch):
     executor = SyncExecutor(default_timeout=2.0, max_retries=0)
     outcome = executor.execute(Action(action_id="a", tool_id="t", parameters={}), lambda p: time.sleep(0.05) or "done")
     assert woke_early and outcome.success and outcome.result_data == "done"  # nosec B101
+
+
+class TestLateResultIsATimeout:
+    """A result ready at or after the deadline is a timeout for the caller (issue #9, owner's decision).
+
+    The waiter could wake late and find the tool finished, and handed the value back as a success,
+    so whether a slow tool timed out depended on when the waiting thread was scheduled. On the
+    virtual clock the tool's work ends 1 microsecond either side of the deadline, every time.
+    """
+
+    TIMEOUT = 0.5
+
+    class _CountingClock(_VirtualClock):
+        """Counts reads, so the tool's work starts only once the executor is waiting on its deadline."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.reads = 0
+            self.waiting = threading.Event()
+
+        def monotonic(self) -> float:
+            self.reads += 1
+            if self.reads >= 2:  # the deadline, then the remaining time of the first wait
+                self.waiting.set()
+            return super().monotonic()
+
+        perf_counter = _VirtualClock.monotonic
+
+    def _run(self, finish_at: float):
+        clock = self._CountingClock()
+        executor = SyncExecutor(default_timeout=self.TIMEOUT, max_retries=0)
+        started, finish = threading.Event(), threading.Event()
+
+        def tool(params):
+            started.set()
+            finish.wait(10)
+            return {"value": 42}
+
+        def work():
+            # The executor sets its deadline after it has started the tool, so the clock may move
+            # only once it is waiting; moved earlier, the deadline would land after the move.
+            started.wait(10)
+            clock.waiting.wait(10)
+            clock.advance(finish_at)
+            finish.set()
+
+        worker = threading.Thread(target=work, daemon=True)
+        worker.start()
+        with patch.object(executor_module, "time", clock):
+            result = executor.execute(Action(action_id="late", tool_id="t", parameters={}), tool)
+        worker.join(10)
+        return result
+
+    def test_a_result_ready_just_before_the_deadline_is_a_success(self):
+        result = self._run(self.TIMEOUT - 1e-6)
+        assert result.success is True and result.timed_out is False  # nosec B101
+        assert result.result_data == {"value": 42}  # nosec B101
+
+    def test_a_result_ready_just_after_the_deadline_is_a_timeout(self):
+        result = self._run(self.TIMEOUT + 1e-6)
+        assert result.success is False and result.timed_out is True  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
+        assert result.result_data is None  # nosec B101
