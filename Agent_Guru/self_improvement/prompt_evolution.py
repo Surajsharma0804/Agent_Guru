@@ -14,6 +14,7 @@ Author: Agent Guru Team
 Date: 2026-02-28
 """
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -1239,7 +1240,12 @@ IMPROVED PROMPT:"""
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            update_id = f"update_{prompt_type}_{datetime.now(tz=UTC).timestamp()}"
+            # A random suffix, not the timestamp alone. Windows reads the wall clock
+            # in steps of about 15.6 ms, so two updates in one step got the same id
+            # and the second insert raised IntegrityError on the UNIQUE update_id:
+            # the second registration was lost, and 15 to 19 tests failed that way
+            # on the Windows py3.12 CI legs. The prefix stays readable in the table.
+            update_id = f"update_{prompt_type}_{datetime.now(tz=UTC).timestamp()}_{uuid.uuid4().hex[:12]}"
             now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
