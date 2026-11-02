@@ -242,16 +242,28 @@ class TestReasoningVerifier:
 
         assert result is None  # nosec B101
 
+    def test_a_step_cannot_be_built_depending_on_a_later_step(self):
+        """TaskStep's validator rejects a dependency on the same or a later step when it is built."""
+        with pytest.raises(ValueError, match="dependencies must reference earlier steps"):
+            TaskStep(step_id=1, description="Step 1", tool_id="timer.set", parameters={}, depends_on=[2],
+                     estimated_duration=0.1, status=TaskStatus.PENDING)
+
     @pytest.mark.asyncio
     async def test_detect_circular_dependencies_exists(self, verifier):
-        """Test circular dependency detection with cycle."""
-        # Note: We can't actually create a circular dependency due to validation
-        # So we'll test the detection logic directly with a mock scenario
-        # In practice, circular dependencies would be caught during task creation
+        """A cycle made after construction is still found by the verifier.
 
-        # This test verifies the detection logic works if somehow invalid data gets through
-        # For now, we'll skip this test as the validation prevents it
-        pytest.skip("Circular dependencies are prevented by TaskStep validation")
+        This skipped unconditionally ("Circular dependencies are prevented by TaskStep
+        validation"), so the cycle detector was never run on a cycle. The validator only runs
+        when a step is built: TaskStep has no validate_assignment, so depends_on can be changed
+        afterwards, which is the case the verifier's own check exists for.
+        """
+        first = TaskStep(step_id=1, description="Step 1", tool_id="timer.set", parameters={},
+                         depends_on=[], estimated_duration=0.1, status=TaskStatus.PENDING)
+        second = TaskStep(step_id=2, description="Step 2", tool_id="timer.set", parameters={},
+                          depends_on=[1], estimated_duration=0.1, status=TaskStatus.PENDING)
+        first.depends_on = [2]
+
+        assert verifier._detect_circular_dependencies([first, second]) == "Steps have circular dependencies"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_conflicting_actions_none(self, verifier):
