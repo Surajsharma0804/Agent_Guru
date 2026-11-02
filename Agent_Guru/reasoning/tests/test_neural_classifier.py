@@ -682,7 +682,7 @@ class TestNeuralClassifierProperties:
         max_length=st.integers(min_value=32, max_value=512),
         batch_size=st.integers(min_value=1, max_value=64),
     )
-    @settings(max_examples=50, deadline=500, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
     def test_config_always_valid(self, confidence_threshold, max_length, batch_size):
         """Property: Config with valid parameters always creates classifier."""
         config = ClassifierConfig(
@@ -697,7 +697,7 @@ class TestNeuralClassifierProperties:
         assert classifier.config.batch_size == batch_size  # nosec B101
 
     @given(logits=st.lists(st.floats(min_value=-10.0, max_value=10.0), min_size=2, max_size=100))
-    @settings(max_examples=100, deadline=500)
+    @settings(max_examples=100)
     def test_softmax_always_sums_to_one(self, logits):
         """Property: Softmax output always sums to 1.0."""
         logits_array = np.array(logits)
