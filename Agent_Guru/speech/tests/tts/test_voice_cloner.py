@@ -39,6 +39,19 @@ def sample_audio():
     return audio.astype(np.float32)
 
 
+# Enrolment minimum for the tests whose property is bookkeeping across many
+# voices (enrol, list, delete, concurrent writers), not the minimum itself.
+# They used to enrol the production 300 s per voice: 30 clips, each a 25 ms
+# feature extraction, so 10 voices took 8.7 s of a 30 s limit and 100
+# concurrent voices took 82 s of 180 s on a quiet machine, and under 24 busy
+# processes both were killed by pytest-timeout. With 30 s (3 clips) the same
+# voices and threads do a tenth of the work. The production 300 s is still
+# pinned by test_voice_cloner_initialization and refused below it by
+# test_enroll_voice_insufficient_audio.
+BOOKKEEPING_MIN_S = 30.0
+BOOKKEEPING_CLIPS = 3
+
+
 def test_voice_cloner_initialization(voice_cloner):
     """Test voice cloner initialization."""
     assert voice_cloner is not None  # nosec B101
@@ -550,9 +563,9 @@ def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
     """Test memory efficiency with many voices."""
     import gc
     
-    # Enroll 10 voices
-    audio_samples = [sample_audio for _ in range(30)]
-    
+    voice_cloner.min_enrollment_duration = BOOKKEEPING_MIN_S
+    audio_samples = [sample_audio for _ in range(BOOKKEEPING_CLIPS)]
+
     for i in range(10):
         voice_cloner.enroll_voice(
             audio_samples=audio_samples,
@@ -687,8 +700,9 @@ def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio)
     import gc
     
     print("\n[EXTREME TEST] 100 concurrent voice enrollments")
-    
-    audio_samples = [sample_audio for _ in range(30)]
+
+    voice_cloner.min_enrollment_duration = BOOKKEEPING_MIN_S
+    audio_samples = [sample_audio for _ in range(BOOKKEEPING_CLIPS)]
     
     def enroll_voice(idx):
         try:
@@ -733,10 +747,16 @@ def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
     
     print("\n[EXTREME TEST] 1000 voice similarity comparisons")
     
-    # Generate 50 different voices
+    # Generate 50 different voices.
+    # One second each, not ten: the property is that 1,000 comparisons all
+    # complete and stay inside [0, 1], and clip length is not part of it. At
+    # 10 s every comparison ran two 25 ms feature extractions, 44 s of a 180 s
+    # limit on a quiet machine, and the test was killed under 24 busy
+    # processes. One second still spans 32 STFT frames at hop 512, so pitch
+    # and spectral statistics are computed from real frames, not padding.
     voices = []
     for i in range(50):
-        duration = 10.0
+        duration = 1.0
         sample_rate = 16000
         num_samples = int(duration * sample_rate)
         
