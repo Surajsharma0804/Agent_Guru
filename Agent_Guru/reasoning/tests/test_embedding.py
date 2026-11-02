@@ -437,3 +437,53 @@ class TestEmbeddingGeneratorIntegration:
         # (multilingual models capture cross-lingual semantics)
         sim_en_fr = generator.compute_similarity(embeddings[0], embeddings[1])
         assert sim_en_fr > 0.15  # Lowered threshold - multilingual models vary  # nosec B101
+
+
+
+class TestModelLoadUsesTheCacheFirst:
+    """_load_model reads a cached model without asking huggingface.co, and downloads only when it must.
+
+    Loading asked huggingface.co about every file of the model even when it was on disk: 33 requests
+    per start of the app and 6.1 to 6.6 s per load, against 0.27 to 0.29 s from the cache alone.
+    A stand-in SentenceTransformer records each construction, so no model is loaded here.
+    """
+
+    @pytest.fixture
+    def calls(self, monkeypatch):
+        import sys
+        import types
+
+        from Agent_Guru.reasoning.memory import embedding
+
+        made: list[dict] = []
+
+        class _StandIn:
+            cached_on_disk = True
+
+            def __init__(self, name, device=None, local_files_only=False):
+                made.append({"name": name, "local_files_only": local_files_only})
+                if local_files_only and not _StandIn.cached_on_disk:
+                    raise OSError("not in the local cache")
+
+        module = types.ModuleType("sentence_transformers")
+        module.SentenceTransformer = _StandIn
+        monkeypatch.setitem(sys.modules, "sentence_transformers", module)
+        monkeypatch.setattr(embedding, "_MODEL_CACHE", {})
+        return types.SimpleNamespace(made=made, stand_in=_StandIn, load=embedding._load_model)
+
+    def test_a_cached_model_is_loaded_from_disk_only(self, calls):
+        calls.load("stand-in/model", "cpu")
+        assert calls.made == [{"name": "stand-in/model", "local_files_only": True}]  # nosec B101
+
+    def test_a_model_not_on_disk_is_still_downloaded(self, calls):
+        calls.stand_in.cached_on_disk = False
+        calls.load("stand-in/model", "cpu")
+        assert calls.made == [  # nosec B101
+            {"name": "stand-in/model", "local_files_only": True},
+            {"name": "stand-in/model", "local_files_only": False},
+        ]
+
+    def test_the_model_is_loaded_once_per_process(self, calls):
+        first = calls.load("stand-in/model", "cpu")
+        assert calls.load("stand-in/model", "cpu") is first  # nosec B101
+        assert len(calls.made) == 1  # nosec B101
