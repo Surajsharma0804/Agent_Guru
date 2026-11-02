@@ -178,3 +178,18 @@ class TestSettings:
 def test_the_echo_rule_needs_three_words():
     assert not whisper_stt._echoes_prompt("Guru, Maya", DEFAULT_INITIAL_PROMPT)  # nosec B101
     assert whisper_stt._echoes_prompt("Guru, Maya, Suraj", DEFAULT_INITIAL_PROMPT)  # nosec B101
+
+
+@pytest.mark.parametrize(("segments", "heard", "kept"), [
+    # Whisper base on the GPU, every call: the trailing window wrote the sentence again.
+    (["What is the capital of France?", "What is the capital of France?"], "What is the capital of France?", 1),
+    (["Maya plays some old Bollywood songs.", "maya plays some old bollywood songs"],
+     "Maya plays some old Bollywood songs.", 1),
+    # Different sentences, or a repeat that is not the segment just before, are kept.
+    (["Set a timer.", "For five minutes."], "Set a timer. For five minutes.", 2),
+    (["Stop.", "Go.", "Stop."], "Stop. Go. Stop.", 3),
+])
+def test_a_segment_repeating_the_one_before_is_kept_once(segments, heard, kept):
+    result = _speak(_with_stand_in(_StandIn(segments)))
+    assert result.text == heard  # nosec B101
+    assert len(result.segments) == kept  # nosec B101
