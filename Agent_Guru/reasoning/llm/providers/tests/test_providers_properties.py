@@ -345,7 +345,7 @@ class TestProviderBehaviorProperties:
     @given(
         provider_type=st.sampled_from([OpenAIProvider, AnthropicProvider]),
     )
-    @settings(max_examples=10, deadline=500)  # Reduced for async tests, 500ms deadline
+    @settings(max_examples=10)  # Reduced for async tests
     async def test_provider_returns_response_on_success(self, provider_type):
         """Property: Provider always returns LLMResponse on success."""
         config = ProviderConfig(api_key="test-key")
@@ -402,7 +402,7 @@ class TestProviderBehaviorProperties:
     @given(
         provider_type=st.sampled_from([OpenAIProvider, AnthropicProvider]),
     )
-    @settings(max_examples=10, deadline=500)  # Reduced for async tests, 500ms deadline
+    @settings(max_examples=10)  # Reduced for async tests
     async def test_provider_health_always_returns_dict(self, provider_type):
         """Property: get_health always returns valid dictionary."""
         config = ProviderConfig(api_key="test-key")
