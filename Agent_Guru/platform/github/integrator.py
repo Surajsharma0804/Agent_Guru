@@ -1226,8 +1226,23 @@ class GitHubIntegrator:
                 logger.info("Push attempt %d/%d", attempt, max_retries)
 
                 try:
-                    # Attempt push
-                    push_result = self.push(branch=branch, force=force)
+                    # push() raises GitConflictError on a rejected push rather than returning a
+                    # failed result. This loop used to call it bare, so the rejection escaped
+                    # before the rebase branch below was reached: a push to a remote that had
+                    # simply moved on (no overlapping edit, git says "fetch first") failed on the
+                    # first attempt and nothing was ever rebased. Mocked tests did not see it
+                    # because their push stand-in returned a failed result; a bare remote with
+                    # two clones did. The rejection is turned back into a result here so the
+                    # rebase-and-retry path runs; a forced push still raises, as it did, because
+                    # there is nothing to rebase for it.
+                    try:
+                        push_result = self.push(branch=branch, force=force)
+                    except GitConflictError as rejected:
+                        if force:
+                            raise
+                        push_result = GitOperationResult(
+                            success=False, message=str(rejected), stderr=str(rejected),
+                        )
 
                     if push_result.success:
                         duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
