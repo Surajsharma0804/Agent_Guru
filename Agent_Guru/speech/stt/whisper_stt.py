@@ -102,6 +102,27 @@ NO_REPEAT_NGRAM_SIZE = 3
 _ECHO_MIN_WORDS = 3
 
 
+def _drop_repeated_segments(segments: list) -> list:
+    """The segments without any that repeat the words of the segment just before them.
+
+    On the GPU, Whisper base ended the first segment early (1.24 s of a 1.88 s clip), decoded the
+    rest as a second window conditioned on the first, and wrote the whole sentence again: "What is
+    the capital of France? What is the capital of France?" on every call, cold or warm, int8_float16
+    or float16. That was 2 of 50 clips on the GPU (one a command, "Maya plays some old Bollywood
+    songs." twice, which could be acted on twice) and 0 of 50 on the CPU. no_repeat_ngram_size
+    cannot stop it: it works inside one window. A sentence the speaker really says twice in a row
+    is heard once, which loses nothing a command needs.
+    """
+    kept: list = []
+    for segment in segments:
+        words = re.findall(r"[\w']+", segment.text.lower())
+        if kept and words and words == re.findall(r"[\w']+", kept[-1].text.lower()):
+            logger.debug("Whisper repeated a segment (%r); kept once", segment.text)
+            continue
+        kept.append(segment)
+    return kept
+
+
 def _echoes_prompt(text: str, prompt: str) -> bool:
     """True when *text* is only words of *prompt*, at least _ECHO_MIN_WORDS, in the prompt's order.
 
@@ -501,7 +522,7 @@ class WhisperTranscriber:
             )
 
             # Convert generator to list
-            segments_list = list(segments_iter)
+            segments_list = _drop_repeated_segments(list(segments_iter))
 
             # Build transcription result
             full_text = " ".join(seg.text.strip() for seg in segments_list)
