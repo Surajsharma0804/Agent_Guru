@@ -5,7 +5,7 @@ Coverage Target: >80%
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -146,9 +146,15 @@ class TestCloudSyncServiceMocked:
         """Create service with mocked pool."""
         service = CloudSyncService(sync_config)
 
-        # Mock pool and connection
+        # The pool is a MagicMock because asyncpg's Pool.acquire() is a plain call that returns
+        # an async context manager. It used to be an AsyncMock, which turns acquire() into a
+        # coroutine, so every "async with self._pool.acquire()" raised TypeError and the service
+        # caught it and returned its failure value. The five success-path tests below could
+        # never pass, so they were skipped as needing a real PostgreSQL, and the error-path
+        # tests passed whatever their own mocks did. close() is still awaited, so it stays async.
         mock_conn = AsyncMock()
-        mock_pool = AsyncMock()
+        mock_pool = MagicMock()
+        mock_pool.close = AsyncMock()
 
         # Create async context manager for acquire
         class MockAcquire:
@@ -170,7 +176,6 @@ class TestCloudSyncServiceMocked:
 
         await service.close()
 
-    @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
     async def test_sync_to_cloud_success(self, mock_service, sample_state):
         """Test successful sync to cloud."""
@@ -192,7 +197,6 @@ class TestCloudSyncServiceMocked:
 
         assert result is False  # nosec B101
 
-    @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
     async def test_sync_from_cloud_found(self, mock_service, sample_state):
         """Test sync from cloud when conversation exists."""
@@ -229,7 +233,6 @@ class TestCloudSyncServiceMocked:
 
         assert result is None  # nosec B101
 
-    @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
     async def test_list_user_conversations(self, mock_service):
         """Test listing user conversations."""
@@ -269,7 +272,6 @@ class TestCloudSyncServiceMocked:
 
         assert result == []  # nosec B101
 
-    @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
     async def test_delete_conversation_success(self, mock_service):
         """Test successful conversation deletion."""
@@ -301,7 +303,6 @@ class TestCloudSyncServiceMocked:
 
         assert result is False  # nosec B101
 
-    @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
     async def test_get_sync_status_found(self, mock_service):
         """Test getting sync status when conversation exists."""
