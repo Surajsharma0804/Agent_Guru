@@ -581,7 +581,7 @@ class TestNERExtractorProperties:
         confidence_threshold=st.floats(min_value=0.0, max_value=1.0),
         max_entities=st.integers(min_value=1, max_value=100),
     )
-    @settings(max_examples=50, deadline=500, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
     def test_config_always_valid(self, confidence_threshold, max_entities):
         """Property: Config with valid parameters always creates extractor."""
         config = NERConfig(
@@ -595,7 +595,7 @@ class TestNERExtractorProperties:
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     @given(text=st.text(min_size=1, max_size=100))
-    @settings(max_examples=50, deadline=500, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
     def test_normalize_duration_never_negative(self, text):
         """Property: Normalized duration is never negative."""
         extractor = NEREntityExtractor()
