@@ -11,7 +11,6 @@ from Agent_Guru.speech.models import TranscriptionResult
 # Common settings for all property tests
 COMMON_SETTINGS = settings(
     max_examples=10,
-    deadline=30000,
     suppress_health_check=[
         HealthCheck.too_slow,
         HealthCheck.function_scoped_fixture,
@@ -21,7 +20,6 @@ COMMON_SETTINGS = settings(
 
 PERFORMANCE_SETTINGS = settings(
     max_examples=5,
-    deadline=60000,
     suppress_health_check=[
         HealthCheck.too_slow,
         HealthCheck.function_scoped_fixture,
