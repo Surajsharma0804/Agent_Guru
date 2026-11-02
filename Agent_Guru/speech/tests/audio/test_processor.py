@@ -262,7 +262,7 @@ class TestAudioProcessor:
 class TestAudioProcessorPropertyTests:
     """Property-based tests for AudioProcessor."""
     
-    @settings(max_examples=50, deadline=1000)
+    @settings(max_examples=50)
     @given(
         duration=st.floats(min_value=0.1, max_value=2.0),
         frequency=st.floats(min_value=100, max_value=1000)
@@ -291,7 +291,7 @@ class TestAudioProcessorPropertyTests:
         assert len(reduced) == len(audio), "Length should be preserved"  # nosec B101
         assert reduced.dtype == audio.dtype, "Dtype should be preserved"  # nosec B101
     
-    @settings(max_examples=50, deadline=1000)
+    @settings(max_examples=50)
     @given(
         energy_level=st.floats(min_value=0.0, max_value=1.0)
     )
@@ -318,7 +318,7 @@ class TestAudioProcessorPropertyTests:
         # Should be very fast (< 50ms for 1 second of audio)
         assert elapsed_ms < 50, f"VAD took {elapsed_ms}ms, should be < 50ms"  # nosec B101
     
-    @settings(max_examples=30, deadline=2000)
+    @settings(max_examples=30)
     @given(
         noise_strength=st.floats(min_value=0.1, max_value=0.8)
     )
