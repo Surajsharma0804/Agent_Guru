@@ -23,8 +23,17 @@ from Agent_Guru.reasoning.llm.fallback_processor import (
 )
 from Agent_Guru.reasoning.models.task import Task, TaskStatus, TaskType
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Located from this file, not the working directory. The integration tests
+# used to pass the relative "Agent_Guru/reasoning/data/intent_patterns.yaml"
+# and skip on FileNotFoundError, so started from anywhere but the repository
+# root they skipped with "Patterns file not found" while the file was there,
+# and the run looked green with the real router never tested. The file is
+# tracked, so a missing one is now a failure, not a skip.
+PATTERNS_FILE = Path(__file__).resolve().parents[2] / "data" / "intent_patterns.yaml"
 
 # Unit Tests - FallbackMetrics
 
@@ -546,11 +555,7 @@ class TestFallbackProcessorIntegration:
         # Create processor with real router
         processor = FallbackProcessor()
 
-        # Load patterns (assuming patterns file exists)
-        try:
-            processor.router.load_patterns("Agent_Guru/reasoning/data/intent_patterns.yaml")
-        except FileNotFoundError:
-            pytest.skip("Patterns file not found")
+        processor.router.load_patterns(str(PATTERNS_FILE))
 
         # Test with common command
         task = processor.process_with_fallback("set timer for 5 minutes")
@@ -565,11 +570,7 @@ class TestFallbackProcessorIntegration:
         """Test metrics tracking in integration."""
         processor = FallbackProcessor()
 
-        # Try to load patterns
-        try:
-            processor.router.load_patterns("Agent_Guru/reasoning/data/intent_patterns.yaml")
-        except FileNotFoundError:
-            pytest.skip("Patterns file not found")
+        processor.router.load_patterns(str(PATTERNS_FILE))
 
         # Process multiple inputs
         inputs = [
