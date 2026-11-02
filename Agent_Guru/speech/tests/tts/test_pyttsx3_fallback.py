@@ -8,10 +8,13 @@ the Windows CI runners pytest-timeout then ended the whole test run.
 
 from __future__ import annotations
 
+import io
+import logging
 import os
 import subprocess
 import sys
 import time
+import wave
 
 import pytest
 
@@ -27,13 +30,58 @@ def _engine_with_voices() -> _Pyttsx3Engine:
     return engine
 
 
-def test_every_sentence_is_spoken_not_only_the_first():
+def _frames(wav: bytes) -> int:
+    with wave.open(io.BytesIO(wav), "rb") as f:
+        return f.getnframes()
+
+
+def test_every_sentence_is_spoken_not_only_the_first(monkeypatch):
+    monkeypatch.setattr(tts_engine, "_pyttsx3_no_audio", None)
     engine = _engine_with_voices()
     for i in range(3):
         started = time.perf_counter()
         wav = engine.synthesize(f"Sentence number {i}.", PersonalityType.GURU)
-        assert wav[:4] == b"RIFF" and len(wav) > 1000  # nosec B101
+        # A voice that writes no frames now comes back as silence, which would pass a size
+        # check; the engine notes it, and that note is what this host is missing.
+        if tts_engine._pyttsx3_no_audio is not None:
+            pytest.skip(f"UNVERIFIED on this host: {tts_engine._pyttsx3_no_audio}")
+        assert wav[:4] == b"RIFF" and _frames(wav) > 0  # nosec B101
         assert time.perf_counter() - started < 10  # nosec B101
+
+
+#: What SAPI wrote on the Windows CI runner: a PCM header, an 18-byte fmt chunk, no frames (46 bytes).
+_HEADER_ONLY_CHILD = """
+import sys, struct
+fmt = struct.pack("<HHIIHHH", 1, 1, 22050, 44100, 2, 16, 0)
+body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", 0)
+open(sys.argv[1], "wb").write(b"RIFF" + struct.pack("<I", len(body)) + body)
+"""
+
+
+def test_a_wav_with_no_frames_is_silence_and_the_backend_says_none(monkeypatch, caplog):
+    """A header-only WAV used to go back as audio: 46 bytes, 0 frames, no log, backend "pyttsx3"."""
+    monkeypatch.setattr(tts_engine, "_pyttsx3_no_audio", None)
+    monkeypatch.setattr(tts_engine, "_PYTTSX3_SCRIPT", _HEADER_ONLY_CHILD)
+    engine = tts_engine.TTSEngine()
+    engine._use_kokoro = False
+    engine._pyttsx3._engine = object()  # initialised; the child process does the work
+    engine._pyttsx3_ready = True
+    assert engine.active_backend == "pyttsx3"  # nosec B101
+
+    with caplog.at_level(logging.WARNING, logger=tts_engine.logger.name):
+        first = engine.synthesize("Hello there.", PersonalityType.GURU)
+        second = engine.synthesize("Hello again.", PersonalityType.GURU)
+
+    assert first == tts_engine._silence_wav("Hello there.") and _frames(first) > 0  # nosec B101
+    assert second == tts_engine._silence_wav("Hello again.")  # nosec B101
+    assert engine.active_backend == "none"  # nosec B101
+    other = tts_engine.TTSEngine()
+    other._use_kokoro = False
+    other._pyttsx3._engine = object()
+    other._pyttsx3_ready = True
+    assert other.active_backend == "none"  # nosec B101  the note is process-wide, not per engine
+    warned = [r for r in caplog.records if "no audio frames" in r.getMessage()]
+    assert len(warned) == 1  # nosec B101  said once, not once per sentence
 
 
 def test_a_stalled_synthesis_is_ended_and_gives_silence(monkeypatch):
