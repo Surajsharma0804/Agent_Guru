@@ -46,12 +46,46 @@ def require_real_backend(engine) -> None:
     asserting something the environment cannot answer.
     """
     backend = engine.active_backend
+    if backend == "pyttsx3":
+        # pyttsx3 starting is not pyttsx3 speaking: on the Windows CI runner SAPI wrote a WAV
+        # with no frames, and the content tests here got an empty array and a clipping ratio of
+        # nan. One sentence shows which; a frameless WAV makes active_backend say "none". The
+        # probe goes to pyttsx3 itself on an engine of its own, so the one under test is unchanged.
+        from Agent_Guru.speech.tts.tts_engine import TTSEngine
+
+        probe = TTSEngine()
+        probe._use_kokoro = False
+        probe.synthesize("Testing the voice.")
+        backend = engine.active_backend
     if backend == "none":
         pytest.skip(
-            "UNVERIFIED on this host: no TTS backend available (Kokoro model "
-            "absent and pyttsx3 not installed), so the engine returns silence "
-            "and audio-content/timing assertions cannot be evaluated",
+            "UNVERIFIED on this host: no TTS backend produces audio (Kokoro model "
+            "absent, and pyttsx3 not installed or writing no frames), so the engine "
+            "returns silence and audio-content/timing assertions cannot be evaluated",
         )
+
+
+
+def test_the_backend_guard_skips_when_pyttsx3_writes_no_frames(monkeypatch):
+    """pyttsx3 starting used to be enough; on the Windows runner it then wrote WAVs with no frames."""
+    from Agent_Guru.speech.tts import tts_engine as module
+
+    def started(self):
+        self._engine = object()
+        return True
+
+    monkeypatch.setattr(module, "_kokoro_package_installed", lambda: False)
+    monkeypatch.setattr(module._Pyttsx3Engine, "initialize", started)
+    monkeypatch.setattr(module, "_pyttsx3_no_audio", None)
+    monkeypatch.setattr(module, "_PYTTSX3_SCRIPT", (
+        "import sys, wave\n"
+        "with wave.open(sys.argv[1], 'wb') as f:\n"
+        "    f.setnchannels(1); f.setsampwidth(2); f.setframerate(22050)\n"
+    ))
+    engine = module.TTSEngine()
+    assert engine.active_backend == "pyttsx3"  # nosec B101
+    with pytest.raises(pytest.skip.Exception, match="writing no frames"):
+        require_real_backend(engine)
 
 
 # Helper functions
