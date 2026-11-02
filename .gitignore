@@ -304,4 +304,15 @@ _to_delete/
 # Wake-word training work: the Colab notebook, generated and recorded clips,
 # benchmark audio and trained models. Hundreds of MB of audio, some of it
 # family recordings, so it stays out of the repo; models ship separately.
-wakeword_training/
+#
+# The offline training runner's code is the exception. Ignoring the whole
+# folder also kept its 23 scripts out, so the only copy of the pipeline
+# that trains and benchmarks the wake word lived on one laptop, unreviewed,
+# unlinted and unversioned. Only its .py and .sh files and its runbook are
+# tracked; every audio, model and output path under it stays ignored.
+wakeword_training/*
+!wakeword_training/runner/
+wakeword_training/runner/*
+!wakeword_training/runner/*.py
+!wakeword_training/runner/*.sh
+!wakeword_training/runner/RUNBOOK.md
