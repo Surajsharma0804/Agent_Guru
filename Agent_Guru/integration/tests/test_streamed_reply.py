@@ -182,7 +182,13 @@ async def test_a_spoken_answer_records_tokens_timings_and_first_text(plays, monk
     orch.trace_store = TurnTraceStore(tmp_path / "turns.db")
     result, _ = await _turn(orch)
     stats = result.llm_stats
-    assert SENTENCE_S <= stats["first_text_s"] < 2 * SENTENCE_S  # nosec B101  the first sentence took 0.3 s to write
+    # The first sentence took 0.3 s to write, but asyncio runs a timer once it is due within the
+    # monotonic clock's resolution, so asyncio.sleep(0.3) may end that much early by perf_counter.
+    # The bound was a bare 0.3 and failed on the Windows Python 3.12 runner at 0.29954 s, where the
+    # resolution is 15.6 ms; it is 1e-7 s on 3.13, so there the bound is unchanged. A first_text_s
+    # taken at the start of the stream (0) or at its end (0.9) still fails either side.
+    early = time.get_clock_info("monotonic").resolution
+    assert SENTENCE_S - early <= stats["first_text_s"] < 2 * SENTENCE_S  # nosec B101
     assert (stats["prompt_tokens"], stats["output_tokens"]) == (120, 40)  # nosec B101
     assert stats["prompt_s"] == 0.05 and stats["tokens_per_s"] == pytest.approx(50.0)  # nosec B101
     [turn] = orch.trace_store.recent()
