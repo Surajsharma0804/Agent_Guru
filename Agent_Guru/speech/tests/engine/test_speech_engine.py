@@ -51,11 +51,21 @@ def require_tts_backend() -> None:
     from Agent_Guru.speech.tts import tts_engine
     from Agent_Guru.utils.verified_files import problems, stamp_matches
 
-    backend = tts_engine.TTSEngine().active_backend
+    engine = tts_engine.TTSEngine()
+    backend = engine.active_backend
+    if backend == "pyttsx3":
+        # pyttsx3 starting is not pyttsx3 speaking: on the Windows CI runner SAPI wrote a WAV
+        # with no frames, the tests below got empty arrays and failed "assert 0 > 0", and since
+        # that WAV now comes back as silence they would pass on it instead. One sentence shows
+        # which; the engine notes a frameless WAV and active_backend then says "none". The probe
+        # goes to pyttsx3 itself, as synthesis on this host would: Kokoro is not usable here.
+        engine._use_kokoro = False
+        engine.synthesize("Testing the voice.")
+        backend = engine.active_backend
     if backend == "none":
         pytest.skip(
-            "UNVERIFIED on this host: no local TTS backend "
-            "(Kokoro model not cached and pyttsx3 unavailable)",
+            "UNVERIFIED on this host: no local TTS backend produces audio "
+            "(Kokoro model not cached, and pyttsx3 unavailable or writing no frames)",
         )
     # This used to skip whenever the backend was Kokoro and downloads were off.
     # The root conftest.py always turns downloads off, and active_backend says
@@ -98,6 +108,41 @@ def test_tts_guard_skips_when_the_cache_fails_its_pins(monkeypatch):
     monkeypatch.setattr("Agent_Guru.utils.verified_files.problems", lambda path, pin: "size differs")
     with pytest.raises(pytest.skip.Exception):
         require_tts_backend()
+
+
+def _pyttsx3_only(monkeypatch, frames: int) -> None:
+    """Kokoro absent, pyttsx3 started, and its child writes a WAV with *frames* frames."""
+    from Agent_Guru.speech.tts import tts_engine
+
+    def started(self):
+        self._engine = object()
+        return True
+
+    monkeypatch.setattr(tts_engine, "_kokoro_package_installed", lambda: False)
+    monkeypatch.setattr(tts_engine._Pyttsx3Engine, "initialize", started)
+    monkeypatch.setattr(tts_engine, "_pyttsx3_no_audio", None)
+    monkeypatch.setattr(tts_engine, "_PYTTSX3_SCRIPT", (
+        "import sys, wave\n"
+        "with wave.open(sys.argv[1], 'wb') as f:\n"
+        "    f.setnchannels(1); f.setsampwidth(2); f.setframerate(22050)\n"
+        f"    f.writeframes(bytes([1, 0]) * {frames})\n"
+    ))
+
+
+def test_tts_guard_skips_when_pyttsx3_writes_no_frames(monkeypatch):
+    """pyttsx3 starting used to be enough to run the synthesis tests, which then failed on silence."""
+    _pyttsx3_only(monkeypatch, frames=0)
+    with pytest.raises(pytest.skip.Exception, match="writing no frames"):
+        require_tts_backend()
+
+
+def test_tts_guard_runs_when_pyttsx3_speaks(monkeypatch):
+    """The probe is not a skip in disguise: a pyttsx3 that writes frames is a backend to test."""
+    _pyttsx3_only(monkeypatch, frames=2205)
+    try:
+        require_tts_backend()
+    except pytest.skip.Exception as skipped:
+        pytest.fail(f"skipped though pyttsx3 wrote audio: {skipped}")
 
 
 class TestSpeechEngine:
