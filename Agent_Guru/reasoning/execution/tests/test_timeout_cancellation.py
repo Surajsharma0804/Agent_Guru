@@ -401,7 +401,7 @@ class TestTimeoutProperties:
         timeout=st.floats(min_value=MIN_TIMEOUT, max_value=MAX_TIMEOUT),
         execution_time=st.floats(min_value=0.0, max_value=MAX_EXECUTION),
     )
-    @settings(max_examples=MAX_EXAMPLES, deadline=5000)
+    @settings(max_examples=MAX_EXAMPLES)
     def test_property_timeout_enforcement(self, timeout: float, execution_time: float):
         """Property: Execution exceeding timeout should fail with TIMEOUT error.
 
@@ -435,7 +435,7 @@ class TestTimeoutProperties:
         timeout=st.floats(min_value=MIN_TIMEOUT, max_value=MAX_TIMEOUT),
         execution_time=st.floats(min_value=0.0, max_value=MAX_EXECUTION),
     )
-    @settings(max_examples=MAX_EXAMPLES, deadline=5000)
+    @settings(max_examples=MAX_EXAMPLES)
     async def test_property_async_timeout_enforcement(self, timeout: float, execution_time: float):
         """Property: Async execution exceeding timeout should fail with TIMEOUT error.
 
@@ -465,7 +465,7 @@ class TestTimeoutProperties:
     @given(
         num_tasks=st.integers(min_value=1, max_value=5),
     )
-    @settings(max_examples=20, deadline=10000)
+    @settings(max_examples=20)
     @pytest.mark.asyncio
     async def test_property_cancel_all_cancels_all(self, num_tasks: int):
         """Property: cancel_all_tasks should cancel all in-flight tasks.
