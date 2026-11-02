@@ -19,6 +19,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from typing import Any
 
 # Load .env before anything else so OLLAMA_MODEL, API keys, etc. are available
@@ -422,6 +423,11 @@ async def run() -> None:
     platform   = _load_platform()
     agents     = _load_agents()
     memory     = _load_memory()
+    # Started as soon as the memory exists, so the load runs alongside the rest of startup. It
+    # used to start after orch.startup() and the Whisper tiny pre-warm, about 20 s into a 24 s
+    # start, and finished about 10 s after "Listening": a question asked then waited out the 5 s
+    # memory budget (median 5.007 s over 10 cold starts) and recalled nothing in 6 of 10.
+    _start_memory_warmup(asyncio.get_running_loop())
     reasoning  = _load_reasoning()
     security   = _load_security()
     mcp_servers = _load_mcp_servers()
@@ -664,8 +670,6 @@ async def run() -> None:
     except Exception as _e:
         logger.warning("Whisper tiny pre-warm failed (%s) - Maya detection uses spectral fallback", _e)
         _whisper_tiny_global = None
-
-    _start_memory_warmup(asyncio.get_running_loop())
 
     # --- Define pipeline callback BEFORE starting the listener ---
     async def _on_wake_word(detection) -> None:
@@ -977,12 +981,19 @@ def _start_memory_warmup(loop: asyncio.AbstractEventLoop) -> Any:
     """
 
     def warm() -> None:
+        started = time.monotonic()
         try:
             from Agent_Guru.memory.memory_manager import _get_real_embedder
 
-            _get_real_embedder()
+            embedder = _get_real_embedder()
         except Exception as exc:
             logger.warning("Memory embedding model did not preload (%s); it loads on first use", exc)
+            return
+        # Nothing said when the preload finished, so a slow first turn could not be told apart
+        # from a preload that was still running. None means the memory fell back to its
+        # letter-frequency stub, which _get_real_embedder() has already warned about.
+        if embedder is not None:
+            logger.info("Memory embedding model ready after %.1f s", time.monotonic() - started)
 
     logger.info("Pre-loading the memory embedding model in the background...")
     return loop.run_in_executor(None, warm)
