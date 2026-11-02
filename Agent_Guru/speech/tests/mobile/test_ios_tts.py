@@ -46,6 +46,10 @@ class MockAVSpeechUtterance:
 
 
 class MockAVSpeechSynthesizer:
+    # How long one utterance "speaks". IOSTTS.synthesize polls isSpeaking()
+    # every 0.05 s until it is False, so this is a real wall-clock wait per call.
+    speak_seconds = 0.1
+
     def __init__(self):
         self._speaking = False
     
@@ -62,7 +66,7 @@ class MockAVSpeechSynthesizer:
         import threading
         def stop_speaking():
             import time
-            time.sleep(0.1)
+            time.sleep(self.speak_seconds)
             self._speaking = False
         threading.Thread(target=stop_speaking, daemon=True).start()
     
@@ -294,8 +298,14 @@ def test_ios_tts_concurrent_synthesis(ios_tts):
     assert len(results) == 20  # nosec B101
 
 
-def test_ios_tts_stress_test(ios_tts):
+def test_ios_tts_stress_test(ios_tts, monkeypatch):
     """Stress test with 100 rapid syntheses."""
+    # The property is that 100 back-to-back syntheses each return audio, not
+    # how long speech lasts. With the mock speaking 0.1 s a call and the
+    # 0.05 s poll, the loop slept at least 10 s and took 12.8 to 13.2 s here,
+    # and a CI leg's slower timers took it past the 30 s pytest-timeout.
+    # Speaking for 0 s keeps every synthesis, its wait loop and its audio.
+    monkeypatch.setattr(ios_tts._synthesizer, "speak_seconds", 0.0)
     for i in range(100):
         audio = ios_tts.synthesize(
             f"Stress test {i}",
