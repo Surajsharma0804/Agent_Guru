@@ -68,7 +68,21 @@ def _load_model(model_name: str, device: str) -> Any:
             from sentence_transformers import SentenceTransformer
 
             logger.info("Loading model %s on %s (first use)", model_name, device)
-            cached = SentenceTransformer(model_name, device=device)
+            # The copy already on disk is tried first, without the network. A
+            # plain SentenceTransformer(name) asked huggingface.co whether each
+            # of the model's files had a newer revision, even with the model
+            # cached: 33 requests on every start of the app, and the load took
+            # 6.1 to 6.6 s against 0.27 to 0.29 s from the cache alone (5 runs
+            # each, 2026-11-02). That delay is most of what kept the first turn
+            # after a start waiting out its 5 s memory budget. The network is
+            # still used when the model is not cached (OSError), so a first
+            # start downloads it as before. The trade-off: a cached model is
+            # no longer refreshed to a newer upstream revision by itself.
+            try:
+                cached = SentenceTransformer(model_name, device=device, local_files_only=True)
+            except OSError:
+                logger.info("Model %s is not cached; downloading it", model_name)
+                cached = SentenceTransformer(model_name, device=device)
             _MODEL_CACHE[key] = cached
     return cached
 
