@@ -11,8 +11,12 @@ This module tests:
 Coverage Target: >80% (enforced by CI/CD)
 """
 
-import pytest
+import shutil
+import subprocess  # nosec B404 - git on fixed arguments, in tmp_path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+import pytest
 
 from Agent_Guru.platform.github.integrator import (
     GitHubIntegrator,
@@ -405,19 +409,85 @@ class TestGoalManagerNotification:
 
 # Integration Tests
 
+_GIT = shutil.which("git")
+
+
+def _git(cwd, *args):
+    """Run git in cwd and return stdout; a failure here is a broken fixture, so it raises."""
+    return subprocess.run([_GIT, *args], cwd=str(cwd), check=True, capture_output=True, text=True).stdout  # nosec B603
+
+
 @pytest.mark.integration
+@pytest.mark.skipif(_GIT is None, reason="needs the git executable on PATH")
 class TestConflictResolutionIntegration:
-    """Integration tests for conflict resolution workflow."""
-    
-    def test_full_conflict_resolution_workflow(self, temp_git_repo):
-        """Test complete conflict resolution workflow with real Git repository."""
-        # This test requires a real Git repository setup
-        # Skip if not in integration test environment
-        pytest.skip("Requires real Git repository setup")
-    
-    def test_push_with_conflict_resolution_integration(self, temp_git_repo):
-        """Test push with conflict resolution in real repository."""
-        pytest.skip("Requires real Git repository setup")
+    """push_with_conflict_resolution against real repositories: a bare remote and two clones.
+
+    Both tests here used to skip unconditionally with "Requires real Git repository setup", while
+    a fixture that built a real repository sat unused, so nothing ran the rebase-and-retry path
+    against git itself. Everything is local (the remote is a bare repository in tmp_path); the
+    backoff sleep between rebase attempts is skipped so a run does not wait 1 s and 2 s for it.
+    """
+
+    @pytest.fixture
+    def clones(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda seconds: None)
+        remote = tmp_path / "remote.git"
+        _git(tmp_path, "init", "-q", "--bare", "-b", "main", str(remote))
+        made = {}
+        for name in ("mine", "theirs"):
+            path = tmp_path / name
+            _git(tmp_path, "clone", "-q", str(remote), str(path))
+            _git(path, "config", "user.email", f"{name}@example.com")
+            _git(path, "config", "user.name", name)
+            _git(path, "config", "commit.gpgsign", "false")
+            _git(path, "checkout", "-q", "-B", "main")
+            made[name] = path
+        (made["mine"] / "notes.txt").write_text("first line\n", encoding="utf-8")
+        _git(made["mine"], "add", "notes.txt")
+        _git(made["mine"], "commit", "-q", "-m", "Start the notes")
+        _git(made["mine"], "push", "-q", "origin", "main")
+        _git(made["theirs"], "pull", "-q", "origin", "main")
+        return SimpleNamespace(remote=remote, **made)
+
+    @staticmethod
+    def _commit(path, filename, text, message):
+        (path / filename).write_text(text, encoding="utf-8")
+        _git(path, "add", filename)
+        _git(path, "commit", "-q", "-m", message)
+
+    def test_full_conflict_resolution_workflow(self, clones):
+        """A push rejected because the remote moved on is rebased onto it and pushed again."""
+        self._commit(clones.theirs, "theirs.txt", "from the other clone\n", "Their change")
+        _git(clones.theirs, "push", "-q", "origin", "main")
+        self._commit(clones.mine, "mine.txt", "from this clone\n", "My change")
+
+        integrator = GitHubIntegrator(repo_path=str(clones.mine), remote_name="origin", default_branch="main")
+        result = integrator.push_with_conflict_resolution(branch="main")
+
+        assert result.success is True, result.message  # nosec B101
+        subjects = _git(clones.remote, "log", "--format=%s", "main").splitlines()
+        assert subjects == ["My change", "Their change", "Start the notes"]  # nosec B101
+
+    def test_push_with_conflict_resolution_integration(self, clones):
+        """Two edits of the same line cannot be rebased: the push fails and the clone is left usable."""
+        self._commit(clones.theirs, "notes.txt", "their first line\n", "Their edit")
+        _git(clones.theirs, "push", "-q", "origin", "main")
+        self._commit(clones.mine, "notes.txt", "my first line\n", "My edit")
+
+        integrator = GitHubIntegrator(repo_path=str(clones.mine), remote_name="origin", default_branch="main")
+        try:
+            pushed = integrator.push_with_conflict_resolution(branch="main").success
+        except GitConflictError:
+            pushed = False
+
+        assert pushed is False  # nosec B101
+        # The remote keeps the other clone's commit, and this clone is not left mid-rebase with
+        # conflict markers in the file: the rebase was aborted and the local commit is intact.
+        assert _git(clones.remote, "log", "-1", "--format=%s", "main").strip() == "Their edit"  # nosec B101
+        assert not (clones.mine / ".git" / "rebase-merge").exists()  # nosec B101
+        assert not (clones.mine / ".git" / "rebase-apply").exists()  # nosec B101
+        assert _git(clones.mine, "log", "-1", "--format=%s").strip() == "My edit"  # nosec B101
+        assert (clones.mine / "notes.txt").read_text(encoding="utf-8") == "my first line\n"  # nosec B101
 
 
 # Fixtures
@@ -439,27 +509,3 @@ def mock_integrator(tmp_path):
     )
     
     return integrator
-
-
-@pytest.fixture
-def temp_git_repo(tmp_path):
-    """Create a temporary Git repository for integration tests."""
-    import subprocess  # nosec B404
-    
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
-    
-    # Initialize Git repository
-    subprocess.run(["git", "init"], cwd=str(repo_path), check=True)  # nosec B603 B607
-    subprocess.run(  # nosec B603 B607
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(repo_path),
-        check=True
-    )
-    subprocess.run(  # nosec B603 B607
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(repo_path),
-        check=True
-    )
-    
-    return repo_path
