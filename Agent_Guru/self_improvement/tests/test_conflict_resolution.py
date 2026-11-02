@@ -479,7 +479,6 @@ class TestPropertyBasedConflictDetection:
     )
     @settings(
         max_examples=50,
-        deadline=timedelta(milliseconds=2000),
         suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_consistent_outcomes_no_conflict(
