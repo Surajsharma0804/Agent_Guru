@@ -289,7 +289,7 @@ class TestNoiseReductionProperties:
         noise_amplitude=st.floats(min_value=0.01, max_value=0.3),
         duration=st.floats(min_value=0.5, max_value=2.0)
     )
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=50)
     @pytest.mark.asyncio
     async def test_property_noise_reduction_effectiveness(
         self,
@@ -347,7 +347,7 @@ class TestNoiseReductionProperties:
         ]),
         duration=st.floats(min_value=0.5, max_value=2.0)
     )
-    @settings(max_examples=30, deadline=3000)
+    @settings(max_examples=30)
     def test_property_noise_type_detection(self, noise_type, duration):
         """
         Test noise type detection across various noise types.
@@ -400,7 +400,7 @@ class TestSNRComputation:
         signal_amplitude=st.floats(min_value=0.1, max_value=1.0),
         noise_amplitude=st.floats(min_value=0.01, max_value=0.5)
     )
-    @settings(max_examples=50, deadline=1000)
+    @settings(max_examples=50)
     def test_property_snr_computation(self, signal_amplitude, noise_amplitude):
         """
         Test SNR computation properties.
