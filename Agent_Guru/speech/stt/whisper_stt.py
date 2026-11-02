@@ -3,6 +3,7 @@
 import contextlib
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -68,6 +69,50 @@ _CPU_COMPUTE_TYPES = frozenset({"float32", "int8", "int8_float32"})
 #: LibriSpeech clips from 9.9% and 1.50 s to 10.2% and 0.98 s. The two differed
 #: on 11 command clips, int8 better on six of them.
 _CPU_DEFAULT_COMPUTE = "int8"
+
+#: The names Whisper is primed with when no prompt is configured (STTConfig.initial_prompt,
+#: AGENT_GURU_STT_PROMPT). It was 23 entries ending in "Kumar, Singh, Patel". After a command
+#: ends, Whisper decodes the trailing audio as a second window, and with that prompt the window
+#: often ran into a repetition ("No, no, no..." for 224 tokens, compression ratio 26), which the
+#: temperature fallback then retried five more times: "How many legs does a spider have?" took
+#: a median 11.9 s on the CPU. On 40 synthesized clips (20 with Indian names, 20 general, 10 runs
+#: each) this prompt made no clip loop, against 3 that took 6 attempts (up to 35 s) before; the
+#: word error rate went from 2.80% to 0.93% on the general set and from 12.14% to 12.86% on the
+#: names set, where "chak de India" is now heard as "Check the India".
+#:
+#: Keeping "chak de India" in the list scored 10.00% on names, but it is the one prompt here that
+#: Whisper echoed back on audio with no speech: "Guru, Maya, Suraj, Priya, Rahul, Sharma," for 1
+#: of 300 noise, hum and silence clips, against 0 of 300 for this prompt and the old one. That
+#: transcript names Guru and Maya, which is what the fallback wake's name check looks for, so it
+#: would start a turn from room noise. It also looped once without NO_REPEAT_NGRAM_SIZE, and was
+#: slower at the 90th percentile (1.59 s against 0.94 s per clip, timed alternately).
+#:
+#: The clips are synthesized and the names set leans on words in the prompt, so these numbers
+#: compare prompts; they do not measure how well the owner is heard.
+DEFAULT_INITIAL_PROMPT = "Guru, Maya, Suraj, Priya, Rahul, Sharma, namaste, WhatsApp, crore, lakh."
+
+#: Whisper may not repeat any 3-token sequence within one window. It is what stopped the trailing
+#: window looping with "chak de India" in the prompt; with this prompt it changed no transcript of
+#: the 40 clips and none of them looped either way, so it stays as a guard for a prompt the owner
+#: sets through AGENT_GURU_STT_PROMPT.
+NO_REPEAT_NGRAM_SIZE = 3
+
+#: Fewer prompt words than this are kept: "Guru" or "Guru, Maya" said alone is a real wake. Three
+#: or more, every one of them from the prompt and in the prompt's order, is the prompt read back.
+_ECHO_MIN_WORDS = 3
+
+
+def _echoes_prompt(text: str, prompt: str) -> bool:
+    """True when *text* is only words of *prompt*, at least _ECHO_MIN_WORDS, in the prompt's order.
+
+    Order, not an exact prefix: one echo left a name out ("Guru, Maya, Suraj, Rahul, Sharma,
+    namaste, WhatsApp, crore, lakh.", with "Priya" missing).
+    """
+    words = re.findall(r"[a-z']+", text.lower())
+    if len(words) < _ECHO_MIN_WORDS:
+        return False
+    remaining = iter(re.findall(r"[a-z']+", prompt.lower()))
+    return all(word in remaining for word in words)
 
 #: The pip packages behind the "gpu" extra install their DLLs here, under
 #: site-packages/nvidia/<name>/bin, which Windows does not search.
@@ -176,6 +221,7 @@ class WhisperTranscriber:
         compute_type: str | None = None,
         beam_size: int = 5,
         device: str = "cpu",
+        initial_prompt: str | None = None,
     ) -> None:
         """Initialize Whisper transcriber.
 
@@ -190,6 +236,8 @@ class WhisperTranscriber:
                 GPU at load and fall back to the CPU, with a log line saying
                 why, if the GPU or its CUDA libraries are unusable; "auto"
                 treats a missing GPU as normal, "cuda" warns about it.
+            initial_prompt: Names to prime Whisper with in English or Hindi.
+                None uses DEFAULT_INITIAL_PROMPT; "" uses no prompt.
 
         """
         self.model_size = model_size
@@ -205,6 +253,7 @@ class WhisperTranscriber:
             self.compute_type = compute_type
         self.beam_size = beam_size
         self.device = device
+        self.initial_prompt = DEFAULT_INITIAL_PROMPT if initial_prompt is None else initial_prompt
         self._model: WhisperModel | None = None
         # BUG FIX (Round 16): see _load_model()'s docstring.
         self._model_load_failed = False
@@ -440,15 +489,15 @@ class WhisperTranscriber:
                 vad_filter=True,
                 # initial_prompt helps Whisper with Indian names, songs, and
                 # mixed Hindi-English speech. It primes the model vocabulary
-                # without forcing a specific transcription.
+                # without forcing a specific transcription. See
+                # DEFAULT_INITIAL_PROMPT for why it is short and paired with
+                # no_repeat_ngram_size.
                 initial_prompt=(
-                    "Guru, Maya, chak de India, Bollywood, namaste, "
-                    "YouTube, LeetCode, VS Code, GitHub, WhatsApp, "
-                    "rupees, crore, lakh, Mumbai, Delhi, Bangalore, "
-                    "Suraj, Priya, Rahul, Sharma, Kumar, Singh, Patel"
-                )
-                if language in (None, "en", "hi")
-                else None,
+                    self.initial_prompt or None
+                    if language in (None, "en", "hi")
+                    else None
+                ),
+                no_repeat_ngram_size=NO_REPEAT_NGRAM_SIZE,
             )
 
             # Convert generator to list
@@ -456,6 +505,13 @@ class WhisperTranscriber:
 
             # Build transcription result
             full_text = " ".join(seg.text.strip() for seg in segments_list)
+            if _echoes_prompt(full_text, self.initial_prompt):
+                # Whisper can read its prompt back on audio with no speech: with language
+                # detection on, "Guru, Maya, Suraj, Priya, Rahul, Sharma, Namaste." came back for
+                # 1 of 300 noise, hum and silence clips. It names Guru and Maya, which is what the
+                # fallback wake's name check accepts, so it would start a turn from room noise.
+                logger.debug("Whisper read its prompt back (%r); treated as no speech", full_text)
+                segments_list, full_text = [], ""
 
             transcription_segments = []
             for seg in segments_list:
