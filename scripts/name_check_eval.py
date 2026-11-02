@@ -29,7 +29,8 @@ def main(folders: list[str]) -> int:
 
     stt = STTConfig()
     whisper = WhisperTranscriber(model_size=stt.model_size, model_path=stt.model_path,
-                                 compute_type=stt.compute_type, beam_size=stt.beam_size, device=stt.device)
+                                 compute_type=stt.compute_type, beam_size=stt.beam_size, device=stt.device,
+                                 initial_prompt=stt.initial_prompt)
     takes = sorted(f for folder in folders for f in Path(folder).rglob("*.wav"))
     if not takes:
         print("no .wav takes found")
