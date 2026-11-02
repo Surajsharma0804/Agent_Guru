@@ -58,8 +58,15 @@ def audio_sample_strategy(draw):
     num_samples=st.integers(min_value=30, max_value=50),
     voice_id=st.text(min_size=5, max_size=20, alphabet=st.characters(whitelist_categories=('L', 'N')))
 )
+# 20 examples, not 100. Each example enrols 300 to 500 s of audio, so 30 to
+# 50 feature extractions plus 7 for the similarity and update checks: the 100
+# examples took 171 s of the 600 s limit on a quiet machine and were killed
+# under 24 busy processes. The drawn inputs are a clip count from a range of
+# 21 values and an id string whose only role is to seed the tone, and the
+# profile derandomizes, so 20 fixed examples still cover the range ends and
+# a spread between them. The 300 s minimum and every assertion are unchanged.
 @settings(
-    max_examples=100,
+    max_examples=20,
     deadline=None,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large, HealthCheck.function_scoped_fixture]
 )
