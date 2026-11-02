@@ -1,7 +1,52 @@
 """Configuration for the speech engine."""
 
+import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+#: Devices WhisperTranscriber understands; anything else in AGENT_GURU_STT_DEVICE is refused.
+_STT_DEVICES = frozenset({"auto", "cpu", "cuda"})
+#: CTranslate2 compute types; a misspelt one would only fail when the model loads, mid-startup.
+_STT_COMPUTE_TYPES = frozenset({
+    "default", "auto", "int8", "int8_float16", "int8_float32", "int8_bfloat16",
+    "int16", "float16", "bfloat16", "float32",
+})
+
+
+def _stt_prompt() -> str | None:
+    """AGENT_GURU_STT_PROMPT: unset keeps the transcriber's own prompt, "none" turns it off."""
+    value = os.environ.get("AGENT_GURU_STT_PROMPT", "").strip()
+    if not value:
+        return None
+    return "" if value.lower() == "none" else value
+
+
+def _stt_device() -> str:
+    """AGENT_GURU_STT_DEVICE, or "auto" when unset or not a device the transcriber knows."""
+    value = os.environ.get("AGENT_GURU_STT_DEVICE", "").strip().lower()
+    if not value:
+        return "auto"
+    if value not in _STT_DEVICES:
+        logger.warning("AGENT_GURU_STT_DEVICE=%r is not one of %s; using auto", value, sorted(_STT_DEVICES))
+        return "auto"
+    return value
+
+
+def _stt_compute_type() -> str | None:
+    """AGENT_GURU_STT_COMPUTE_TYPE, or None (chosen per device) when unset or unknown."""
+    value = os.environ.get("AGENT_GURU_STT_COMPUTE_TYPE", "").strip().lower()
+    if not value:
+        return None
+    if value not in _STT_COMPUTE_TYPES:
+        logger.warning(
+            "AGENT_GURU_STT_COMPUTE_TYPE=%r is not a CTranslate2 compute type; choosing one per device",
+            value,
+        )
+        return None
+    return value
 
 
 @dataclass
@@ -45,14 +90,22 @@ class STTConfig:
     # None picks per device: int8_float16 on the GPU (213 MiB for base,
     # against 232 MiB for float16 at the same speed, measured on an RTX 2050
     # where gemma4 leaves ~147 MiB spare), float32 on the CPU.
-    compute_type: str | None = None
+    # AGENT_GURU_STT_COMPUTE_TYPE sets it; the device and compute type used to
+    # be fixed here, so trying Whisper on the other device meant editing code.
+    compute_type: str | None = field(default_factory=_stt_compute_type)
     beam_size: int = 5
     # "auto": the GPU when a CUDA device and the optional CUDA libraries work,
     # otherwise the CPU with a log line saying why. This said "cuda" but was
     # never read: SpeechEngine built the transcriber without a device, so
     # every command ran on the CPU. See README, "GPU speech recognition".
-    device: str = "auto"
+    # AGENT_GURU_STT_DEVICE sets it.
+    device: str = field(default_factory=_stt_device)
     language: str | None = "en"  # force English - stops Whisper misidentifying as Hindi
+    # The names prompt Whisper is primed with. None: WhisperTranscriber's own
+    # default; "": no prompt. AGENT_GURU_STT_PROMPT sets it ("none" for no
+    # prompt), so the prompt can be changed without a release if a name the
+    # owner uses keeps being misheard.
+    initial_prompt: str | None = field(default_factory=_stt_prompt)
 
 
 @dataclass
