@@ -605,7 +605,23 @@ class _Pyttsx3Engine:
                 if converted is None:
                     logger.warning("pyttsx3 wrote an AIFF encoding this cannot convert; playing silence")
                     return _silence_wav(text)
-                return converted
+                data = converted
+            if _wav_frame_count(data) == 0:
+                # Only an empty file used to count as a failure. On the Windows CI runner SAPI
+                # wrote a 46-byte WAV, a header with no frames, after its child had waited the
+                # full 10 s for frames; that went back as a successful synthesis, every caller
+                # got an empty array, nothing was logged, and active_backend still said pyttsx3.
+                # It is now a failure like the others: one warning, silence of the usual length,
+                # and the backend is reported as "none" for the rest of the process, since the
+                # same voice on the same machine gives the same nothing.
+                global _pyttsx3_no_audio  # noqa: PLW0603 - one process-wide fact, read by every TTSEngine
+                if _pyttsx3_no_audio is None:
+                    logger.warning(
+                        "pyttsx3 wrote a WAV with no audio frames: this machine's speech voice "
+                        "produced nothing, so replies spoken through it are silent.",
+                    )
+                _pyttsx3_no_audio = "pyttsx3 wrote a WAV with no audio frames"
+                return _silence_wav(text)
             return data
         except subprocess.TimeoutExpired:
             logger.warning("pyttsx3 synthesis gave no audio within %.0f s; the process was ended", deadline)
@@ -733,7 +749,7 @@ class CoquiTTSEngine:
             return "kokoro"
         if not self._pyttsx3_ready:
             self._pyttsx3_ready = self._pyttsx3.initialize()
-        if getattr(self._pyttsx3, "_engine", None) is not None:
+        if getattr(self._pyttsx3, "_engine", None) is not None and _pyttsx3_no_audio is None:
             return "pyttsx3"
         return "none"
 
@@ -1002,6 +1018,20 @@ def _aiff_to_wav(data: bytes) -> bytes | None:
         wf.setframerate(rate)
         wf.writeframes(frames)
     return out.getvalue()
+
+
+#: Why pyttsx3 counts as producing no audio in this process, or None while it has not shown that.
+#: Set by _Pyttsx3Engine.synthesize() on a WAV with no frames, read by TTSEngine.active_backend.
+_pyttsx3_no_audio: str | None = None
+
+
+def _wav_frame_count(data: bytes) -> int | None:
+    """Frames in a WAV, or None when it cannot be read as one (left to the caller's own checks)."""
+    try:
+        with wave.open(io.BytesIO(data), "rb") as f:
+            return f.getnframes()
+    except (wave.Error, EOFError):
+        return None
 
 
 def _silence_wav(text: str, sample_rate: int = 24000) -> bytes:
