@@ -4,6 +4,15 @@
 # which the repo cannot rely on.
 * text=auto
 
+# Shell scripts run under bash on Linux and macOS, often copied there from a
+# Windows checkout (the wake-word runner's data folder is built from one).
+# text=auto alone let core.autocrlf=true write them with CRLF: in a fresh
+# Windows clone all 76 lines of the three runner scripts ended in CRLF, and
+# Linux bash refused submit_chain.sh ("syntax error near unexpected token
+# $'do\r'", "set: pipefail: invalid option name"). eol=lf keeps every
+# checkout of them LF, on every platform and whatever the local setting.
+*.sh text eol=lf
+
 # Language detection overrides
 *.rs linguist-language=Rust
 *.py linguist-language=Python
