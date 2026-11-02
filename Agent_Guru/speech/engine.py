@@ -206,6 +206,7 @@ class SpeechEngine:
                 compute_type=stt.compute_type,
                 beam_size=stt.beam_size,
                 device=stt.device,
+                initial_prompt=stt.initial_prompt,
             )
             self.language_detector = LanguageDetector()
 
