@@ -8,6 +8,7 @@ Tests strategy registration, performance tracking, and selection algorithms.
 Coverage Target: >80%
 """
 
+import math
 import os
 import random
 import sqlite3
@@ -767,11 +768,24 @@ class TestAdversarialScenarios:
         assert len(ranked) == 1000  # nosec B101
         assert elapsed < 1.0, f"Ranking 1000 strategies took {elapsed:.3f}s, should be <1s"  # nosec B101
 
-    # This test performs 1,000,000 real, individually-committed database
-    # updates to validate numerical stability of the running averages. It
-    # genuinely completes and passes (measured ~36s), but that exceeds the
-    # project-wide 30s default in pytest.ini, so it carries an explicit
-    # override. This is a legitimately long I/O-bound test, not a hang.
+    # This test used to make all 1,000,000 executions through
+    # update_strategy_performance(), each one its own committed UPDATE. It
+    # took 45 s on a quiet machine and 219 s under 24 busy processes
+    # against this 120 s marker, and it exceeded the marker on a Linux CI
+    # leg (issue #7, item 4).
+    #
+    # The running average it checks is one SQL expression,
+    # (avg * n + x) / (n + 1). Replaying the whole 1,000,000 step sequence
+    # through that expression, in Python and in SQLite (which gave the
+    # same bits), drifts 2.1e-13 ms from the exact mean, against the 1.0 ms
+    # tolerance below. So the million updates could never show accumulated
+    # drift; what the test can catch is a wrong expression, and a wrong
+    # expression is wrong on every update, including the last ones. The
+    # first 990 batches are therefore written straight into the strategy's
+    # row with their exact totals, and the last 10 batches, 10,000
+    # executions with successes, failures and ten different times, go
+    # through update_strategy_performance() at counts just under a million.
+    # The assertions are unchanged.
     @pytest.mark.slow
     @pytest.mark.timeout(120)
     def test_extreme_execution_counts(self, optimizer):
@@ -788,14 +802,38 @@ class TestAdversarialScenarios:
             parameters={},
         )
 
-        # Simulate 1 million executions (in batches for speed)
-        total_executions = 0
-        total_time = 0.0
+        def execution(batch):
+            success = batch % 3 != 0  # ~66% success rate
+            exec_time = 100.0 + (batch % 50)  # Varying execution times
+            return success, exec_time
 
-        for batch in range(1000):
+        seeded_batches = 990
+        seeded = [execution(batch) for batch in range(seeded_batches) for _ in range(1000)]
+        total_executions = len(seeded)
+        total_time = math.fsum(exec_time for _, exec_time in seeded)
+        seeded_successes = sum(success for success, _ in seeded)
+        with optimizer.pool.connection() as conn:
+            conn.execute(
+                """
+                UPDATE strategies
+                SET total_executions = ?, success_count = ?, failure_count = ?,
+                    success_rate = ?, avg_execution_time_ms = ?
+                WHERE strategy_id = ?
+                """,
+                (
+                    total_executions,
+                    seeded_successes,
+                    total_executions - seeded_successes,
+                    seeded_successes / total_executions,
+                    total_time / total_executions,
+                    "high_volume",
+                ),
+            )
+            conn.commit()
+
+        for batch in range(seeded_batches, 1000):
             for _ in range(1000):
-                success = batch % 3 != 0  # ~66% success rate
-                exec_time = 100.0 + (batch % 50)  # Varying execution times
+                success, exec_time = execution(batch)
                 optimizer.update_strategy_performance("high_volume", success, exec_time)
                 total_executions += 1
                 total_time += exec_time
@@ -811,6 +849,12 @@ class TestAdversarialScenarios:
         # Verify average execution time is accurate
         expected_avg = total_time / total_executions
         assert abs(strategy.avg_execution_time_ms - expected_avg) < 1.0  # nosec B101
+        # The seeded average already sits about 0.2 ms from the final mean,
+        # so the 1.0 ms check alone would pass an average that never moved
+        # after seeding (checked: it did). Floating point drift here is
+        # around 1e-13 ms, so 1e-6 ms leaves wide room for rounding and
+        # still fails an average that ignores the last 10,000 executions.
+        assert abs(strategy.avg_execution_time_ms - expected_avg) < 1e-6  # nosec B101
 
     def test_concurrent_strategy_updates(self, optimizer):
         """
