@@ -588,5 +588,18 @@ def get_app() -> FastAPI:
         _app = create_app()
     return _app
 
-# Create default app instance
-app = create_app()
+def __getattr__(name: str) -> FastAPI:
+    """`app`, built on first use, for `uvicorn Agent_Guru.reasoning.api.app:app`.
+
+    This was `app = create_app()` at import. create_app() builds a whole
+    ReasoningEngine (its intent engine, LLM provider and tool registry), and
+    the assistant's local API imports this package for its auth helpers, so
+    every start with AGENT_GURU_API on built a second engine nothing used:
+    the intent engine was set up twice per start in the round 12 soak (09:30:01
+    and 09:30:03), with its log lines and warnings twice. uvicorn and
+    `from ... import app` still get the same object, through get_app().
+    """
+    if name == "app":
+        return get_app()
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
