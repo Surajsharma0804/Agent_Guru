@@ -1,4 +1,4 @@
-"""Everyday commands: ask, chat, config, model, memory, tasks, eval, bench.
+"""Everyday commands: ask, chat, config, model, memory, tasks, mic, logs, eval, bench.
 
 Most of what the owner did with the assistant had no command: a typed
 question needed the voice loop or a script, a setting meant editing
@@ -13,6 +13,7 @@ assistant already has:
     memory [show|forget KEY]        what the assistant remembers about the owner
     tasks                 reminders, checks and actions it has scheduled (read only)
     mic [mute|unmute]     whether it is listening, or stop and start it listening
+    logs [--limit N]      the last warnings and errors it logged, on one screen
     eval / bench          scripts/turn_eval.py: scoring, or stage latency
 
 ask and chat talk to the assistant that is running, through its local
@@ -326,3 +327,57 @@ def evaluate(argv: list[str]) -> int:
 
 def bench(argv: list[str]) -> int:
     return _turn_eval(["--latency", *argv])
+
+
+#: A warning, error or critical line from the stdlib format ("09:30:01  WARNING   name - ...")
+#: or from structlog's ("[warning  ] event ...").
+_PROBLEM_LINE = re.compile(r"\b(WARNING|ERROR|CRITICAL)\b|\[(warning|error|critical)\s*\]")
+#: How much of the end of each log is read: enough for weeks of warnings, without
+#: reading a 100 MB log from the start.
+_LOG_TAIL_BYTES = 2 * 1024 * 1024
+
+
+def _log_files() -> list[Path]:
+    from Agent_Guru.core.error_handler import _DEFAULT_LOG_PATH
+    from Agent_Guru.utils.path_utils import app_data_dir
+
+    return [app_data_dir("service.log", create=False), _DEFAULT_LOG_PATH]
+
+
+def _problem_lines(path: Path) -> list[str]:
+    with path.open("rb") as f:
+        f.seek(0, 2)
+        f.seek(max(0, f.tell() - _LOG_TAIL_BYTES))
+        text = f.read().decode("utf-8", errors="replace")
+    return [line.rstrip() for line in text.splitlines() if _PROBLEM_LINE.search(line)]
+
+
+def logs(argv: list[str]) -> int:
+    """Print the last warnings and errors from the assistant's logs, oldest first.
+
+    Finding out what went wrong meant knowing that a background run writes
+    service.log in the data folder and the error handler writes logs/errors.log,
+    then searching them by hand. A run started with `python main.py` logs only
+    to its console, which is said here rather than printing nothing.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m Agent_Guru logs")
+    parser.add_argument("--limit", type=int, default=20, help="how many lines (default 20)")
+    args = parser.parse_args(argv)
+    found = [p for p in _log_files() if p.is_file()]
+    if not found:
+        print("No log file yet. `python -m Agent_Guru service start` writes service.log in the data folder; "  # noqa: T201
+              "a run started with `python main.py` logs only to its console.")
+        return 0
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(errors="replace")
+    for path in found:
+        lines = _problem_lines(path)[-max(1, args.limit):]
+        print(f"{path} - last {len(lines)} warnings and errors:")  # noqa: T201
+        for line in lines:
+            print(f"  {line[:220]}")  # noqa: T201
+        if not lines:
+            print("  none")  # noqa: T201
+    return 0
