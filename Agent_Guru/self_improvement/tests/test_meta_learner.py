@@ -1134,14 +1134,22 @@ class TestPatternGeneralization:
             learner.update_patterns()
             
             # Phase 2: Test generalization on unseen tasks
+            # Every unseen task must get a recommendation. This test used to
+            # count only calls that returned something and pass when none
+            # did, and recommend_strategies() returned nothing in 0 of 259
+            # calls, so it checked nothing. A variant whose strategy failed in
+            # training must not be recommended that strategy; this expected
+            # the failed strategy to be recommended, which a recommender
+            # built from success patterns never does and should never do.
             correct_predictions = 0
             total_predictions = 0
-            
+
             for i in range(test_size):
                 # Create test task with similar characteristics but unseen task_id
                 pattern_key = list(train_pattern.keys())[i % len(train_pattern)]
                 pattern_config = train_pattern[pattern_key]
                 expected_strategy = pattern_config['strategy']
+                strategy_should_be_recommended = pattern_config['success']
                 
                 # Create test context (similar to training but unseen)
                 if pattern_type == 'tool_usage':
@@ -1159,37 +1167,24 @@ class TestPatternGeneralization:
                     test_context
                 )
                 
-                # Check if expected strategy is recommended
-                if len(recommended_strategies) > 0:
-                    total_predictions += 1
-                    if expected_strategy in recommended_strategies:
-                        correct_predictions += 1
-            
-            # Phase 3: Verify generalization accuracy
-            if total_predictions > 0:
-                accuracy = correct_predictions / total_predictions
-                
-                # Generalization accuracy must be >70%
-                # Allow some tolerance for small test sets
-                min_accuracy = 0.70 if test_size >= 10 else 0.60
-                
-                assert accuracy >= min_accuracy, \
-                    f"Pattern generalization accuracy {accuracy:.2%} below {min_accuracy:.0%} threshold " \
-                    f"(pattern_type={pattern_type}, train_size={train_size}, " \
-                    f"noise_level={noise_level:.2f}, correct={correct_predictions}/{total_predictions})"  # nosec B101
-            else:
-                # If no predictions made, patterns may not have formed yet
-                # This is acceptable for small training sets or high noise
-                learner._load_patterns()
-                
-                # Only assert if we have sufficient clean training data
-                min_required_samples = learner.min_samples * 3
-                clean_samples = int(train_size * (1 - noise_level))
-                
-                if clean_samples >= min_required_samples:
-                    # Should have learned some patterns with sufficient data
-                    # But don't fail if clustering didn't find clear patterns
-                    pass  # Acceptable - clustering may not find patterns in all cases
+                assert recommended_strategies, \
+                    f"no recommendation for an unseen {pattern_type} task " \
+                    f"(train_size={train_size}, noise_level={noise_level:.2f})"  # nosec B101
+                total_predictions += 1
+                if (expected_strategy in recommended_strategies) == strategy_should_be_recommended:
+                    correct_predictions += 1
+
+            # Phase 3: Verify generalization accuracy over every unseen task
+            accuracy = correct_predictions / total_predictions
+
+            # Generalization accuracy must be >70%
+            # Allow some tolerance for small test sets
+            min_accuracy = 0.70 if test_size >= 10 else 0.60
+
+            assert accuracy >= min_accuracy, \
+                f"Pattern generalization accuracy {accuracy:.2%} below {min_accuracy:.0%} threshold " \
+                f"(pattern_type={pattern_type}, train_size={train_size}, " \
+                f"noise_level={noise_level:.2f}, correct={correct_predictions}/{total_predictions})"  # nosec B101
         
         finally:
             # Cleanup
@@ -1279,17 +1274,20 @@ class TestPatternGeneralization:
             )
             
             # Phase 3: Verify cross-task-type generalization
-            if len(recommended_strategies) > 0:
-                # Should recommend optimal strategy for success pattern
-                # Allow some tolerance for edge cases
-                if 0.9 <= test_variation <= 1.1:
-                    assert "strategy_optimal" in recommended_strategies, \
-                        f"Pattern should generalize across task types " \
-                        f"(train_types={train_task_types}, variation={test_variation:.2f})"  # nosec B101
-            else:
-                # If no recommendations, this is acceptable
-                # Clustering may not always find clear patterns
-                pass  # Acceptable - pattern formation depends on data distribution
+            # A recommendation is required, and it must be the strategy that
+            # succeeded on every trained type and not the one that failed.
+            # This used to pass on an empty list, and recommend_strategies()
+            # returned an empty list in 30 of 30 calls, so it checked nothing.
+            # test_variation never reached the learner (the line above
+            # computes and discards it), so the old 0.9-1.1 window only
+            # skipped the check for some examples; the check now always runs.
+            assert recommended_strategies, \
+                f"no recommendation for an unseen task type " \
+                f"(train_types={train_task_types}, samples_per_type={samples_per_type})"  # nosec B101
+            assert "strategy_optimal" in recommended_strategies, \
+                f"Pattern should generalize across task types " \
+                f"(train_types={train_task_types}, got {recommended_strategies})"  # nosec B101
+            assert "strategy_suboptimal" not in recommended_strategies, recommended_strategies  # nosec B101
         
         finally:
             # Cleanup

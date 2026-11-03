@@ -40,7 +40,6 @@ from typing import Any
 
 import numpy as np
 from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import StandardScaler
 
 # Connections go through open_sqlite(): `with sqlite3.connect() as conn:` only
 # ends the transaction and leaves the connection open, which on Windows keeps
@@ -198,8 +197,9 @@ class MetaLearner:
         # calls) raced on the same StandardScaler's internal fitted
         # state, concretely reproduced as scikit-learn raising
         # AttributeError: 'float' object has no attribute 'astype'.
-        # _cluster_features() now creates its own local StandardScaler()
-        # per call instead -- see there for details.
+        # _cluster_features() later used a local scaler per call, and now
+        # uses none (fixed scales, see there), so there is no fitted state
+        # to share.
 
         # Cache for patterns (loaded on demand).
         # BUG FIX: guarded by a lock. record_task_execution() invalidates
@@ -513,12 +513,22 @@ class MetaLearner:
         success_features, success_data = self._load_features(success=True)
         failure_features, failure_data = self._load_features(success=False)
 
+        # How often each strategy succeeded and failed, over the same rows:
+        # a pattern's confidence is how reliably its strategy gave that
+        # outcome, which needs both sides (see _calculate_confidence).
+        outcomes: dict[str, list[int]] = {}
+        for row in success_data:
+            outcomes.setdefault(row["strategy_id"], [0, 0])[0] += 1
+        for row in failure_data:
+            outcomes.setdefault(row["strategy_id"], [0, 0])[1] += 1
+
         # Cluster successful executions
         if len(success_features) >= self.min_samples:
             success_patterns = self._cluster_features(
                 success_features,
                 success_data,
                 PatternType.SUCCESS_PATTERN,
+                outcomes,
             )
             self._store_patterns(success_patterns, PatternType.SUCCESS_PATTERN)
 
@@ -528,6 +538,7 @@ class MetaLearner:
                 failure_features,
                 failure_data,
                 PatternType.FAILURE_PATTERN,
+                outcomes,
             )
             self._store_patterns(failure_patterns, PatternType.FAILURE_PATTERN)
 
@@ -579,6 +590,7 @@ class MetaLearner:
         features: np.ndarray,
         data: list[dict[str, Any]],
         pattern_type: PatternType,
+        outcomes: dict[str, list[int]] | None = None,
     ) -> list[Pattern]:
         """Cluster features using DBSCAN.
 
@@ -586,6 +598,8 @@ class MetaLearner:
             features: Feature matrix (n_samples, n_features)
             data: Execution data for each sample
             pattern_type: Type of pattern (success/failure)
+            outcomes: strategy_id -> [successes, failures] over the same
+                window; None counts only *data* itself
 
         Returns:
             List of identified patterns
@@ -594,21 +608,23 @@ class MetaLearner:
         Space Complexity: O(n)
 
         """
-        # BUG FIX (thread-safety): use a fresh, function-local scaler
-        # instead of a shared self.scaler instance. fit_transform() always
-        # recomputes mean_/var_/scale_ from `features` from scratch on
-        # every call regardless of any prior fit, and nothing reads the
-        # scaler's fitted state after this line (the pattern centroid and
-        # feature ranges below are computed from the original, unscaled
-        # `features` array, not features_scaled) -- so this produces
-        # byte-identical output to the previous single-threaded behavior,
-        # while removing the shared mutable state that made concurrent
-        # calls corrupt scikit-learn's internal fit state.
-        features_scaled = StandardScaler().fit_transform(features)
-
-        # Cluster with DBSCAN
+        # Clustered on what happened in the execution, on fixed scales.
+        # This used to standardise all eight stored columns and cluster on
+        # them. Two of those are md5 hashes of the task type and strategy
+        # names: numbers with no notion of nearness, so executions of one
+        # strategy on two task types sat far apart for no reason. And
+        # standardising stretched every column to unit spread, so +-20 ms
+        # of timing noise in an otherwise uniform set became the main
+        # structure. 10 to 30 matching successes then split into pieces
+        # too thin for DBSCAN: 4 of 6 seeded training sets stored no
+        # success pattern at all, and recommend_strategies() answered 30
+        # of 30 calls with nothing. Now time is compared as log10 (a
+        # factor of 3.2 is 0.5, the default eps), the rest on their own
+        # 0-1 scales, so eps means the same thing whatever the data.
+        # Nothing is fitted, so the earlier thread-safety concern about a
+        # shared scaler no longer arises.
         clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples)
-        labels = clustering.fit_predict(features_scaled)
+        labels = clustering.fit_predict(self._clustering_space(features))
 
         # Extract patterns from clusters
         patterns = []
@@ -627,7 +643,9 @@ class MetaLearner:
             centroid = np.mean(cluster_features, axis=0)
             feature_ranges = self._calculate_feature_ranges(cluster_features)
             recommended_strategies = self._extract_strategies(cluster_data)
-            confidence = self._calculate_confidence(len(cluster_data))
+            confidence = self._calculate_confidence(
+                recommended_strategies[0], pattern_type, outcomes or self._count_outcomes(cluster_data, pattern_type),
+            )
 
             # Create pattern
             pattern_id = self._generate_pattern_id(pattern_type, centroid)
@@ -702,11 +720,41 @@ class MetaLearner:
         # Return top 3 strategies
         return [s[0] for s in sorted_strategies[:3]]
 
-    def _calculate_confidence(self, sample_count: int) -> float:
-        """Calculate confidence score based on sample size.
+    @staticmethod
+    def _clustering_space(features: np.ndarray) -> np.ndarray:
+        """The stored feature rows as DBSCAN compares them (see _cluster_features).
 
-        Args:
-            sample_count: Number of samples in pattern
+        Columns: log10 of execution time, success, reasoning quality, tool
+        selection, hallucination, context complexity. The two name hashes
+        are left out.
+        """
+        return np.column_stack([
+            np.log10(1.0 + np.clip(features[:, 2], 0.0, None)),
+            features[:, 3:8],
+        ])
+
+    @staticmethod
+    def _count_outcomes(data: list[dict[str, Any]], pattern_type: PatternType) -> dict[str, list[int]]:
+        """strategy_id -> [successes, failures], counting only *data*, all of one outcome."""
+        counts: dict[str, list[int]] = {}
+        side = 0 if pattern_type == PatternType.SUCCESS_PATTERN else 1
+        for row in data:
+            counts.setdefault(row["strategy_id"], [0, 0])[side] += 1
+        return counts
+
+    def _calculate_confidence(
+        self, strategy_id: str, pattern_type: PatternType, outcomes: dict[str, list[int]],
+    ) -> float:
+        """How reliably *strategy_id* gave this pattern's outcome, smoothed for small counts.
+
+        (outcome count + 1) / (all its executions + 2): 5 successes and no
+        failures give 0.86, 50 of 50 give 0.98, 5 of 10 give 0.5.
+
+        This was sample_count / 50, against a min_confidence of 0.6, so a
+        pattern needed 30 executions in one cluster before it could be
+        recommended, and a pattern of a strategy that failed as often as it
+        succeeded scored the same as one that never failed. The rate says
+        what a recommendation needs to know, and still grows with evidence.
 
         Returns:
             Confidence score (0.0-1.0)
@@ -715,8 +763,9 @@ class MetaLearner:
         Space Complexity: O(1)
 
         """
-        # Confidence increases with sample size, plateaus at 50 samples
-        return min(1.0, sample_count / 50.0)
+        successes, failures = outcomes.get(strategy_id, [0, 0])
+        hits = successes if pattern_type == PatternType.SUCCESS_PATTERN else failures
+        return (hits + 1) / (successes + failures + 2)
 
     def _generate_pattern_id(self, pattern_type: PatternType, centroid: np.ndarray) -> str:
         """Generate unique pattern ID.
@@ -947,14 +996,19 @@ class MetaLearner:
             if pattern.pattern_type != pattern_type:
                 continue
 
-            # Calculate similarity (inverse of Euclidean distance)
-            distance = np.linalg.norm(task_features - pattern.centroid)
+            # Compared on context complexity only: it is the one column a
+            # task that has not run yet actually has. The distance used to
+            # be over all eight, with zeros standing in for time, success,
+            # quality, tool use and hallucination, and the md5 of the task
+            # type name in the first column, so "nearest" meant nearest
+            # hash and shortest run time, not most alike.
+            distance = abs(float(task_features[7]) - float(pattern.centroid[7]))
             similarity = 1.0 / (1.0 + distance)
 
             matches.append((pattern, similarity))
 
-        # Sort by similarity
-        matches.sort(key=lambda x: x[1], reverse=True)
+        # Most alike first; between equally alike patterns, the more reliable.
+        matches.sort(key=lambda x: (x[1], x[0].confidence), reverse=True)
 
         return [(p, float(s)) for p, s in matches[:5]]  # Return top 5 matches
 
