@@ -11,6 +11,8 @@ Tests cover:
 - Edge cases and security
 """
 
+import time
+
 import pytest
 
 from Agent_Guru.speech.stt.language_detector import (
@@ -587,8 +589,23 @@ class TestLanguageDetector:
         assert arabic_result.language in [Language.ARABIC, Language.URDU]  # nosec B101
         assert urdu_result.language in [Language.ARABIC, Language.URDU]  # nosec B101
     
-    def test_performance_40_languages_rapid_detection(self, detector: LanguageDetector):
-        """Test rapid detection across all 40+ languages."""
+    def test_performance_12_languages_rapid_detection(self, detector: LanguageDetector):
+        """Twelve scripts and languages are each detected quickly and without error.
+
+        This test used to be called the 40 languages test and claimed to
+        check speed, but it covered these 12 and timed nothing: its only
+        speed check was the 30 s pytest-timeout hang guard, which a
+        detector 10,000 times slower than this one would still pass. The
+        budget is now measured in the test body. Twelve detections took
+        about 2 ms on the owner's laptop and the slowest single call
+        1.9 ms, so 0.5 s for all twelve is about 250 times the measured
+        cost: a runner being busy does not fail it, a detector that starts
+        doing real work per call (a model load, a network lookup) does.
+        Which language comes back is checked elsewhere in this file; for
+        two of these short greetings the detector does not return the
+        expected language, so asserting it here would fail on that, not
+        on speed.
+        """
         test_texts = {
             Language.ENGLISH: "Hello world",
             Language.SPANISH: "Hola mundo",
@@ -604,12 +621,14 @@ class TestLanguageDetector:
             Language.HINDI: "नमस्ते दुनिया",
         }
         
-        # Detect all rapidly
-        for expected_lang, text in test_texts.items():
-            result = detector.detect_language(text)
-            # Should detect without crashing
+        started = time.perf_counter()
+        results = [detector.detect_language(text) for text in test_texts.values()]
+        elapsed = time.perf_counter() - started
+
+        for result in results:
             assert result is not None  # nosec B101
             assert 0.0 <= result.confidence <= 1.0  # nosec B101
+        assert elapsed < 0.5, f"12 detections took {elapsed:.3f} s"  # nosec B101
     
     def test_mixed_rtl_ltr_text(self, detector: LanguageDetector):
         """Test mixed right-to-left and left-to-right text."""
