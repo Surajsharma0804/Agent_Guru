@@ -4865,6 +4865,17 @@ class IntegrationOrchestrator:
             return text
         if _TEXT_TURN.get():
             return None  # a typed turn is answered in writing
+        # Sources are for reading, not hearing. Done here, once, because every
+        # tool's reply passes through this stage: the weather answer used to
+        # be spoken with its "Sources:" list and forecast URL whenever the
+        # model did not stream, and fixing it per tool would leave the next
+        # tool that cites a page to repeat it. The written reply and
+        # result.sources are left untouched.
+        from Agent_Guru.integration.research import spoken_form
+
+        text = spoken_form(text)
+        if not text:
+            return text
         stream_fn = self._streamable_tts_fn()
         if stream_fn is not None:
             try:
