@@ -129,3 +129,43 @@ def test_on_windows_the_master_secret_is_kept_by_dpapi(data_dir):
     assert secret_store.os_credential("test_master", lambda: b"other") == first  # nosec B101
     raw = secret_store.path_for("test_master").read_bytes()
     assert first not in raw  # nosec B101  the file holds the DPAPI-protected form only
+
+
+def test_migrating_says_which_store_is_used_without_calling_the_old_one_unprotected(
+    data_dir, os_credential, monkeypatch, caplog,
+):
+    """The first start of a profile with an old store warned that the old file was unprotected.
+
+    KeyStore's empty-password warning fired for the old .guru file, opened only to copy its keys,
+    and read as if the owner's keys were unprotected now (round 12 soak). The migration line said
+    "delete the old file yourself" without naming the store in use.
+    """
+    import logging
+
+    import structlog
+
+    checkout = Path.cwd()
+    monkeypatch.setattr(onboarding, "__file__", str(checkout / "Agent_Guru" / "deployment" / "onboarding.py"))
+    legacy_path = checkout / ".guru" / "onboarding_secrets.db"
+    legacy_path.parent.mkdir()
+    KeyStore(storage_path=str(legacy_path), master_password="").close()  # nosec B106 - how the old one was made
+
+    caplog.set_level(logging.INFO)
+    caplog.clear()  # making the old store above warns, as it should; only the start is checked
+    with structlog.testing.capture_logs() as events:
+        store = OnboardingManager()._key_store
+    store.close()
+
+    warned = [r.getMessage() for r in caplog.records
+              if r.levelno >= logging.WARNING and "master_password" in r.getMessage()]
+    assert not warned, warned  # nosec B101
+    migrated = [e for e in events if e.get("event") == "onboarding_store_migrated"]
+    assert len(migrated) == 1, events  # nosec B101
+    line = migrated[0]
+    assert Path(line["new_file"]).resolve() == (data_dir / "onboarding_secrets.db").resolve()  # nosec B101
+    assert line["keys"] == 0 and "not read again" in line["detail"]  # nosec B101
+
+    # Any other empty-password store still warns.
+    caplog.clear()
+    KeyStore(storage_path=":memory:", master_password="").close()  # nosec B106
+    assert any("empty master_password" in r.getMessage() for r in caplog.records)  # nosec B101
