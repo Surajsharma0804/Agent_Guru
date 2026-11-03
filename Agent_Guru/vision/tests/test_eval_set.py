@@ -50,3 +50,18 @@ def test_wrong_answers_measured_on_gemma3_score_as_wrong():
     for q in QUESTIONS:
         if q.question in measured:
             assert not q.is_correct(measured[q.question]), q.question  # nosec B101
+
+
+def test_the_screenshots_come_from_the_test_fixtures_not_demo_files():
+    # They were read from DEMO_FILES/SCREENSHOOT, the owner's demo folder; with
+    # it deleted from the working tree every screenshot lookup raised
+    # FileNotFoundError. The copies live with these tests instead.
+    from pathlib import Path
+
+    from Agent_Guru.vision import eval_set
+
+    folder = Path(eval_set._SCREENSHOTS)
+    assert folder == Path(__file__).resolve().parent / "fixtures" / "eval_screens"  # nosec B101
+    assert "DEMO_FILES" not in folder.parts  # nosec B101
+    assert sorted(p.name for p in folder.glob("*.png")) == [  # nosec B101
+        "browser_section4_20260815_202312.png", "screenshot_20260815_202116.png"]
