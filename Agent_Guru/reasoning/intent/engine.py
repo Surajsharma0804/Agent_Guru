@@ -190,6 +190,8 @@ class IntentDetectionEngine:
 
         # Initialization flag
         self._initialized = False
+        # Optional models whose files are absent, said once by initialize().
+        self._missing_models: list[str] = []
 
     def initialize(self) -> None:
         """Initialize all components.
@@ -207,8 +209,22 @@ class IntentDetectionEngine:
             self._init_fast_router()
 
         if self.config.enable_neural:
+            self._missing_models.clear()
             self._init_neural_classifier()
             self._init_ner_extractor()
+            if self._missing_models:
+                # One line, at info. Each missing model was its own WARNING
+                # with "Please convert/train the model first", twice per start
+                # (the engine is set up twice), though neither model is shipped
+                # and nothing in the app turns them on: the fast-path rules and
+                # the LLM classify every intent without them. Four warnings at
+                # every start for an expected state taught the owner to skip
+                # the warnings that do matter.
+                _logger.info(
+                    "Optional intent models not installed (%s) - the fast-path rules and the LLM "
+                    "classify intents",
+                    ", ".join(self._missing_models),
+                )
 
         if self.config.enable_llm_fallback:
             self._init_llm_fallback()
@@ -247,6 +263,15 @@ class IntentDetectionEngine:
             self.neural_classifier = NeuralIntentClassifier(neural_config)
             self.neural_classifier.load_model()
             _logger.info("Neural Classifier initialized")
+        except FileNotFoundError as e:
+            # Not installed when the model file itself is absent: reported once
+            # by initialize(). A model file with its tokenizer or label file
+            # missing is a broken install and still warns.
+            self.neural_classifier = None
+            if Path((self.config.neural_config or ClassifierConfig()).model_path).exists():
+                _logger.warning("Neural Classifier initialization failed: %s - disabled", e)
+            else:
+                self._missing_models.append("neural intent classifier")
         except Exception as e:
             _logger.warning("Neural Classifier initialization failed: %s - disabled", e)
             self.neural_classifier = None
@@ -258,6 +283,12 @@ class IntentDetectionEngine:
             self.ner_extractor = NEREntityExtractor(ner_config)
             self.ner_extractor.load_model()
             _logger.info("NER Extractor initialized")
+        except FileNotFoundError as e:
+            self.ner_extractor = None
+            if Path((self.config.ner_config or NERConfig()).model_path).exists():
+                _logger.warning("NER Extractor initialization failed: %s - disabled", e)
+            else:
+                self._missing_models.append("NER entity extractor")
         except Exception as e:
             _logger.warning("NER Extractor initialization failed: %s - disabled", e)
             self.ner_extractor = None
