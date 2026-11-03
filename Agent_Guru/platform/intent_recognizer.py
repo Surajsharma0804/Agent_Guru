@@ -247,9 +247,26 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         re.compile(r"\b(pause)\b.*(music|song|media|video|audio|track|playing)\b", re.IGNORECASE),
         "play_pause",
     ),
-    # Text input / dictation
-    (re.compile(r"\b(type|write|input)\b.+\b(in|into|on)\b.+", re.IGNORECASE), "type_text"),
-    (re.compile(r"\b(type|write|input)\b\s+[\"']?.+[\"']?", re.IGNORECASE), "type_text"),
+    # Text input / dictation: only an explicit instruction to type into the
+    # window in front. These used to match "type", "write" or "input" anywhere
+    # in the sentence, followed by anything, so asking for help with writing
+    # became keystrokes: "Help me write a message to my landlord", "write a
+    # note to my teacher" and "help me write a cover letter" were labelled
+    # type_text, which the policy refuses, and the owner was told it was not
+    # allowed instead of getting a draft. Writing text for the owner is a
+    # conversation. Now "type" or "input" must open the utterance, and
+    # "write" counts only with a target to type into ("write hello in
+    # notepad") and not before "a", "an", "me", "my" and the like, which
+    # introduce something to compose.
+    (re.compile(r"^\W*(?:please\s+)?(?:type|input)\b\s*\S", re.IGNORECASE), "type_text"),
+    (
+        re.compile(
+            r"^\W*(?:please\s+)?write\s+(?!(?:a|an|me|my|the|some|this|that|up|out|back)\b)\S.*"
+            r"\b(?:in|into)\s+(?:the\s+)?\S+",
+            re.IGNORECASE,
+        ),
+        "type_text",
+    ),
     # Settings
     (re.compile(r"\b(wifi|wi-fi|wireless)\b", re.IGNORECASE), "settings"),
     (re.compile(r"\b(bluetooth)\b", re.IGNORECASE), "settings"),
@@ -512,6 +529,17 @@ _INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "question",
     ),
 ]
+
+#: Asking for something to be written: "help me write a ...", "can you draft
+#: an ...", "compose a ...", "write a note to ...". See _try_compose_request().
+_COMPOSE_REQUEST = re.compile(
+    r"^\W*(?:please\s+)?"
+    r"(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?|help\s+me\s+(?:to\s+)?|i\s+(?:need|want)\s+(?:you\s+)?to\s+)?"
+    r"(?:write|draft|compose|prepare)\s+(?:me\s+)?(?:a|an|some|my|the)\b",
+    re.IGNORECASE,
+)
+#: Wording that makes it a send: the verb itself, or the text to send.
+_SEND_SIGNAL = re.compile(r"\bsend\b|\bsaying\b|\b(?:that|which)\s+says\b|[\"“][^\"”]+[\"”]|:\s*\S", re.IGNORECASE)
 
 _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (
@@ -832,6 +860,7 @@ class _RuleEngine:
         result = (
             self._try_screen_question(stripped, platform_name)
             or self._try_dictated_message(stripped, platform_name)
+            or self._try_compose_request(stripped, platform_name)
             or self._try_web(stripped, platform_name)
             or self._try_system_control(stripped, platform_name)
             or self._try_communication(stripped, platform_name)
@@ -890,6 +919,30 @@ class _RuleEngine:
         if not _parse_message_command(text).get("message"):
             return None
         return self._try_communication(text, plat)
+
+    def _try_compose_request(self, text: str, plat: str) -> IntentResult | None:
+        """A request to write something for the owner, answered as a conversation.
+
+        Checked after a dictated message (which has its words after "saying"
+        or ":") and before the rules that act. "Help me write a message to my
+        landlord" was labelled type_text, which the policy refuses; with the
+        typing rule narrowed it became send_message, the start of a send. So
+        did "compose an email to the school" and "write an email to my manager
+        asking for leave". Composing is the model's job: it drafts, and the
+        owner can still ask to send it. A request that says "send", or gives
+        the wording ("saying ...", "that says ...", quoted text), is left to
+        the messaging rules.
+        """
+        if not _COMPOSE_REQUEST.search(text) or _SEND_SIGNAL.search(text):
+            return None
+        return IntentResult(
+            intent_type="conversation",
+            parameters={"action": "compose"},
+            confidence=0.85,
+            raw_text=text,
+            platform=plat,
+            method="rule_based",
+        )
 
     def _try_web(self, text: str, plat: str) -> IntentResult | None:
         """Try to match a web/URL intent.
