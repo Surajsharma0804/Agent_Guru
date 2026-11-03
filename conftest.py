@@ -13,6 +13,30 @@ from typing import Any
 import pytest
 from hypothesis import HealthCheck, Verbosity, settings
 
+# ---------------------------------------------------------------------------
+# The owner's profile is out of reach of every test.
+#
+# This is done here, at import, before pytest imports any test module: several
+# modules fix their profile path when imported (user_memory._MEMORY_PATH =
+# Path.home() / ...), so an environment changed later, in a fixture, would not
+# move them. isolate_profile() refuses to run if one is already loaded.
+#
+# It replaces an autouse fixture that set AGENT_GURU_DATA_DIR for every test.
+# No code reads that variable, so it isolated nothing, and it left a new empty
+# temp folder behind per test. Stores were kept off the real profile only where
+# a test swapped them itself; the round 12 soak showed what a missed one costs
+# (its turns were written into the owner's real learned facts).
+#
+# Model caches (Hugging Face, torch, Kokoro, the injection classifier) stay at
+# their real locations, read-only for tests, which refuse network downloads.
+# The temporary profile is not deleted at the end: it holds directory links to
+# those model folders, and removing a link with a recursive delete is the one
+# step where a mistake would reach the real models.
+# ---------------------------------------------------------------------------
+from Agent_Guru.utils.profile_isolation import isolate_profile  # noqa: E402
+
+TEST_PROFILE = isolate_profile()
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -487,9 +511,3 @@ def temp_npz_path() -> pathlib.Path:
     if path.exists():
         path.unlink()
 
-
-@pytest.fixture(autouse=True)
-def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Prevent tests from writing to real user directories."""
-    temp_dir = tempfile.mkdtemp(prefix="agent_guru_test_")
-    monkeypatch.setenv("AGENT_GURU_DATA_DIR", temp_dir)
