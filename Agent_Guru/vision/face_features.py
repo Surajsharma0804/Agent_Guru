@@ -151,7 +151,12 @@ class FaceFeatureExtractor:
         self._use_gpu = use_gpu
         self._insightface_init_timeout = insightface_init_timeout
         if not _INSIGHTFACE_AVAILABLE:
-            logger.warning("InsightFace not available - stub embeddings will be returned.")
+            # Info, not a warning: main.py builds this through the security
+            # loader at every start, InsightFace is not a dependency, and no
+            # turn authenticates by face, so this warned at every start about
+            # a feature nothing used. _stub_extract() still warns each time a
+            # stub embedding is actually produced, which is when it matters.
+            logger.info("InsightFace not installed (optional) - face embeddings would be stubs if used.")
 
     # ------------------------------------------------------------------
     # Public API
