@@ -449,6 +449,25 @@ def strip_citations(sentence: str) -> str:
     return re.sub(r"\s+([.,;!?])", r"\1", spoken)
 
 
+#: The written source list check_answer() appends, from its heading to the end.
+_SOURCES_BLOCK = re.compile(r"\n\s*Sources:\n.*\Z", re.DOTALL)
+
+
+def spoken_form(text: str) -> str:
+    """A whole reply as it is spoken: no source list, source ids or URLs.
+
+    The written reply ends in "Sources:" and one line per source with its
+    URL, and that is what a voice turn spoke whenever the model answered in
+    one piece rather than streaming: the weather was followed by "S1
+    Open-Meteo forecast for Delhi ... link, page read", Kokoro saying "link"
+    for the forecast URL. The speech stage now passes every reply through
+    this, whichever tool produced it. Line breaks are kept, because the
+    streaming speaker splits sentences at them.
+    """
+    body = _SOURCES_BLOCK.sub("", text)
+    return "\n".join(strip_citations(line).strip() for line in body.split("\n")).strip()
+
+
 def research_server() -> Any:
     """The ServerConfig for the research tools; local is filled in by the caller."""
     from Agent_Guru.integration.mcp_tools import ServerConfig, ToolRisk, ToolRule
