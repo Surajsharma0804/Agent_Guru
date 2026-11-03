@@ -137,8 +137,12 @@ class FaceDetector:
         self._insightface_init_attempted: bool = False
 
         if not _INSIGHTFACE_AVAILABLE:
-            logger.warning(
-                "InsightFace not available - FaceDetector will use OpenCV Haar cascade fallback.",
+            # Info, not a warning: InsightFace is optional, the Haar cascade
+            # is the working fallback, and the vision engine builds a
+            # detector at every start, so this was a warning at every start
+            # for the expected install.
+            logger.info(
+                "InsightFace not installed (optional) - FaceDetector uses the OpenCV Haar cascade.",
             )
 
     # ------------------------------------------------------------------
