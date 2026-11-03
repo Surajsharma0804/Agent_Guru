@@ -42,6 +42,14 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 _RUN_DIR = Path(tempfile.mkdtemp(prefix="guru_turn_eval_"))
+# The whole profile, before anything of the assistant's is imported.
+# _isolate_stores() below swapped three stores by hand; reminders, turns.db,
+# documents, the onboarding KeyStore and the logs still went to the owner's
+# real folders. research_eval.py and tool_loop_eval.py import this module
+# first, so they are covered too.
+from Agent_Guru.utils.profile_isolation import isolate_profile  # noqa: E402
+
+isolate_profile(_RUN_DIR / "profile")
 # Nothing may play aloud; synthesis still runs for real.
 sys.modules["sounddevice"] = types.SimpleNamespace(play=lambda *a, **k: None, wait=lambda: None)
 
