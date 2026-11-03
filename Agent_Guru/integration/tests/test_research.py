@@ -702,3 +702,41 @@ async def test_the_weather_tool_says_first_whether_the_condition_holds(open_mete
     shown = model.requests[1].messages[-1].content
     met = shown.index("Condition met: It is raining in Delhi, National Capital Territory of Delhi, India now")
     assert met < shown.index("[S1] Open-Meteo forecast")  # nosec B101  first, where the scheduler reads it
+
+
+async def test_a_spoken_weather_answer_is_said_without_its_sources_or_urls(open_meteo):
+    # A model that answers in one piece (no stream) left the turn's answer as
+    # the written form, "Sources:" block and forecast URL included, and that
+    # whole text went to the speech stage. Kokoro turns a URL into the word
+    # "link", so the owner heard the source list read out after the weather.
+    # The written reply keeps its sources; only what is spoken loses them.
+    said: list[str] = []
+
+    async def speak(fn, text, personality, **kw):
+        chunks = [c async for c in text] if not isinstance(text, str) else [text]
+        said.append("".join(chunks))
+        return SimpleNamespace(spoken=1, error=None)
+
+    model = Model(("", [_research("weather", place="Delhi")]),
+                  ("Dense drizzle and 19.3°C in Delhi [S1].", []))
+    orch = await _orchestrator(model)
+    orch._streamable_tts_fn = lambda: (lambda text, pt: (b"", 22050))
+    orch._speak_streaming = speak
+
+    async def no_filler(*a, **k):
+        return None
+
+    orch._play_filler = no_filler
+
+    async def stt(*a, **k):
+        return "what's the weather in Delhi", "en"
+
+    orch._stage_stt = stt
+    from Agent_Guru.integration.orchestrator import WakeWordEvent
+
+    result = await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=b"\x00" * 3200))
+    spoken = " ".join(said)
+    assert "19.3" in spoken  # nosec B101
+    assert "http" not in spoken and "Sources" not in spoken and "[S1]" not in spoken, spoken  # nosec B101
+    assert "open-meteo.com" not in spoken.lower(), spoken  # nosec B101
+    assert result.sources and result.sources[0]["url"].startswith("https://api.open-meteo.com")  # nosec B101
