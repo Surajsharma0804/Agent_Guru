@@ -177,7 +177,12 @@ class OnboardingManager:
         candidates = {p.resolve() for p in (Path.cwd() / ".guru" / "onboarding_secrets.db",
                                             checkout / ".guru" / "onboarding_secrets.db") if p.is_file()}
         for legacy_path in sorted(candidates):
-            legacy = KeyStore(storage_path=str(legacy_path), master_password="")  # nosec B106 - how it was made
+            # Opened only to copy its keys out. Its own empty-password warning
+            # named this file as if it were the store in use; the log line
+            # below says what actually happened instead.
+            legacy = KeyStore(  # nosec B106 - how it was made
+                storage_path=str(legacy_path), master_password="", warn_unprotected=False,
+            )
             try:
                 moved = 0
                 for key_id in legacy.key_ids():
@@ -190,8 +195,19 @@ class OnboardingManager:
                     moved += 1
             finally:
                 legacy.close()
+            # Says which store is in use and that the old one is no longer
+            # read. It said only "delete the old file yourself", beside a
+            # warning that the old file was unprotected, and did not name the
+            # store the keys went to or that this happens once.
+            detail = (
+                "the old file was protected only by an empty password; each key was copied into the "
+                "new file, which is protected by a key the operating system keeps, and read back. "
+                "The old file is not read again and can be deleted"
+                if moved else
+                "the old file held no keys; it is not read again and can be deleted"
+            )
             logger.info("onboarding_store_migrated", keys=moved, old_file=str(legacy_path),
-                        detail="checked by reading each key back; delete the old file yourself")
+                        new_file=store._storage_path, detail=detail)
         store.store_key(_MIGRATED_MARKER, b"1")
 
     # ------------------------------------------------------------------
