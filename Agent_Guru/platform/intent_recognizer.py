@@ -38,6 +38,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from Agent_Guru.platform.features.briefing import BRIEFING_PATTERN
 from Agent_Guru.platform.features.screen_reader import SCREEN_QUESTION_PATTERN
 
 logger = logging.getLogger(__name__)
@@ -286,14 +287,12 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         ),
         "system_status",
     ),
-    # Morning briefing
-    (
-        re.compile(
-            r"\b(good morning|morning briefing|daily briefing|brief me|start my day|what.s my day|today.s summary)\b",
-            re.IGNORECASE,
-        ),
-        "briefing",
-    ),
+    # Morning briefing. The pattern is the briefing feature's, shared for
+    # the same reason as the screen one above: this list had its own copy
+    # that took "good morning" anywhere in a sentence, so "how do you say
+    # good morning in Hindi?" was labelled a briefing and the owner heard
+    # the news headlines instead of an answer.
+    (BRIEFING_PATTERN, "briefing"),
 ]
 
 # Known desktop application names - these should NEVER be treated as websites.
