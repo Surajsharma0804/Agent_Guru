@@ -136,3 +136,48 @@ async def test_a_spoken_good_morning_includes_todays_reminder(tmp_path):
             orch._reminders().cancel_reminder(r.reminder_id)
         orch.close_scheduler()
         assert time.time()  # nosec B101
+
+
+# A greeting starts the briefing only when it is the whole utterance; a
+# sentence that mentions "good morning" is a question for the assistant.
+# "how do you say good morning in Hindi?" was answered with the news
+# headlines in both soak runs of round 12.
+_BRIEFING_ASKS = [
+    "good morning",
+    "Good morning!",
+    "good morning guru",
+    "Hey Guru, good morning.",
+    "good morning ji",
+    "suprabhat",
+    "shubh prabhat",
+    "सुप्रभात",
+    "गुड मॉर्निंग",
+    "brief me",
+    "give me my morning briefing",
+    "what's my day look like",
+]
+_NOT_BRIEFING = [
+    "how do you say good morning in Hindi?",
+    "what does good morning mean in French",
+    "good morning ka hindi kya hai",
+    "write a good morning message for my mom",
+    "suprabhat ka matlab kya hai",
+]
+
+
+@pytest.mark.parametrize("said", _BRIEFING_ASKS)
+def test_a_greeting_or_request_starts_the_briefing(said):
+    from Agent_Guru.platform.intent_recognizer import _RuleEngine
+
+    assert briefing.is_briefing_command(said)  # nosec B101
+    result = _RuleEngine().recognize(said, "windows")
+    assert result.parameters.get("action") == "briefing", (said, result)  # nosec B101
+
+
+@pytest.mark.parametrize("said", _NOT_BRIEFING)
+def test_good_morning_inside_a_sentence_is_not_the_briefing(said):
+    from Agent_Guru.platform.intent_recognizer import _RuleEngine
+
+    assert not briefing.is_briefing_command(said)  # nosec B101
+    result = _RuleEngine().recognize(said, "windows")
+    assert result.parameters.get("action") != "briefing", (said, result)  # nosec B101
