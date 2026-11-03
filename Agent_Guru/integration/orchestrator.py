@@ -462,6 +462,41 @@ TRACE_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_TRACE_WRITE_TIMEOUT", 2.0)
 #: would be worse still, because it claims an action succeeded.
 LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask me again?"
 
+#: Said when the local model server refuses the connection. With Ollama
+#: stopped, a question used to be answered "I can't do that - it isn't
+#: allowed in my current settings.": the answer stage swallowed the
+#: connection error and returned nothing, and the reply fell back to the
+#: turn's status, which for a question is DENIED because the production
+#: policy allows no action for it. The owner was told a setting forbade
+#: talking about the moon, when the fix was to start Ollama.
+MODEL_DOWN_REPLY = "My language model is not running. Start Ollama and try again."
+
+
+class ModelUnreachableError(Exception):
+    """The language model server refused or could not be reached."""
+
+
+def _is_unreachable(exc: BaseException) -> bool:
+    """Whether *exc*, or anything it was raised from, is a failed connection.
+
+    The ollama client raises a plain ConnectionError from httpx.ConnectError
+    on complete(), and streaming lets httpx.ConnectError through itself;
+    both chains end in ConnectionRefusedError. A reply that starts and then
+    breaks, or an HTTP error from a running server, is not this.
+    """
+    import httpx
+
+    seen: BaseException | None = exc
+    for _ in range(10):  # a cause chain is short; this bounds a cyclic one
+        if seen is None:
+            return False
+        if isinstance(seen, (ConnectionRefusedError, httpx.ConnectError)):
+            return True
+        if type(seen) is ConnectionError and "Failed to connect" in str(seen):
+            return True
+        seen = seen.__cause__ or seen.__context__
+    return False
+
 #: How long a message draft waits for its answer. After that the next
 #: utterance is an ordinary command again, so a question left unanswered
 #: cannot turn a later, unrelated sentence into a message to someone.
@@ -1385,6 +1420,16 @@ class IntegrationOrchestrator:
                         logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
                         result.llm_response = LLM_TIMEOUT_REPLY
                         result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
+                    except ModelUnreachableError:
+                        # Said as what it is. The status was DENIED for a
+                        # question (no action is allowed for one), and the
+                        # empty answer let that status speak: "it isn't
+                        # allowed in my current settings". FAILED is what
+                        # happened; the API reports it too.
+                        result.llm_response = MODEL_DOWN_REPLY
+                        result.error = "llm_unreachable"
+                        if not result.action_result:
+                            result.action_status = ActionStatus.FAILED
             elif not needs_llm:
                 result.llm_response = None
 
@@ -1455,9 +1500,13 @@ class IntegrationOrchestrator:
                 # earlier "I can't actually set up a recurring alert", and was
                 # refused again, nearly word for word, with schedule_check on
                 # offer; the repeat was stored too.
+                # A turn the model never saw is not a conversation either:
+                # kept, "my language model is not running" would be recalled
+                # into later prompts as something the assistant once said.
                 refused = (
                     (result.action_status is ActionStatus.DENIED and not result.llm_response)
                     or bool(_CLAIMS_INABILITY.search(result.llm_response or ""))
+                    or result.error == "llm_unreachable"
                 )
                 try:
                     if not refused:
@@ -2125,6 +2174,8 @@ class IntegrationOrchestrator:
                 complete_fn, transcript, memory_context,
                 language_code, personality, intent,
             )
+        except ModelUnreachableError:
+            raise  # answered by run_pipeline in plain words, not swallowed
         except Exception:
             logger.exception("LLM stage error")
             return ""
@@ -2173,6 +2224,10 @@ class IntegrationOrchestrator:
                 "ollama pull %s",
                 ollama_model, e, ollama_model,
             )
+            if _is_unreachable(e):
+                # Not "no answer": the turn's status would then speak for it,
+                # and that status says the request was not allowed.
+                raise ModelUnreachableError(str(e)) from e
             return ""
 
     async def _build_llm_request(
