@@ -75,6 +75,41 @@ def meta_learner(temp_db):
     return MetaLearner(temp_db, min_samples=3, eps=0.5, min_confidence=0.5)
 
 
+def _learner_trained_in_one_pass(path: str, min_samples: int) -> MetaLearner:
+    """A MetaLearner whose patterns are only built by explicit update_patterns().
+
+    The property tests below train on a batch, call update_patterns()
+    themselves and only then assert. MetaLearner also reclusters on its own
+    from process_execution(): after every insert while no pattern is stored
+    yet, and every tenth insert after that. Each of those runs DBSCAN over
+    every stored row, and update_patterns() replaces both pattern types
+    from scratch, so none of them can change the patterns the assertion
+    reads. They were most of the cost: a profile of the cross task type
+    test showed 732 reclusterings for 1,017 inserts, 10.1 s of its 18.2 s
+    in process_execution, plus 3.1 s in the count queries that decide
+    when to recluster. Under 24 busy processes the six tests that use this
+    helper took 36 to 193 s against the 30 s Linux limit, and the cross
+    task type test failed a CI leg at 34.7 s.
+
+    Checked on 20 seeded training sets in the cross task type shape: the
+    stored patterns (centroids, ranges, strategies, confidence, counts)
+    and the recommendation were identical with and without the automatic
+    updates. The automatic update rule itself is still tested by
+    TestPatternClustering.test_pattern_update_threshold, which builds its
+    learner the normal way.
+
+    The same six tests also stopped calling gc.collect() after each
+    example. It ran after os.unlink(), so it could not help the temp file
+    go away, and open_sqlite() already closes every connection the learner
+    opens. It cost about 0.1 s per example in a process holding only this
+    file, 3.5 s of the cross task type test, and a full collection grows
+    with the heap of the whole suite.
+    """
+    learner = MetaLearner(path, min_samples=min_samples, eps=0.5, min_confidence=0.5)
+    learner._should_update_patterns = lambda: False
+    return learner
+
+
 class TestFeatureExtraction:
     """Unit tests for feature extraction."""
     
@@ -572,7 +607,7 @@ class TestPropertyBased:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=3, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=3)
             
             # Phase 1: Train on tasks with consistent pattern
             # Pattern: Fast tasks (100-200ms) with strategy_fast succeed
@@ -630,7 +665,6 @@ class TestPropertyBased:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
     
     @given(
         noise_level=st.floats(min_value=0.0, max_value=0.3),
@@ -655,7 +689,7 @@ class TestPropertyBased:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=3, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=3)
             
             # Train with mostly consistent pattern + some noise
             num_noisy = int(num_tasks * noise_level)
@@ -708,7 +742,6 @@ class TestPropertyBased:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
 
 
 class TestIntegration:
@@ -827,7 +860,7 @@ class TestIntegration:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=3, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=3)
             
             # Phase 1: Train with initial limited data
             for i in range(initial_data_size):
@@ -892,7 +925,6 @@ class TestIntegration:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
     
     def test_correlation_analysis(self, meta_learner):
         """Test feature correlation analysis."""
@@ -976,7 +1008,7 @@ class TestPatternGeneralization:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=5, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=5)
             
             # Define pattern characteristics based on pattern type
             if pattern_type == 'tool_usage':
@@ -1165,7 +1197,6 @@ class TestPatternGeneralization:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
     
     @given(
         train_task_types=st.integers(min_value=2, max_value=4),
@@ -1199,7 +1230,7 @@ class TestPatternGeneralization:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=5, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=5)
             
             # Define shared success pattern: fast execution + high reasoning quality = success
             base_execution_time = 150.0
@@ -1266,7 +1297,6 @@ class TestPatternGeneralization:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
     
     @given(
         train_size=st.integers(min_value=20, max_value=40),
@@ -1298,7 +1328,7 @@ class TestPatternGeneralization:
         os.close(fd)
         
         try:
-            learner = MetaLearner(temp_path, min_samples=5, eps=0.5, min_confidence=0.5)
+            learner = _learner_trained_in_one_pass(temp_path, min_samples=5)
             
             # Phase 1: Train with specific context complexity
             base_complexity = 5.0
@@ -1352,4 +1382,3 @@ class TestPatternGeneralization:
                 os.unlink(temp_path)
             except OSError as exc:
                 logger.debug("Cleanup skipped: %s", exc)
-            gc.collect()
