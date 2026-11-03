@@ -68,10 +68,16 @@ class KeyStore:
     Args:
         storage_path: Path to SQLite database, or ":memory:" for in-memory.
         master_password: Password used to derive the encryption key.
+        warn_unprotected: Log a warning when master_password is empty. False
+            only for a caller that opens an old, empty-password store to copy
+            its keys out and says so itself.
 
     """
 
-    def __init__(self, storage_path: str = ":memory:", master_password: str = "") -> None:  # nosec B107
+    def __init__(
+        self, storage_path: str = ":memory:", master_password: str = "", *,  # nosec B107
+        warn_unprotected: bool = True,
+    ) -> None:
         self._storage_path = storage_path
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -101,7 +107,12 @@ class KeyStore:
                 _KDF_ITERATIONS,
             )
 
-        if not master_password:
+        # warn_unprotected=False exists for one caller: onboarding opens the
+        # old .guru/onboarding_secrets.db with its empty password only to copy
+        # its keys into the protected store. This warning then named the old
+        # file as if it were the store in use, at every first start of a
+        # profile, and the owner read it as their keys being unprotected now.
+        if not master_password and warn_unprotected:
             # An empty master_password derives the encryption key from a
             # well-known constant (b"") plus a salt that is itself stored,
             # unencrypted, in this same database's metadata table - anyone
