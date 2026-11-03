@@ -939,3 +939,32 @@ class TestBackgroundServiceManager:
         assert elapsed < 15.0  # 100 calls in <15s = <150ms per call  # nosec B101
         
         service.stop()
+
+
+# get_metrics() measured CPU with process.cpu_percent(interval=0.1), sleeping
+# 0.1 s on every call: test_performance_metrics_overhead took 10.07 s for 100
+# calls (issue #7, item 2). CPU is now the change since the previous sample.
+
+
+def test_cpu_reading_is_the_change_since_the_previous_sample():
+    samples = iter([
+        (10.0, 100.0),  # taken when the service is made
+        (10.5, 101.0),  # 0.5 CPU s over 1 s
+        (10.5, 102.0),  # idle for 1 s
+        (12.5, 103.0),  # two cores busy for 1 s
+        (12.5, 103.0),  # same clock reading: the last value stands
+    ])
+    service = BackgroundServiceManager(cpu_sampler=lambda: next(samples))
+    readings = [service.get_metrics().cpu_percent for _ in range(4)]
+    assert readings == pytest.approx([50.0, 0.0, 200.0, 200.0], abs=1e-9)  # nosec B101
+
+
+def test_get_metrics_does_not_wait_to_measure(monkeypatch):
+    service = BackgroundServiceManager()
+
+    def no_sleep(seconds):
+        raise AssertionError(f"get_metrics slept {seconds} s to measure CPU")
+
+    monkeypatch.setattr(time, "sleep", no_sleep)
+    metrics = service.get_metrics()
+    assert metrics.cpu_percent >= 0.0 and metrics.memory_mb > 0.0  # nosec B101
