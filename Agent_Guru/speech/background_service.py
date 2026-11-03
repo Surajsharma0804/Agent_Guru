@@ -17,6 +17,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from Agent_Guru.speech.battery_monitor import BatteryMonitor
 
@@ -65,6 +66,7 @@ class BackgroundServiceManager:
         battery_monitor: BatteryMonitor | None = None,
         wake_word_callback: Callable | None = None,
         command_callback: Callable | None = None,
+        cpu_sampler: Callable[[], tuple[float, float]] | None = None,
     ) -> None:
         """Initialize Background Service Manager.
 
@@ -72,11 +74,31 @@ class BackgroundServiceManager:
             battery_monitor: Battery monitor instance
             wake_word_callback: Callback when wake word detected
             command_callback: Callback when command received
+            cpu_sampler: Returns (this process's CPU seconds, a monotonic
+                clock reading in seconds). The process's own counters by
+                default; a test passes its own to drive the reading.
 
         """
         self.battery_monitor = battery_monitor or BatteryMonitor()
         self.wake_word_callback = wake_word_callback
         self.command_callback = command_callback
+
+        # CPU is read as the change since the previous sample, not measured
+        # over a wait. get_metrics() used process.cpu_percent(interval=0.1),
+        # which sleeps 0.1 s on every call, so each caller paid 100 ms for a
+        # number: 100 calls took 10.07 s (issue #7, item 2). The baseline is
+        # taken here, so the first reading covers the time since the service
+        # was made instead of being a meaningless 0.
+        try:
+            import psutil
+
+            self._process: Any = psutil.Process()
+        except ImportError:
+            self._process = None
+        self._cpu_sampler = cpu_sampler or (self._process_cpu_sample if self._process is not None else None)
+        self._cpu_lock = threading.Lock()
+        self._last_cpu_sample = self._cpu_sampler() if self._cpu_sampler is not None else None
+        self._last_cpu_percent = 0.0
 
         # Service state
         self._state = ServiceState.STOPPED
@@ -399,6 +421,11 @@ class BackgroundServiceManager:
                 self._transition_to_sleep()
                 self.logger.info("Wake timeout, returned to sleep mode")
 
+    def _process_cpu_sample(self) -> tuple[float, float]:
+        """This process's user plus system CPU seconds, and the monotonic clock."""
+        times = self._process.cpu_times()
+        return times.user + times.system, time.monotonic()
+
     def _get_resource_usage(self) -> tuple[float, float]:
         """Get current resource usage.
 
@@ -406,35 +433,37 @@ class BackgroundServiceManager:
             Tuple of (cpu_percent, memory_mb)
 
         """
-        try:
-            import os
-
-            import psutil
-
-            process = psutil.Process(os.getpid())
-            cpu_percent = process.cpu_percent(interval=0.1)
-            memory_mb = process.memory_info().rss / (1024 * 1024)
-
+        if self._process is not None and self._cpu_sampler is not None:
+            with self._cpu_lock:
+                sample = self._cpu_sampler()
+                previous, self._last_cpu_sample = self._last_cpu_sample, sample
+                # Two calls within one clock tick leave the last reading in
+                # place rather than divide by zero.
+                if previous is not None and sample[1] > previous[1]:
+                    used = max(0.0, sample[0] - previous[0])
+                    self._last_cpu_percent = used / (sample[1] - previous[1]) * 100.0
+                cpu_percent = self._last_cpu_percent
+            memory_mb = self._process.memory_info().rss / (1024 * 1024)
             return cpu_percent, memory_mb
-        except ImportError:
-            # BUG FIX: this used to return hardcoded, plausible-looking
-            # "healthy" numbers (e.g. 3.0% CPU / 80MB RAM while asleep)
-            # whenever psutil wasn't importable -- indistinguishable from
-            # a real measurement to get_metrics()'s caller or to any
-            # dashboard/alerting consuming it. That's fabricated
-            # telemetry: if psutil were ever genuinely absent in a
-            # deployment (a packaging gap, a stripped-down environment),
-            # this would silently report "everything's fine" instead of
-            # surfacing that no real measurement was taken, masking
-            # rather than revealing the problem and potentially hiding
-            # genuine resource exhaustion behind a canned "healthy"
-            # reading. NaN unambiguously signals "not measured" to any
-            # consumer that checks for it (math.isnan), and is safe by
-            # construction against numeric comparisons silently
-            # evaluating as healthy (any comparison against NaN is
-            # False).
-            self.logger.warning(
-                "psutil not available -- resource usage cannot be measured; "
-                "get_metrics() will report NaN for cpu_percent/memory_mb",
-            )
-            return float("nan"), float("nan")
+        # psutil could not be imported when the service was made.
+        # BUG FIX: this used to return hardcoded, plausible-looking
+        # "healthy" numbers (e.g. 3.0% CPU / 80MB RAM while asleep)
+        # whenever psutil wasn't importable -- indistinguishable from
+        # a real measurement to get_metrics()'s caller or to any
+        # dashboard/alerting consuming it. That's fabricated
+        # telemetry: if psutil were ever genuinely absent in a
+        # deployment (a packaging gap, a stripped-down environment),
+        # this would silently report "everything's fine" instead of
+        # surfacing that no real measurement was taken, masking
+        # rather than revealing the problem and potentially hiding
+        # genuine resource exhaustion behind a canned "healthy"
+        # reading. NaN unambiguously signals "not measured" to any
+        # consumer that checks for it (math.isnan), and is safe by
+        # construction against numeric comparisons silently
+        # evaluating as healthy (any comparison against NaN is
+        # False).
+        self.logger.warning(
+            "psutil not available -- resource usage cannot be measured; "
+            "get_metrics() will report NaN for cpu_percent/memory_mb",
+        )
+        return float("nan"), float("nan")
