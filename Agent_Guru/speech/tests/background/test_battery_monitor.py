@@ -12,12 +12,26 @@ Tests cover:
 import pytest
 import time
 
+from Agent_Guru.speech import battery_monitor as battery_monitor_module
 from Agent_Guru.speech.battery_monitor import (
     BatteryMonitor,
     BatteryOptimizationLevel,
     BatteryStatus,
     BatteryUsageStats
 )
+
+
+class _ManualClock:
+    """Stands in for the time module inside battery_monitor; moves only when told."""
+
+    def __init__(self, start: float = 1_000_000.0) -> None:
+        self.now = start
+
+    def time(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
 
 
 # The coverage tests below set the battery the monitor sees by replacing
@@ -598,23 +612,35 @@ class TestBatteryMonitor:
     # ZERO COMPROMISE - STATISTICS ACCURACY
     # ========================================================================
     
-    def test_statistics_accumulation_accuracy(self, monitor: BatteryMonitor):
+    def test_statistics_accumulation_accuracy(self, monitor: BatteryMonitor, monkeypatch):
         """ZERO COMPROMISE: Test statistics accumulation accuracy."""
-        # Track known durations
+        # This test is about the arithmetic: a 0.1 s sleep period and a
+        # 0.2 s wake period must add up to exactly those totals. It used to
+        # make the periods with time.sleep() and allow 50 ms of slack above
+        # each one. A busy machine oversleeps by more than that: under 24
+        # busy processes on the owner's laptop it failed 190 of 200 runs,
+        # with a measured total of 0.409 s median against the 0.40 s bound,
+        # and shared CI runners, macOS ones above all, are that busy.
+        # The monitor reads the clock only through time.time() in its own
+        # module, so the test hands it a clock it moves by hand. The
+        # periods are now exact, so the check is exact too, which is
+        # stricter than the old ranges.
+        clock = _ManualClock()
+        monkeypatch.setattr(battery_monitor_module, "time", clock)
+
         monitor.start_sleep_mode_tracking()
-        time.sleep(0.1)
+        clock.advance(0.1)
         monitor.stop_sleep_mode_tracking()
-        
+
         monitor.start_wake_mode_tracking()
-        time.sleep(0.2)
+        clock.advance(0.2)
         monitor.stop_wake_mode_tracking()
-        
+
         stats = monitor.get_usage_stats()
-        
-        # Should be approximately correct
-        assert 0.09 <= stats.sleep_time_seconds <= 0.15  # nosec B101
-        assert 0.19 <= stats.wake_time_seconds <= 0.25  # nosec B101
-        assert 0.28 <= stats.total_time_seconds <= 0.40  # nosec B101
+
+        assert stats.sleep_time_seconds == pytest.approx(0.1, abs=1e-9)  # nosec B101
+        assert stats.wake_time_seconds == pytest.approx(0.2, abs=1e-9)  # nosec B101
+        assert stats.total_time_seconds == pytest.approx(0.3, abs=1e-9)  # nosec B101
     
     def test_per_hour_calculation_accuracy(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test per-hour calculation accuracy."""
