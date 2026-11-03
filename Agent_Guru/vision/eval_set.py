@@ -11,7 +11,8 @@ state, application vs window title, small taskbar text, highlight); asking
 at full resolution instead of the 896 px the engine sends did not fix any.
 
 Images are either drawn here, so they are identical on every machine, or
-the two screenshots tracked in DEMO_FILES/SCREENSHOOT. Answers are scored by
+two screenshots kept with the vision tests in tests/fixtures/eval_screens.
+Answers are scored by
 regular expressions, not exact strings, because a correct model may say
 "Three." or "There are 3 triangles."
 """
@@ -25,8 +26,12 @@ from typing import Callable
 
 import numpy as np
 
-_REPO = Path(__file__).resolve().parents[2]
-_SCREENSHOTS = _REPO / "DEMO_FILES" / "SCREENSHOOT"
+# The two screenshots used to be read from DEMO_FILES/SCREENSHOOT, the owner's
+# demo folder. With that folder deleted from the working tree, every image
+# lookup raised FileNotFoundError and test_every_question_has_an_image_that_loads
+# failed, as did scripts/vqa_eval.py, though nothing in the vision code had
+# changed. Byte-identical copies (same git blobs) now live with the tests.
+_SCREENSHOTS = Path(__file__).resolve().parent / "tests" / "fixtures" / "eval_screens"
 
 
 @dataclass(frozen=True)
