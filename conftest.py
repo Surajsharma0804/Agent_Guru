@@ -263,11 +263,10 @@ def _refuse_web_hosts() -> None:
 # performance assertion. It exists to stop a deadlocked test from hanging CI,
 # not to measure how fast a runner is. A test that cares about speed must
 # assert it explicitly in its body, as the `performance`-marked tests do.
-# One test currently relies on the timeout instead:
-# speech/tests/stt/test_language_detector.py::
-# test_performance_40_languages_rapid_detection is named and documented as a
-# "rapid detection" test but makes no timing assertion, so its only speed
-# check is this timeout. That assertion belongs in the test body.
+# The last test that relied on the timeout instead, the language detector's
+# "rapid detection" test, now measures its own budget in the test body
+# (speech/tests/stt/test_language_detector.py::
+# test_performance_12_languages_rapid_detection).
 #
 # On Linux and macOS pytest-timeout uses SIGALRM, so a timeout fails the one
 # test and the run continues. Windows has no SIGALRM, so pytest-timeout falls
