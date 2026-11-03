@@ -16,6 +16,7 @@ wttr.in for weather (no key required).
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -244,16 +245,36 @@ async def _get_news_headlines(
     return []
 
 
+# What counts as asking for the briefing, shared with the intent recognizer
+# so the two cannot disagree.
+#
+# Two kinds of wording. A request phrase ("brief me", "morning briefing")
+# asks for the briefing wherever it sits in the sentence. A greeting only
+# does when it is the whole utterance, optionally addressed to the
+# assistant ("hey guru, good morning", "good morning ji"). Before this,
+# "good morning" anywhere in a sentence started the briefing: "how do you
+# say good morning in Hindi?" answered with the date, weather and news
+# headlines in 1.4 s instead of "suprabhat", in two of two soak runs, and
+# "what does good morning mean in French" did the same. Hindi greetings
+# did the opposite and never started it, so an owner greeting the
+# assistant in Hindi got small talk where an English greeting got the
+# briefing.
+_GREETING = (
+    r"(?:good\s+morning|suprabhat|shubh\s+prabhat"
+    r"|सुप्रभात|शुभ\s+प्रभात|गुड\s+मॉर्निंग)"
+)
+# Words that address the assistant or soften the greeting without asking
+# anything: the wake phrase when the transcript still carries it, a name,
+# an honorific.
+_ADDRESS = r"(?:hey|hi|hello|ok|okay|oh|guru|maya|ji|there|everyone)"
+BRIEFING_PATTERN = re.compile(
+    r"\b(?:morning\s+briefing|daily\s+briefing|what.s\s+my\s+day|brief\s+me"
+    r"|start\s+my\s+day|what.s\s+happening\s+today|today.s\s+summary)\b"
+    rf"|^\W*(?:{_ADDRESS}\W+)*{_GREETING}(?:\W+{_ADDRESS})*\W*$",
+    re.IGNORECASE,
+)
+
+
 def is_briefing_command(transcript: str) -> bool:
     """Return True if the user is asking for a morning briefing."""
-    import re
-
-    return bool(
-        re.search(
-            r"\b(good morning|morning briefing|daily briefing|"
-            r"what.s my day|brief me|start my day|"
-            r"what.s happening today|today.s summary)\b",
-            transcript,
-            re.IGNORECASE,
-        ),
-    )
+    return bool(BRIEFING_PATTERN.search(transcript.strip()))
