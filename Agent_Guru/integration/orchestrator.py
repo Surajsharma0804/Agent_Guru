@@ -722,6 +722,7 @@ class IntegrationOrchestrator:
         # A call that changes things, waiting for the owner's yes, by the
         # source that was asked (see _TURN).
         self._tool_pending: dict[str, dict[str, Any]] = {}
+        self._speech_depth = 0
         # One turn at a time, whatever started it. Voice turns, typed turns
         # (local API, ask, chat, dashboard), A2A, the OpenAI endpoint and chat
         # channels each called run_pipeline on their own. The API and the
@@ -1112,6 +1113,7 @@ class IntegrationOrchestrator:
                 logger.warning("Turn from %s turned away: %d turns already waiting", source, self._turns_waiting)
                 return PipelineResult(source=source, llm_response=BUSY_REPLY, error="busy")
             logger.info("Turn from %s waits for the turn in progress", source)
+            self.events.publish("turn.queued", source=source, waiting=self._turns_waiting + 1)
         self._turns_waiting += 1
         try:
             await self._turn_gate.acquire()
@@ -1120,9 +1122,15 @@ class IntegrationOrchestrator:
         try:
             self._turn_count += 1
             token = _TURN.set((source, self._turn_count))
+            # Published around the whole turn, on every path. turn.finished comes
+            # from the trace and only when one is written, so the orb could
+            # not rely on it to know a turn was over.
+            turn_id = self._turn_count
+            self.events.publish("turn.started", source=source, turn_id=turn_id)
             try:
                 return await self._run_gated_pipeline(wake_event, source)
             finally:
+                self.events.publish("turn.ended", source=source, turn_id=turn_id)
                 _TURN.reset(token)
         finally:
             self._turn_gate.release()
@@ -1558,6 +1566,7 @@ class IntegrationOrchestrator:
             self.events.publish(
                 "turn.finished", turn_id=turn.turn_id, heard=turn.heard, said=turn.said,
                 intent=turn.intent, status=turn.action_status, seconds=round(turn_seconds, 2),
+                source=result.source, sources=list(getattr(result, "sources", []) or []),
             )
             if store is None:
                 return
@@ -2390,9 +2399,10 @@ class IntegrationOrchestrator:
             return finish.get("reason") == "length"
 
         try:
-            spoken = await self._speak_streaming(
-                tts_fn, chunks(), result.personality, capped=capped, text_timeout_s=LLM_TIMEOUT_S,
-            )
+            with self._speaking():
+                spoken = await self._speak_streaming(
+                    tts_fn, chunks(), result.personality, capped=capped, text_timeout_s=LLM_TIMEOUT_S,
+                )
         except Exception:
             logger.warning(
                 "Streamed reply failed before its first sentence - answering the usual way",
@@ -4898,7 +4908,36 @@ class IntegrationOrchestrator:
             result.tts_response = await self._stage_tts(reply, result.personality)
         return True
 
+    @contextlib.contextmanager
+    def _speaking(self) -> Iterator[None]:
+        """speech.started and speech.finished around the outermost speaking step."""
+        self._speech_depth += 1
+        if self._speech_depth == 1:
+            self.events.publish("speech.started")
+        try:
+            yield
+        finally:
+            self._speech_depth -= 1
+            if self._speech_depth == 0:
+                self.events.publish("speech.finished")
+
+    def pending_questions(self) -> list[dict[str, Any]]:
+        """Every question waiting for a yes, with the source and turn that asked it.
+
+        Each is keyed by source, so only that source's next turn can answer it.
+        """
+        now = time.monotonic()
+        waiting = [{"source": source, "turn": item.get("turn"), "question": item["pending"].question}
+                   for source, item in self._tool_pending.items() if item.get("expires", now + 1) > now]
+        waiting += [{"source": source, "turn": draft.get("turn"), "question": self._message_draft_question(draft)}
+                    for source, draft in self._message_draft.items() if draft.get("expires", now + 1) > now]
+        return waiting
+
     async def _stage_tts(self, text: str, personality: Personality) -> Any:
+        with self._speaking():
+            return await self._stage_tts_body(text, personality)
+
+    async def _stage_tts_body(self, text: str, personality: Personality) -> Any:
         """Stage 8: speak the reply, streamed sentence by sentence when possible.
 
         This used to synthesise the whole reply and then play it, inside one
