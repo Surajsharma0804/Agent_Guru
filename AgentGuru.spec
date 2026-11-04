@@ -18,10 +18,15 @@ root, so nothing else can be picked up:
 
     pyinstaller AgentGuru.spec --noconfirm
 """
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
 GENESIS = ROOT / 'Agent_Guru' / 'genesis'
+# Inno Setup places the application next to the launcher on Windows. On Linux
+# and macOS the bundle carries it, and GENESIS copies it into the user's folder.
+WINDOWS = sys.platform == 'win32'
+ICON = str(ROOT / 'assets' / 'icon.ico') if WINDOWS else None
 
 # What the launcher reads at run time. The UI is listed folder by folder so
 # test_packaging.py can check it against the files on disk.
@@ -29,6 +34,15 @@ datas = [
     (str(GENESIS / 'components.json'), 'Agent_Guru/genesis'),
     (str(GENESIS / 'ui'), 'Agent_Guru/genesis/ui'),
 ]
+if not WINDOWS:
+    for path in sorted((ROOT / 'Agent_Guru').rglob('*')):
+        parts = path.relative_to(ROOT).parts
+        if not path.is_file() or path.suffix == '.pyc' or '__pycache__' in parts or 'tests' in parts \
+                or path.name.startswith('test_') or path.name == 'conftest.py':
+            continue
+        datas.append((str(path), str(Path('app', *parts[:-1]))))
+    datas += [(str(ROOT / 'main.py'), 'app'), (str(ROOT / 'requirements-lock.txt'), 'app'),
+              (str(ROOT / 'assets'), 'app/assets')]
 
 # genesis/runtime_tasks.py imports the application lazily, because it runs in
 # the managed runtime. PyInstaller follows imports inside functions too, so
@@ -73,7 +87,7 @@ window = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon=str(ROOT / 'assets' / 'icon.ico'),
+    icon=ICON,
 )
 
 # The same program with a console, for `AgentGuruCli genesis --plan` and a
@@ -88,7 +102,7 @@ terminal = EXE(
     strip=False,
     upx=False,
     console=True,
-    icon=str(ROOT / 'assets' / 'icon.ico'),
+    icon=ICON,
 )
 
 coll = COLLECT(
@@ -100,3 +114,6 @@ coll = COLLECT(
     upx=False,
     name='AgentGuru',
 )
+
+if sys.platform == 'darwin':
+    app = BUNDLE(coll, name='Agent Guru.app', bundle_identifier='com.agentguru.app', icon=None)
