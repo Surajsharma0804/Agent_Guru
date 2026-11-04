@@ -164,3 +164,86 @@ def test_the_devanagari_wake_words_are_drawn_with_the_bundled_font(tmp_path, eng
     finally:
         page.close()
         server.stop()
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize("screen", ["opening", "scan", "plan", "install", "verify", "online"])
+def test_every_genesis_screen_opens_in_a_replay_with_its_label(tmp_path, engine, screen):
+    journal = record(tmp_path, "fresh")
+    app = ga.GenesisApp(Layout(tmp_path / "AG", tmp_path / "app"), MANIFEST, replay_journal=journal)
+    server = GenesisServer(app.routes(), replay=True)
+    url = server.start()
+    page = engine.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    try:
+        page.goto(url + "&screen=" + screen)
+        wait_until(page, f"document.getElementById('s-{screen}').classList.contains('active')")
+        wait_until(page, "document.getElementById('replay').textContent.length > 0")
+        assert page.text_content("#replay") == "REPLAY - NOT A REAL RUN" and errors == []  # nosec B101
+    finally:
+        page.close()
+        server.stop()
+
+
+class FakeOrb:
+    """The workspace's data, set by the test as the server would report it."""
+
+    def __init__(self):
+        self.state = {"orb": "idle", "seq": 1, "turns": [], "waiting": 0, "microphone": "on", "questions": [], "source": "workspace"}
+
+    def routes(self):
+        return {("GET", "/api/workspace"): lambda b: (200, self.state), ("POST", "/api/heartbeat"): lambda b: (200, {}),
+                ("POST", "/api/mic"): lambda b: (200, {}), ("POST", "/api/answer"): lambda b: (202, {})}
+
+
+@pytest.fixture
+def workspace_page(engine):
+    fake = FakeOrb()
+    server = GenesisServer(fake.routes())
+    url = server.start().replace("/#t=", "/workspace.html#t=")
+    page = engine.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    slowly(page)
+    page.goto(url)
+    wait_until(page, "document.querySelectorAll('[role=tab]').length === 5")
+    yield fake, page, errors
+    page.close()
+    server.stop()
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize("state", ["idle", "listening", "thinking", "speaking", "muted"])
+def test_the_orb_shows_the_state_the_server_reports(workspace_page, state):
+    fake, page, errors = workspace_page
+    fake.state["orb"] = state
+    wait_until(page, f"document.getElementById('orb').dataset.state === '{state}'")
+    assert page.get_attribute("#orb", "aria-label") and errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+def test_the_conversation_shows_sources_the_queue_and_whose_question_it_is(workspace_page):
+    fake, page, errors = workspace_page
+    fake.state.update(waiting=2, turns=[{"turn": 1, "source": "workspace", "heard": "hello", "said": "Hi.", "sources": ["https://example.test/a"]}],
+                      questions=[{"source": "voice", "turn": 4, "question": "Delete notes.txt?"},
+                                 {"source": "workspace", "turn": 5, "question": "Send it?"}])
+    wait_until(page, "document.querySelectorAll('.question').length === 2")
+    assert "2 waiting" in page.text_content("#queue")  # nosec B101
+    assert page.text_content(".sources") == "https://example.test/a"  # nosec B101
+    cards = page.eval_on_selector_all(".question", "cs => cs.map(c => [c.textContent, c.querySelectorAll('button').length])")
+    assert "Asked by voice in turn 4" in cards[0][0] and cards[0][1] == 0  # nosec B101  no button can answer it from here
+    assert "turn 5" in cards[1][0] and cards[1][1] == 2  # nosec B101
+    assert errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+def test_the_tabs_work_from_the_keyboard(workspace_page):
+    _, page, errors = workspace_page
+    page.focus("#t-talk")
+    page.keyboard.press("ArrowRight")
+    wait_until(page, "document.activeElement.id === 't-tasks'")
+    assert page.get_attribute("#t-tasks", "aria-selected") == "true"  # nosec B101
+    page.keyboard.press("ArrowLeft")
+    wait_until(page, "document.activeElement.id === 't-talk'")
+    assert errors == []  # nosec B101
