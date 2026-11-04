@@ -131,7 +131,9 @@ KNOWN_SETTINGS: dict[str, str] = {
 #: part of the assistant it configures: [mcp] by integration/mcp_tools.py.
 SECTIONS = frozenset({"mcp"})
 
-_SECRET = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|DSN|URI|CREDENTIAL", re.IGNORECASE)
+# TOKEN but not TOKENS: AGENT_GURU_SPOKEN_REPLY_TOKENS is a count, and matching
+# it here meant neither settings.toml nor `config set` could ever change it.
+_SECRET = re.compile(r"KEY|TOKEN(?!S\b)|SECRET|PASSWORD|DSN|URI|CREDENTIAL", re.IGNORECASE)
 _MAX_TEXT = 300
 
 
