@@ -139,7 +139,7 @@ def validate(manifest: Manifest, probe_ids: Iterable[str], action_ids: Iterable[
                 problems.append(f"{cid}: {f.get('name')} has no real SHA-256")
             if not isinstance(f.get("size"), int) or f["size"] <= 0:
                 problems.append(f"{cid}: {f.get('name')} has no size")
-            if not str(f.get("url", "")).startswith("https://"):
+            if not all(str(u).startswith("https://") for u in [f.get("url", ""), *f.get("mirrors", [])]):
                 problems.append(f"{cid}: {f.get('name')} is not fetched over https")
         if c["install"] == "files.download" and not c.get("files"):
             problems.append(f"{cid}: a download component lists no files")
