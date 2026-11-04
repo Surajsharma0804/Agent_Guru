@@ -238,6 +238,18 @@ def test_the_conversation_shows_sources_the_queue_and_whose_question_it_is(works
 
 
 @pytest.mark.timeout(60)
+def test_a_turn_says_working_only_while_it_is(workspace_page):
+    fake, page, errors = workspace_page
+    fake.state["turns"] = [{"turn": 1, "source": "workspace", "heard": "first", "said": "", "status": "working"},
+                           {"turn": 2, "source": "workspace", "heard": "second", "said": "", "status": "no reply"}]
+    wait_until(page, "document.querySelectorAll('.turn').length === 2")
+    rows = page.eval_on_selector_all(".turn", "ts => ts.map(t => t.textContent)")
+    assert "first" in rows[0] and "Working on it" in rows[0]  # nosec B101  the question shows before the answer
+    assert "second" in rows[1] and "No reply came back" in rows[1] and "Working" not in rows[1]  # nosec B101
+    assert errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
 def test_the_tabs_work_from_the_keyboard(workspace_page):
     _, page, errors = workspace_page
     page.focus("#t-talk")
