@@ -11,6 +11,8 @@ bundled font.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from Agent_Guru.genesis import actions as act
@@ -54,6 +56,27 @@ def record(tmp_path, scenario):
     return layout.journal_path
 
 
+def wait_until(page, expression, timeout=30.0):
+    """Poll from Python. Playwright's wait_for_function polls with eval inside the
+    page, which the page's content policy rightly blocks: it passed on a fast
+    machine, where the first check was already true, and failed all three CI legs."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if page.evaluate(expression):
+            return
+        page.wait_for_timeout(50)
+    raise AssertionError(f"never true: {expression}")
+
+
+def slowly(page):
+    """Hold the page's script back, so every run sees the page before it has rendered, as CI does."""
+    def hold(route):
+        time.sleep(0.5)
+        route.continue_()
+
+    page.route("**/ui/app.js", hold)
+
+
 def browser():
     sync = pytest.importorskip("playwright.sync_api", reason="Playwright is part of the browser tier")
     pw = sync.sync_playwright().start()
@@ -87,9 +110,10 @@ def test_each_screen_shows_exactly_what_the_journal_says(tmp_path, engine, scena
     url = server.start()
     page = engine.new_page()
     try:
+        slowly(page)
         page.goto(url + "&screen=install")
-        page.wait_for_function("document.querySelectorAll('#stages .node[data-state]').length === 8")
-        page.wait_for_function("document.querySelectorAll('#component-rows tr').length > 0")
+        wait_until(page, "document.querySelectorAll('#stages .node[data-state]').length === 8")
+        wait_until(page, "document.querySelectorAll('#component-rows tr').length > 0")
         shown = page.eval_on_selector_all("#stages .node", "ns => ns.map(n => [n.dataset.stage, n.dataset.state])")
         assert dict(shown) == expected  # nosec B101
         rows = page.eval_on_selector_all("#component-rows tr",
@@ -122,8 +146,9 @@ def test_the_devanagari_wake_words_are_drawn_with_the_bundled_font(tmp_path, eng
     url = server.start()
     page = engine.new_page()
     try:
+        slowly(page)
         page.goto(url)
-        page.wait_for_function("document.fonts.status === 'loaded' && document.querySelector('[data-s=\"opening.wake\"]').textContent.length > 0")
+        wait_until(page, "document.fonts.status === 'loaded' && document.querySelector('[data-s=\"opening.wake\"]').textContent.length > 0")
         text = page.text_content("[data-s='opening.wake']")
         assert "हे गुरु" in text and "हे माया" in text  # nosec B101
         # The browser reports which font it used for the Devanagari run: the
