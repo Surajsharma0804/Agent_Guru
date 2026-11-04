@@ -32,7 +32,7 @@
  "plan.unavailable": "Not available on this machine",
  "plan.irreversible": "Cannot be undone",
  "plan.none": "None",
- "plan.nothingelse": "Nothing is added to startup, PATH or the firewall.",
+ "plan.nothingelse": "Nothing is added to PATH or the firewall.",
  "plan.approve": "I have read this plan and approve it",
  "plan.install": "Install",
  "plan.cannot": "This plan cannot be installed here:",
