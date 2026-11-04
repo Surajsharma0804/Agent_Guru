@@ -196,11 +196,19 @@ def test_the_pipeline_publishes_each_turns_start_and_end():
     from Agent_Guru.policy import PolicyEngine
     from Agent_Guru.policy.defaults import install_default_policies
 
+    # Held until the second turn has queued. Left to run, the first turn sometimes
+    # finished before the second arrived, nothing queued, and this failed about
+    # one run in six with no fault in the pipeline.
+    second_is_waiting = None
+
     class Model:
         async def complete(self, request):
+            await second_is_waiting.wait()
             return SimpleNamespace(content="Fine.", finish_reason="stop", tool_calls=[])
 
     async def main():
+        nonlocal second_is_waiting
+        second_is_waiting = asyncio.Event()
         engine = PolicyEngine()
         install_default_policies(engine)
         orch = IntegrationOrchestrator(speech_engine=None, vision_engine=None, llm_runtime=Model(), platform_controller=None,
@@ -215,8 +223,16 @@ def test_the_pipeline_publishes_each_turns_start_and_end():
         orch.events.subscribe("*", lambda e: seen.append((e.topic, e.data.get("source"))))
         with orch._speaking(), orch._speaking():
             pass
-        await asyncio.gather(orch.run_text_turn("first", source="a"), orch.run_text_turn("second", source="b"))
-        await asyncio.sleep(0.05)
+        first = asyncio.create_task(orch.run_text_turn("first", source="a"))
+        while orch._turn_gate is None or not orch._turn_gate.locked():
+            await asyncio.sleep(0)
+        second = asyncio.create_task(orch.run_text_turn("second", source="b"))
+        while not orch._turns_waiting:
+            await asyncio.sleep(0)
+        second_is_waiting.set()
+        await asyncio.gather(first, second)
+        while [t for t, _ in seen].count("turn.ended") < 2:
+            await asyncio.sleep(0)
         orch.close_scheduler()
         return seen
 
@@ -299,7 +315,8 @@ def test_the_question_that_was_met_with_silence_is_answered_in_its_own_row():
         window = ws.Workspace(orch, asyncio.get_running_loop())
         orch.events.subscribe("turn.started", lambda e: started.append(e.data.get("heard")))
         await orch.run_text_turn("What is two plus two? Answer in one short sentence.", source=ws.SOURCE)
-        await asyncio.sleep(0.05)
+        while not window.turns or window.turns[-1]["status"] == "working":
+            await asyncio.sleep(0)
         orch.close_scheduler()
         return list(window.turns)
 
@@ -327,7 +344,8 @@ def test_a_refused_typed_turn_shows_the_refusal_not_silence():
         orch._stage_policy = nothing_allowed
         orch._stage_intent = a_command
         result = await orch.run_text_turn("shut down now", source=ws.SOURCE)
-        await asyncio.sleep(0.05)
+        while not window.turns or window.turns[-1]["status"] == "working":
+            await asyncio.sleep(0)
         orch.close_scheduler()
         return result, list(window.turns)
 
