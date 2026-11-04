@@ -134,6 +134,9 @@ def _memory() -> tuple[int, int] | None:
             return int(info["MemTotal"].split()[0]) * 1024, int(info["MemAvailable"].split()[0]) * 1024
         except (OSError, KeyError, ValueError):
             return None
+    if system == "Darwin":
+        done = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=5, check=False)  # nosec B603 B607
+        return (int(done.stdout.strip()), 0) if done.stdout.strip().isdigit() else None
     return None
 
 
@@ -213,7 +216,8 @@ def probe_ram(s: Seams) -> Probe:
     if mem is None:
         return unknown("ram", "Memory", f"no reader for {s.system()}")
     total, avail = mem
-    return ok("ram", "Memory", {"total_mb": total // 2**20, "available_mb": avail // 2**20})
+    # macOS gives no free figure without vm_stat parsing: 0 means not read.
+    return ok("ram", "Memory", {"total_mb": total // 2**20, "available_mb": (avail // 2**20) or None})
 
 
 def probe_gpu(s: Seams) -> Probe:
@@ -314,6 +318,26 @@ def ollama_host(s: Seams) -> tuple[str, bool]:
     return (raw if "://" in raw else "http://" + raw).rstrip("/"), True
 
 
+def _models_on_disk(s: Seams) -> list[dict[str, Any]]:
+    """What a stopped Ollama holds, read from its manifests.
+
+    A stopped server cannot list its models, so a machine with gemma4 already
+    on disk was planned to download 6.6 GB of it again. Capabilities are not
+    in these files: they stay None, and the planner trusts only models it knows.
+    """
+    root = Path(s.env("OLLAMA_MODELS") or Path.home() / ".ollama" / "models") / "manifests" / "registry.ollama.ai" / "library"
+    found = []
+    try:
+        for tag in sorted(p for p in root.rglob("*") if p.is_file()):
+            data = json.loads(tag.read_text(encoding="utf-8"))
+            size = sum(int(x.get("size", 0)) for x in [*data.get("layers", []), data.get("config", {})])
+            found.append({"name": f"{tag.parent.name}:{tag.name}", "size_mb": round(size / 2**20, 1), "capabilities": None,
+                          "parameters": ""})
+    except (OSError, ValueError):
+        return found
+    return found
+
+
 def probe_ollama(s: Seams) -> Probe:
     host, custom = ollama_host(s)
     where = "the host OLLAMA_HOST names" if custom else "127.0.0.1:11434"
@@ -323,7 +347,8 @@ def probe_ollama(s: Seams) -> Probe:
         tags = s.http_json(host + "/api/tags").get("models") or []
     except (OSError, ValueError) as exc:
         return ok("ollama", "Ollama", {"running": False, "installed": installed, "where": where,
-                                       "reason": f"no answer from {where}: {type(exc).__name__}"})
+                                       "reason": f"no answer from {where}: {type(exc).__name__}",
+                                       "models": _models_on_disk(s) if installed else []})
     models = []
     for tag in tags:
         name = tag.get("name") or tag.get("model") or ""
