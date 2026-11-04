@@ -137,14 +137,28 @@ def make_plan(layout: Layout, args: argparse.Namespace, manifest: mf.Manifest) -
     return planner.plan(machine, manifest, _choices(args)), machine
 
 
+def installed_python(layout: Layout) -> str:
+    """The Python the install was built from, as its python-runtime event recorded it.
+
+    Without it, --verify checked the private runtime's path on a machine
+    whose install reused its own Python, and reported a working install as
+    FAILED (found on the first real install, 2026-11-04).
+    """
+    for e in reversed(jr.read(layout.journal_path)[0]):
+        if e.component_id == "python-runtime" and e.kind in ("verified", "reused") and e.data.get("python"):
+            return str(e.data["python"])
+    return ""
+
+
 def _verify_all(layout: Layout, manifest: mf.Manifest, model: str) -> dict[str, verify.Result]:
     events, _ = jr.read(layout.journal_path)
     installed = jr.installed_components(events)
+    python = installed_python(layout)
     results: dict[str, verify.Result] = {}
     for c in manifest.components:
         if c["id"] not in installed:
             continue
-        ctx = ActionContext(layout=layout, emit=lambda k, d: None, model=model)
+        ctx = ActionContext(layout=layout, emit=lambda k, d: None, model=model, python=python)
         results[c["id"]] = verify.run(c["probe"], ctx, c)
     return results
 
