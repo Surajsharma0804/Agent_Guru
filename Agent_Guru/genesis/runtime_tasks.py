@@ -295,6 +295,7 @@ def vault_check(args: list[str]) -> dict[str, Any]:
         return _missing(exc)
     probe = _secrets.token_hex(16)
     try:
+        at_rest = secret_store.encrypted_at_rest()
         secret_store.save("genesis-check", probe.encode())
         back = secret_store.load("genesis-check")
         on_disk = secret_store.path_for("genesis-check").read_bytes()
@@ -303,7 +304,11 @@ def vault_check(args: list[str]) -> dict[str, Any]:
     if back is None or back.decode() != probe:
         return _result("FAILED", "the value did not come back from the credential store")
     if probe.encode() in on_disk:
-        return _result("FAILED", "the credential store wrote the value in plain text")
+        if at_rest:
+            return _result("FAILED", "the credential store wrote the value in plain text")
+        # A headless Linux session has no keychain to hold a key. That is a
+        # limit of the machine, and the person must be told, not blocked.
+        return _result("WARNING", "no system keychain here, so secrets are kept unencrypted in a file only you can read")
     return _result("PASS", "a value was encrypted, stored and read back; the file did not contain it in plain text")
 
 
