@@ -56,7 +56,11 @@ def path_problem(disk: dict[str, Any], platform: str) -> str:
             f"{WINDOWS_MAX_PATH - DEEPEST_BELOW_ROOT}, because pip writes files {DEEPEST_BELOW_ROOT} characters "
             "below it. Choose a shorter folder.")
 
-DEFAULT_TIERS = {"core": True, "voice": True, "vision": False, "research": True, "browser": False, "coding": False}
+#: Every tier is on unless the person turns it off: the owner's rule is a
+#: small download and a complete install, with no limit on installed size.
+#: Voice is still planned without a microphone (typed chat works and a
+#: microphone can be added later); the GPU add-on still needs an NVIDIA GPU.
+DEFAULT_TIERS = {"core": True, "voice": True, "vision": True, "research": True, "browser": True, "coding": True}
 
 
 @dataclass
