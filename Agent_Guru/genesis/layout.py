@@ -85,9 +85,12 @@ def source_root() -> Path:
 
 def default_layout(root: Path | None = None) -> Layout:
     """The frozen install's folders, or *root* (required from a source checkout)."""
-    if getattr(sys, "frozen", False) and root is None:
+    if getattr(sys, "frozen", False):
+        # The application source ships next to the launcher, in app\. It is
+        # not inside the frozen bundle, so --root moves the install folder
+        # and never this: source_root() here would be PyInstaller's _internal.
         install = Path(sys.executable).resolve().parent
-        return Layout(install_root=install, app_root=install / "app")
+        return Layout(install_root=Path(root).resolve() if root else install, app_root=install / "app")
     if root is None:
         msg = "from a source checkout, name the install folder with --root (a trial install never goes in the repository)"
         raise ValueError(msg)
