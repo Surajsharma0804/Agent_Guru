@@ -143,12 +143,39 @@ def _write_setting(key: str, value: str | None) -> str:
     return str(path)
 
 
+def set_setting(key: str, raw: str) -> str:
+    """Check *raw* for *key* and write it to settings.toml; ValueError says what is wrong.
+
+    The one way a setting is written: `config set` and the Configuration Studio both use it.
+    """
+    from Agent_Guru.utils.recipes import _toml_value
+    from Agent_Guru.utils.settings import _SECRET, KNOWN_SETTINGS, _as_env_value
+
+    if _SECRET.search(key):
+        msg = f"{key} looks like a secret: set it in the environment or .env, not settings.toml."
+        raise ValueError(msg)
+    if key not in KNOWN_SETTINGS:
+        msg = f"{key} is not a setting Agent Guru reads."
+        raise ValueError(msg)
+    kind = KNOWN_SETTINGS[key]
+    value: object = raw
+    if kind == "flag":
+        value = raw.lower() in {"1", "true", "yes", "on"}
+    elif kind in {"seconds", "count"}:
+        try:
+            value = float(raw) if kind == "seconds" else int(raw)
+        except ValueError as exc:
+            msg = f"{key} must be a number"
+            raise ValueError(msg) from exc
+    _as_env_value(key, value)
+    return _write_setting(key, _toml_value(value))
+
+
 def config(argv: list[str]) -> int:
     import os
     import tomllib
 
-    from Agent_Guru.utils.recipes import _toml_value
-    from Agent_Guru.utils.settings import _SECRET, KNOWN_SETTINGS, _as_env_value
+    from Agent_Guru.utils.settings import _SECRET, KNOWN_SETTINGS
 
     action = argv[0] if argv else "show"
     if action == "show":
@@ -162,35 +189,21 @@ def config(argv: list[str]) -> int:
         return 0
     if action in {"set", "unset"} and len(argv) >= 2:
         key = argv[1]
-        if _SECRET.search(key):
-            print(f"{key} looks like a secret: set it in the environment or .env, not settings.toml.")  # noqa: T201
-            return 1
-        if key not in KNOWN_SETTINGS:
-            import difflib
-
-            close = difflib.get_close_matches(key.upper(), list(KNOWN_SETTINGS), n=3, cutoff=0.6)
-            print(f"{key} is not a setting Agent Guru reads." + (f" Did you mean: {', '.join(close)}" if close else ""))  # noqa: T201
-            return 1
-        if action == "unset":
+        if action == "unset" and key in KNOWN_SETTINGS:
             print(f"Removed {key} from {_write_setting(key, None)}")  # noqa: T201
             return 0
-        raw = " ".join(argv[2:])
-        kind = KNOWN_SETTINGS[key]
-        value: object = raw
-        if kind == "flag":
-            value = raw.lower() in {"1", "true", "yes", "on"}
-        elif kind in {"seconds", "count"}:
-            try:
-                value = float(raw) if kind == "seconds" else int(raw)
-            except ValueError:
-                print(f"{key} must be a number")  # noqa: T201
-                return 1
         try:
-            _as_env_value(key, value)
+            where = set_setting(key, " ".join(argv[2:]))
         except ValueError as exc:
-            print(f"{key} {exc}")  # noqa: T201
+            if key not in KNOWN_SETTINGS and not _SECRET.search(key):
+                import difflib
+
+                close = difflib.get_close_matches(key.upper(), list(KNOWN_SETTINGS), n=3, cutoff=0.6)
+                print(f"{exc}" + (f" Did you mean: {', '.join(close)}" if close else ""))  # noqa: T201
+            else:
+                print(exc)  # noqa: T201
             return 1
-        print(f"Set {key} in {_write_setting(key, _toml_value(value))}. Restart the assistant to use it.")  # noqa: T201
+        print(f"Set {key} in {where}. Restart the assistant to use it.")  # noqa: T201
         return 0
     print("python -m Agent_Guru config [show | set KEY VALUE | unset KEY]")  # noqa: T201
     return 2
