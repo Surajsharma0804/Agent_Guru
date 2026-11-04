@@ -1,0 +1,718 @@
+{
+ "schema": 1,
+ "note": "Generated from measurement files; see docs/developer/genesis-size-audit.md.",
+ "components": [
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [],
+   "required": true,
+   "license": "PSF-2.0",
+   "hosts": [
+    "api.nuget.org"
+   ],
+   "id": "python-runtime",
+   "title": "Python runtime",
+   "stage": "Foundation",
+   "tier": "core",
+   "size": {
+    "download_bytes": 14391248,
+    "disk_bytes": 41943040,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15; unpacked size counted with du; starting it is UNVERIFIED here"
+   },
+   "source": "a compatible Python 3.11 to 3.13 already on the machine, otherwise the NuGet package python 3.13.15",
+   "probe": "python.ok",
+   "install": "runtime.python",
+   "rollback": "runtime.remove_python",
+   "reason": "Agent Guru is written in Python; the installer never uses or changes your own Python packages",
+   "files": [
+    {
+     "name": "python.3.13.15.nupkg",
+     "size": 14391248,
+     "sha256": "05357887df50d3153efc681bdf432c321d3e2f9ce5788f99f4515b27e8fda0ac",
+     "url": "https://api.nuget.org/v3-flatcontainer/python/3.13.15/python.3.13.15.nupkg"
+    }
+   ]
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "python-runtime"
+   ],
+   "required": true,
+   "license": "PSF-2.0",
+   "hosts": [],
+   "id": "private-env",
+   "title": "Private environment",
+   "stage": "Foundation",
+   "tier": "core",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 11633136,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "python -m venv",
+   "probe": "venv.ok",
+   "install": "runtime.venv",
+   "rollback": "runtime.remove_venv",
+   "reason": "keeps Agent Guru's packages apart from every other Python program on the machine"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "private-env"
+   ],
+   "required": true,
+   "license": "each package's own (all permissive or LGPL)",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org"
+   ],
+   "id": "core-packages",
+   "title": "Core packages",
+   "stage": "Foundation",
+   "tier": "core",
+   "size": {
+    "download_bytes": 88723028,
+    "disk_bytes": 326641877,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "PyPI; versions from requirements-lock.txt",
+   "probe": "core.import",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "pydantic",
+    "structlog",
+    "prometheus-client",
+    "python-dotenv",
+    "cryptography",
+    "psutil",
+    "aiosqlite",
+    "aiohttp",
+    "ollama",
+    "numpy",
+    "pywin32",
+    "onnxruntime",
+    "tokenizers",
+    "requests",
+    "scipy"
+   ],
+   "reason": "text chat, memory, settings and the local model client"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [],
+   "required": true,
+   "license": "",
+   "hosts": [],
+   "id": "data-folder",
+   "title": "Your data folder",
+   "stage": "Foundation",
+   "tier": "core",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "created on this machine",
+   "probe": "data.folder",
+   "install": "data.folder",
+   "rollback": "not reversible",
+   "reason": "memory, settings and reminders live here; uninstall keeps it unless you tick the box",
+   "outside_install": "creates %LOCALAPPDATA%\\agent_guru (on Linux and macOS ~/.local/share/agent_guru) if it is missing"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "data-folder"
+   ],
+   "required": true,
+   "license": "Apache-2.0",
+   "hosts": [
+    "huggingface.co"
+   ],
+   "id": "memory-model",
+   "title": "Memory search model",
+   "stage": "Memory",
+   "tier": "core",
+   "size": {
+    "download_bytes": 90871461,
+    "disk_bytes": 90871461,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "Hugging Face, sentence-transformers/all-MiniLM-L6-v2 at revision 1110a243, ONNX export",
+   "probe": "files.pinned",
+   "install": "files.download",
+   "rollback": "files.remove",
+   "files": [
+    {
+     "name": "model.onnx",
+     "size": 90405214,
+     "sha256": "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452",
+     "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/onnx/model.onnx"
+    },
+    {
+     "name": "tokenizer.json",
+     "size": 466247,
+     "sha256": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037",
+     "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer.json"
+    }
+   ],
+   "dest": "data:models/embedding/all-MiniLM-L6-v2",
+   "reason": "finds past conversations by meaning, without torch",
+   "outside_install": "2 files in the data folder's models\\embedding"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages",
+    "memory-model"
+   ],
+   "required": true,
+   "license": "",
+   "hosts": [],
+   "id": "memory-store",
+   "title": "Memory store",
+   "stage": "Memory",
+   "tier": "core",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "created on first use",
+   "probe": "memory.persist",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "checks that a remembered turn is still there after a restart (in a throwaway folder)"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [],
+   "required": true,
+   "license": "MIT",
+   "hosts": [],
+   "id": "ollama",
+   "title": "Ollama",
+   "stage": "Intelligence",
+   "tier": "core",
+   "size": {
+    "download_bytes": null,
+    "disk_bytes": null,
+    "measured": "UNVERIFIED: Ollama is its own application and the person installs it"
+   },
+   "source": "https://ollama.com/download (not downloaded by this installer)",
+   "probe": "ollama.running",
+   "install": "ollama.present",
+   "rollback": "not reversible",
+   "reason": "runs the language model on this machine"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "ollama",
+    "core-packages"
+   ],
+   "required": true,
+   "license": "the model's own",
+   "hosts": [
+    "registry.ollama.ai"
+   ],
+   "id": "llm-model",
+   "title": "Chat model",
+   "stage": "Intelligence",
+   "tier": "core",
+   "size": {
+    "download_bytes": null,
+    "disk_bytes": null,
+    "measured": "UNVERIFIED until the plan picks a model; the plan states the chosen model's size"
+   },
+   "source": "Ollama's pull API, which verifies every layer",
+   "probe": "llm.reply",
+   "install": "ollama.pull",
+   "rollback": "not reversible",
+   "reason": "answers your questions",
+   "outside_install": "the model goes into Ollama's own model folder",
+   "candidates": [
+    {
+     "name": "qwen2.5:1.5b",
+     "download_bytes": 986061892
+    },
+    {
+     "name": "gemma4:e2b",
+     "download_bytes": 4587156505
+    },
+    {
+     "name": "gemma4:latest",
+     "download_bytes": 6583656505
+    }
+   ],
+   "candidates_measured": "registry.ollama.ai manifest layer sizes, 2026-11-04; each one can call tools (checked with /api/show here)"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": false,
+   "license": "each package's own",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org",
+    "download.pytorch.org"
+   ],
+   "id": "voice-packages",
+   "title": "Voice packages",
+   "stage": "Voice",
+   "tier": "voice",
+   "size": {
+    "download_bytes": 272014486,
+    "disk_bytes": 1053767674,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "PyPI and the PyTorch CPU index; versions from the lock",
+   "probe": "core.import",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "sounddevice",
+    "faster-whisper",
+    "av",
+    "silero-vad",
+    "kokoro-onnx",
+    "pyttsx3",
+    "librosa",
+    "soundfile",
+    "scipy",
+    "pycaw",
+    "pyautogui"
+   ],
+   "extra_index": [
+    "https://download.pytorch.org/whl/cpu"
+   ],
+   "reason": "speech recognition, the voice, and finding where speech starts and stops"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux"
+   ],
+   "depends_on": [
+    "voice-packages"
+   ],
+   "required": false,
+   "license": "NVIDIA proprietary (redistributable)",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org"
+   ],
+   "id": "voice-gpu",
+   "title": "GPU speech libraries",
+   "stage": "Voice",
+   "tier": "voice",
+   "requires": "nvidia",
+   "size": {
+    "download_bytes": 1372639935,
+    "disk_bytes": null,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15 (download); disk UNVERIFIED in a fresh venv, about 2,108 MB in the development venv"
+   },
+   "source": "PyPI (NVIDIA's CUDA 12 wheels); versions from the lock",
+   "probe": "gpu.cuda",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "nvidia-cublas-cu12",
+    "nvidia-cudnn-cu12"
+   ],
+   "reason": "transcribes a 2.5 s command in 0.2 s on the GPU against 1.8 s on the CPU"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "data-folder"
+   ],
+   "required": false,
+   "license": "Apache-2.0",
+   "hosts": [
+    "github.com",
+    "objects.githubusercontent.com"
+   ],
+   "id": "voice-model",
+   "title": "Voice",
+   "stage": "Voice",
+   "tier": "voice",
+   "size": {
+    "download_bytes": 353746785,
+    "disk_bytes": 353746785,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "the Kokoro release on GitHub, pinned in speech/tts/tts_engine.py",
+   "probe": "files.pinned",
+   "install": "files.download",
+   "rollback": "files.remove",
+   "files": [
+    {
+     "name": "kokoro-v1.0.onnx",
+     "size": 325532387,
+     "sha256": "7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5",
+     "url": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
+    },
+    {
+     "name": "voices-v1.0.bin",
+     "size": 28214398,
+     "sha256": "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d",
+     "url": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
+    }
+   ],
+   "dest": "home:.cache/agent_guru/kokoro",
+   "reason": "the assistant's spoken voice",
+   "outside_install": "2 files in ~/.cache/agent_guru/kokoro, where the voice loads them from"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "voice-packages",
+    "voice-model"
+   ],
+   "required": false,
+   "license": "",
+   "hosts": [],
+   "id": "voice-check",
+   "title": "Speaking",
+   "stage": "Voice",
+   "tier": "voice",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "the installed voice",
+   "probe": "tts.synthesize",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "synthesises a test sentence; you confirm you hear it"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "voice-packages"
+   ],
+   "required": false,
+   "license": "MIT",
+   "hosts": [
+    "huggingface.co"
+   ],
+   "id": "whisper-model",
+   "title": "Speech recognition model",
+   "stage": "Voice",
+   "tier": "voice",
+   "size": {
+    "download_bytes": null,
+    "disk_bytes": 227540992,
+    "measured": "UNVERIFIED download; disk is the tiny and base folders in the development machine's Hugging Face cache"
+   },
+   "source": "Hugging Face (Systran faster-whisper), through faster-whisper's own downloader",
+   "probe": "stt.transcribe",
+   "install": "runtime.task",
+   "rollback": "not reversible",
+   "task": "whisper.fetch",
+   "task_args": [
+    "base"
+   ],
+   "whisper_size": "tiny",
+   "reason": "turns speech into text; checked on a bundled 1.2 s clip of \"Hello Guru\"",
+   "outside_install": "the model goes into ~/.cache/huggingface, where faster-whisper looks for it"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "voice-packages"
+   ],
+   "required": false,
+   "license": "",
+   "hosts": [],
+   "id": "wake-word",
+   "title": "Wake word",
+   "stage": "Voice",
+   "tier": "voice",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "speech/audio/wake_word.py's backends",
+   "probe": "wake.load",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "listens for \"Hey Guru\" and \"Hey Maya\"; you confirm by saying it"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": false,
+   "license": "Apache-2.0 and HPND",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org"
+   ],
+   "id": "vision-packages",
+   "title": "Vision packages",
+   "stage": "Awareness",
+   "tier": "vision",
+   "size": {
+    "download_bytes": 48450942,
+    "disk_bytes": 132628910,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "PyPI; versions from the lock",
+   "probe": "vision.check",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "opencv-python",
+    "pillow"
+   ],
+   "reason": "reads the screen and the camera"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "ollama",
+    "vision-packages"
+   ],
+   "required": false,
+   "license": "Gemma terms of use",
+   "hosts": [
+    "registry.ollama.ai"
+   ],
+   "id": "vision-model",
+   "title": "Vision model",
+   "stage": "Awareness",
+   "tier": "vision",
+   "model": "gemma3:4b",
+   "size": {
+    "download_bytes": 3350272403,
+    "disk_bytes": 3350272403,
+    "measured": "registry.ollama.ai manifest layer sizes, 2026-11-04"
+   },
+   "source": "Ollama's pull API",
+   "probe": "llm.reply",
+   "install": "ollama.pull",
+   "rollback": "not reversible",
+   "reason": "answers questions about what is on the screen (swapping models costs 17 to 19 s)",
+   "outside_install": "the model goes into Ollama's own model folder"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": false,
+   "license": "",
+   "hosts": [],
+   "id": "research",
+   "title": "Web research",
+   "stage": "Capabilities",
+   "tier": "research",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "the core packages",
+   "probe": "research.reach",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "looks things up on Wikipedia and DuckDuckGo when you ask"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": false,
+   "license": "Apache-2.0",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org"
+   ],
+   "id": "browser-packages",
+   "title": "Browser tools",
+   "stage": "Capabilities",
+   "tier": "browser",
+   "size": {
+    "download_bytes": 39015230,
+    "disk_bytes": 113881392,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "PyPI; versions from the lock",
+   "probe": "browser.check",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "playwright"
+   ],
+   "reason": "drives your installed Edge or Chrome; no browser is downloaded"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": false,
+   "license": "BSD-3-Clause",
+   "hosts": [
+    "pypi.org",
+    "files.pythonhosted.org"
+   ],
+   "id": "coding-packages",
+   "title": "Coding tools",
+   "stage": "Capabilities",
+   "tier": "coding",
+   "size": {
+    "download_bytes": 318732,
+    "disk_bytes": 2127518,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "PyPI; versions from the lock",
+   "probe": "coding.check",
+   "install": "pip.tier",
+   "rollback": "pip.uninstall_tier",
+   "packages": [
+    "GitPython"
+   ],
+   "reason": "works with git repositories when you ask"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages"
+   ],
+   "required": true,
+   "license": "",
+   "hosts": [],
+   "id": "credential-store",
+   "title": "Credential store",
+   "stage": "Protection",
+   "tier": "core",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "security/secret_store.py (DPAPI on Windows)",
+   "probe": "vault.check",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "keeps cloud keys encrypted for your account; checked with a throwaway value"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "core-packages",
+    "memory-store",
+    "llm-model",
+    "credential-store"
+   ],
+   "required": true,
+   "license": "Apache-2.0",
+   "hosts": [],
+   "id": "first-start",
+   "title": "First start",
+   "stage": "Awakening",
+   "tier": "core",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "the installed application",
+   "probe": "core.import",
+   "install": "nothing",
+   "rollback": "not reversible",
+   "reason": "the assistant's own modules load in the private environment"
+  }
+ ]
+}
