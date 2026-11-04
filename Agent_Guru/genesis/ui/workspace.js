@@ -25,6 +25,17 @@
   }
   function say(text) { $("live").textContent = text; }
   function rows(id) { var n = $(id); n.textContent = ""; return n; }
+  /* The page asks the server every 400 ms. Rebuilding a list each time took
+     keyboard focus off its buttons before anyone could press them, so Yes,
+     No and Repair could not be used without a mouse, and the live list read
+     the whole conversation out again on every refresh. */
+  var drawn = {};
+  function changed(key, value) {
+    var text = JSON.stringify(value);
+    if (drawn[key] === text) return false;
+    drawn[key] = text;
+    return true;
+  }
 
   function show(name) {
     tab = name;
@@ -61,6 +72,11 @@
     mute.textContent = t(w.microphone === "none" ? "ws.nomic" : muted ? "ws.unmute" : "ws.mute");
     $("queue").hidden = !w.waiting;
     $("queue").textContent = w.waiting ? t("ws.waiting").replace("{n}", w.waiting) : "";
+    if (changed("questions", w.questions)) drawQuestions(w);
+    if (changed("turns", w.turns)) drawTurns(w);
+  }
+
+  function drawQuestions(w) {
     var box = rows("questions");
     w.questions.forEach(function (q) {
       var card = el("div", { class: "panel question" });
@@ -77,6 +93,9 @@
       }
       box.appendChild(card);
     });
+  }
+
+  function drawTurns(w) {
     var list = rows("turns");
     w.turns.forEach(function (r) {
       var li = el("li", { class: "turn" });
@@ -109,6 +128,7 @@
   }
 
   function loadStudio() {
+    api("GET", "/api/owner").then(function (j) { if (document.activeElement !== $("owner")) $("owner").value = j.name || ""; });
     api("GET", "/api/settings").then(function (j) {
       if (studioDrawn) return;
       studioDrawn = true;
@@ -154,6 +174,17 @@
   }
 
   function drawControl(g) {
+    if (changed("control", [g.titles, g.installed, !!g.running])) drawComponents(g);
+    api("GET", "/api/events?after=" + seenLog).then(function (j) {
+      (j.events || []).forEach(function (e) {
+        seenLog = e.seq;
+        if (e.kind === "progress" || e.kind === "log") return;
+        $("history").textContent += new Date(e.ts * 1000).toLocaleString() + "  " + e.component_id + "  " + e.kind + "\n";
+      });
+    });
+  }
+
+  function drawComponents(g) {
     var body = rows("control");
     Object.keys(g.titles).forEach(function (id) {
       var info = g.titles[id], on = g.installed.indexOf(id) >= 0, tr = el("tr");
@@ -168,16 +199,10 @@
       });
       tr.appendChild(cell); body.appendChild(tr);
     });
-    api("GET", "/api/events?after=" + seenLog).then(function (j) {
-      (j.events || []).forEach(function (e) {
-        seenLog = e.seq;
-        if (e.kind === "progress" || e.kind === "log") return;
-        $("history").textContent += new Date(e.ts * 1000).toLocaleString() + "  " + e.component_id + "  " + e.kind + "\n";
-      });
-    });
   }
 
   function drawDoctor(g) {
+    if (!changed("doctor", [g.components, g.titles])) return;
     var ul = rows("doctor");
     Object.keys(g.components).forEach(function (id) {
       var c = g.components[id], d = c.detail || {}, label = d.result || c.state;
@@ -193,6 +218,16 @@
       }
       li.appendChild(info); ul.appendChild(li);
     });
+  }
+
+  /* The window can outlive the assistant: Quit from the tray, or a restart. Left
+     unhandled, this was an error in the page and a screen that looked alive. */
+  var away = false;
+  function lost(now) {
+    if (now === away) return;
+    away = now;
+    $("orb-label").textContent = t(now ? "ws.lost" : "ws.orb." + $("orb").dataset.state);
+    say(t(now ? "ws.lost" : "ws.back"));
   }
 
   function refresh() {
@@ -227,6 +262,9 @@
     $("mute").addEventListener("click", function () {
       api("POST", "/api/mic", { muted: !(last && last.microphone === "muted") }).then(refresh);
     });
+    $("owner").addEventListener("change", function () {
+      api("POST", "/api/owner", { name: $("owner").value }).then(function (r) { say(r.error || t("ws.saved")); });
+    });
     $("run-doctor").addEventListener("click", function () { api("POST", "/api/verify", {}).then(refresh); });
     $("export").addEventListener("click", function () {
       api("GET", "/api/report").then(function (r) {
@@ -242,7 +280,9 @@
       $("contrast").setAttribute("aria-pressed", String(on));
     });
     show(TABS.indexOf(startTab) >= 0 ? startTab : "talk");
-    setInterval(refresh, 400);
+    setInterval(function () {
+      refresh().then(function () { lost(false); }, function () { lost(true); });
+    }, 400);
     setInterval(function () { api("POST", "/api/heartbeat", {}); }, 10000);
   });
 })();
