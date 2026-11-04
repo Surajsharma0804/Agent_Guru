@@ -41,7 +41,7 @@ def ctx_for(tmp_path, run=None, **kw):
 def test_every_manifest_action_is_in_the_table_and_nothing_else_is_callable():
     assert set(act.ACTIONS) == {"runtime.python", "runtime.remove_python", "runtime.venv", "runtime.remove_venv",  # nosec B101
                                 "pip.tier", "pip.uninstall_tier", "files.download", "files.remove", "ollama.install", "app.files",
-                                "ollama.pull", "runtime.task", "data.folder", "nothing"}
+                                "ollama.pull", "runtime.task", "data.folder", "autostart.on", "autostart.off", "nothing"}
 
 
 def test_pip_gets_an_argument_list_with_versions_from_the_lock_and_real_progress(tmp_path):
