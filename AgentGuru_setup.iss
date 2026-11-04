@@ -57,7 +57,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startup"; Description: "Start Agent Guru when I sign in"; GroupDescription: "Optional:"; Flags: unchecked
 
 [Files]
 Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -73,14 +72,20 @@ Source: "NOTICE"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startup
 
 [Run]
 ; Offered on the last page and never run silently: GENESIS asks before it
 ; downloads anything.
 Filename: "{app}\{#MyAppExeName}"; Description: "Set up Agent Guru now"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+; A running assistant holds these files open. It starts at sign-in, so it
+; usually is running. The plan screen decides about start at sign-in, and
+; GENESIS writes the entry; only removing it is left for here.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; RunOnceId: "StopAssistant"; Flags: runhidden waituntilterminated
+
 [UninstallDelete]
+Type: files; Name: "{userstartup}\Agent Guru.lnk"
 ; The private runtime, its download cache and the journal were made after
 ; install, so Inno Setup does not know them. Inside {app} only: user data,
 ; models and settings are outside it and stay.
