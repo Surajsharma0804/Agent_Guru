@@ -70,12 +70,15 @@ class GenesisServer:
     """Owns the HTTP server, its secret and its routes. start() returns the URL the window opens."""
 
     def __init__(self, routes: dict[tuple[str, str], Route], *, ui_dir: Path = UI_DIR,
-                 clock: Callable[[], float] = time.monotonic, replay: bool = False) -> None:
+                 clock: Callable[[], float] = time.monotonic, replay: bool = False, outlives_window: bool = False) -> None:
         self.routes = routes
         self.ui_dir = ui_dir.resolve()
         self.token = secrets.token_urlsafe(32)
         self.clock = clock
         self.replay = replay
+        #: Setup ends with its window. The assistant does not: it listens with
+        #: no window open, and this server is how a window reaches it again.
+        self.outlives_window = outlives_window
         self.last_beat = clock()
         self.stopped = threading.Event()
         self._httpd: ThreadingHTTPServer | None = None
@@ -138,7 +141,7 @@ class GenesisServer:
 
     def _watch(self) -> None:
         while not self.stopped.wait(2.0):
-            if self.heartbeat_lapsed():
+            if self.heartbeat_lapsed() and not self.outlives_window:
                 self.stop()
 
     def stop(self) -> None:
