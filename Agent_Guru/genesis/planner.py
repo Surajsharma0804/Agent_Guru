@@ -61,7 +61,7 @@ def path_problem(disk: dict[str, Any], platform: str) -> str:
 #: small download and a complete install, with no limit on installed size.
 #: Voice is still planned without a microphone (typed chat works and a
 #: microphone can be added later); the GPU add-on still needs an NVIDIA GPU.
-DEFAULT_TIERS = {"core": True, "voice": True, "vision": True, "research": True, "browser": True, "coding": True}
+DEFAULT_TIERS = {"core": True, "voice": True, "vision": True, "research": True, "browser": True, "coding": True, "startup": True}
 
 
 @dataclass
