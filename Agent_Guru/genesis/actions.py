@@ -447,6 +447,36 @@ def private_ollama(layout: Layout, platform: str) -> Path | None:
     return None
 
 
+_UNPACK_ZST = """
+import sys, tarfile, zstandard
+with open(sys.argv[1], "rb") as raw, zstandard.ZstdDecompressor().stream_reader(raw) as stream:
+    with tarfile.open(fileobj=stream, mode="r|") as tf:
+        tf.extractall(sys.argv[2], filter="data")
+"""
+
+
+def _unpack_zst(ctx: ActionContext, archive: Path, folder: Path) -> None:
+    """Unpack a .tar.zst. Python 3.13's tarfile cannot read zstd.
+
+    The system's tar does it when zstd is installed. Minimal systems have
+    neither, so the private environment does it with the lock's zstandard:
+    an install must not stop for want of a small system tool.
+    """
+    if ctx.which("zstd"):
+        code, out = ctx.run(["tar", "--zstd", "-xf", str(archive), "-C", str(folder)], timeout=1800)
+        if code == 0:
+            return
+        ctx.emit("log", {"line": f"tar --zstd failed: {out.strip()[-200:]}"})
+    python = str(ctx.layout.venv_python)
+    code, out = ctx.run([python, "-I", "-m", "pip", "install", "--no-input", "zstandard", "-c", str(ctx.layout.lock_file)],
+                        env=_venv_env(ctx.layout), timeout=600)
+    if code == 0:
+        code, out = ctx.run([python, "-I", "-c", _UNPACK_ZST, str(archive), str(folder)], timeout=1800)
+    if code != 0:
+        msg = f"could not unpack {archive.name}: {out.strip()[-300:]}"
+        raise ActionError(msg)
+
+
 def _start_ollama(ctx: ActionContext, exe: str) -> None:
     if not ollama_version(ctx.ollama_host):
         ctx.spawn([exe, "serve"])
@@ -493,11 +523,7 @@ def act_ollama_install(ctx: ActionContext, component: dict[str, Any]) -> Outcome
         folder = ctx.layout.runtime_root / "ollama"
         folder.mkdir(parents=True, exist_ok=True)
         if pin.name.endswith(".zst"):
-            # Python 3.13's tarfile cannot read zstd.
-            code, out = ctx.run(["tar", "--zstd", "-xf", str(archive), "-C", str(folder)], timeout=1800)
-            if code != 0:
-                msg = f"unpacking Ollama needs tar with zstd support (install zstd): {out.strip()[-300:]}"
-                raise ActionError(msg)
+            _unpack_zst(ctx, archive, folder)
         else:
             with tarfile.open(archive) as tf:
                 tf.extractall(folder, filter="data")  # nosec B202

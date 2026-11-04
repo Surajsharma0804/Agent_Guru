@@ -365,11 +365,27 @@ def test_linux_unpacks_zstd_with_tar_and_needs_no_root(tmp_path, monkeypatch):
     entry = {"name": source.name, "size": 1, "sha256": hashlib.sha256(b"z").hexdigest(), "url": "https://x.test/o"}
     rec, spawned = Recorder(), []
     ctx, _ = ctx_for(tmp_path, rec, platform="linux", arch="x86_64", spawn=spawned.append, sleep=lambda s: None,
-                     which=lambda n: None)
+                     which=lambda n: "/usr/bin/zstd" if n == "zstd" else None)
     cached = _cached(ctx, entry, source)
     act.act_ollama_install(ctx, _ollama(entry))
     assert rec.calls == [["tar", "--zstd", "-xf", str(cached), "-C", str(ctx.layout.runtime_root / "ollama")]]  # nosec B101
     assert "sudo" not in " ".join(rec.calls[0]) and spawned[0][1:] == ["serve"]  # nosec B101
+
+
+def test_a_system_without_zstd_unpacks_with_the_private_environment(tmp_path):
+    rec = Recorder()
+    ctx, _ = ctx_for(tmp_path, rec, platform="linux", which=lambda n: None)
+    act._unpack_zst(ctx, tmp_path / "o.tar.zst", tmp_path / "out")
+    assert rec.calls[0][1:7] == ["-I", "-m", "pip", "install", "--no-input", "zstandard"]  # nosec B101
+    assert "-c" in rec.calls[0] and str(ctx.layout.lock_file) in rec.calls[0]  # nosec B101  the lock's version
+    assert rec.calls[1][-2:] == [str(tmp_path / "o.tar.zst"), str(tmp_path / "out")]  # nosec B101
+
+
+def test_a_broken_tar_falls_back_to_the_private_environment(tmp_path):
+    rec = Recorder({"--zstd": (2, "tar: unrecognized option", [])})
+    ctx, events = ctx_for(tmp_path, rec, platform="linux", which=lambda n: "/usr/bin/zstd")
+    act._unpack_zst(ctx, tmp_path / "o.tar.zst", tmp_path / "out")
+    assert len(rec.calls) == 3 and any("tar --zstd failed" in d.get("line", "") for k, d in events)  # nosec B101
 
 
 def test_ollama_that_never_answers_is_a_failure(tmp_path, monkeypatch):

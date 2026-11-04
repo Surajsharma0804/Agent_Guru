@@ -274,7 +274,10 @@
     "linux",
     "darwin"
    ],
-   "depends_on": [],
+   "depends_on": [
+    "private-env",
+    "app-files"
+   ],
    "required": true,
    "license": "MIT",
    "hosts": [
