@@ -14,7 +14,7 @@ SMI = "NVIDIA GeForce RTX 2050, 4096, 3049, 591.44, P8\n"
 
 
 def fake(system="Windows", programs=None, http=None, which=None, env=None, memory=(16 * 2**30, 7 * 2**30),
-         disk=500 * 2**30, tcp=None, existing=(), webview2="139.0.3405.86", audio=(2, 3)):
+         disk=500 * 2**30, tcp=None, existing=(), webview2="139.0.3405.86", audio=(2, 3), long_paths=True):
     programs = programs or {}
     which = which or {}
     calls: list[list[str]] = []
@@ -36,7 +36,7 @@ def fake(system="Windows", programs=None, http=None, which=None, env=None, memor
                      which=lambda n: which.get(n), system=lambda: system, env=lambda k: (env or {}).get(k),
                      disk_free=lambda p: disk, memory=lambda: memory,
                      exists=lambda p: str(p) in existing, webview2_version=lambda: webview2,
-                     audio_counts=lambda: audio)
+                     audio_counts=lambda: audio, long_paths=lambda: long_paths)
     seams.calls = calls  # type: ignore[attr-defined]
     return seams
 
@@ -171,3 +171,30 @@ def test_a_scan_writes_nothing(tmp_path):
 def test_offline_skips_the_network_probe_with_a_reason(tmp_path):
     machine = pr.scan(Layout(tmp_path, tmp_path), ["pypi.org"], fake(), network=False)
     assert machine.probes["network"].status == "unknown" and "offline" in machine.probes["network"].reason  # nosec B101
+
+
+def test_the_disk_probe_reports_the_path_length_and_the_long_path_setting():
+    target = Path("C:/" + "x" * 120)
+    disk = pr.probe_disk(fake(existing={str(Path("C:/"))}, long_paths=False), target)
+    assert disk.value["target_chars"] == len(str(target)) and disk.value["long_paths"] is False  # nosec B101
+
+
+def test_ollama_reports_what_it_holds_in_gpu_memory():
+    def http(key, body):
+        if key == "ps":
+            return {"models": [{"name": "gemma4:latest", "size_vram": 3000 * 2**20}]}
+        return {"version": "1", "models": []}
+
+    assert pr.probe_ollama(fake(http=http)).value["loaded"] == [{"name": "gemma4:latest", "vram_mb": 3000.0}]  # nosec B101
+
+
+def test_pinned_files_already_in_place_are_reported_by_name_and_size(tmp_path):
+    layout = Layout(tmp_path / "install", tmp_path / "app")
+    voice = tmp_path / "kokoro"
+    voice.mkdir()
+    (voice / "model.onnx").write_bytes(b"x" * 10)
+    (voice / "voices.bin").write_bytes(b"y" * 5)
+    pinned = [("voice-model", voice, [("model.onnx", 10), ("voices.bin", 5)]),
+              ("short", voice, [("model.onnx", 11)]), ("missing", tmp_path / "none", [("a", 1)])]
+    value = pr.probe_existing(fake(), layout, pinned).value
+    assert value["files_present"] == ["voice-model"]  # nosec B101
