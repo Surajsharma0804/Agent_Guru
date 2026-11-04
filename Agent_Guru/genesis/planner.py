@@ -14,7 +14,8 @@ it to that); the probes did the looking. The plan says:
   when it will run partly on the CPU.
 
 It never chooses a model whose weights do not fit in RAM, nor one whose
-download does not fit on the disk. It prefers a model already installed.
+download does not fit on the disk. Among those it takes the best one, already
+installed or not, and an installed one before an equal download.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from Agent_Guru.genesis.manifest import NOT_REVERSIBLE, Manifest
+from Agent_Guru.genesis.manifest import NOT_REVERSIBLE, Manifest, files_for
 from Agent_Guru.genesis.probes import Machine
 from Agent_Guru.utils.model_fit import gpu_fit, needs_mb
 
@@ -76,8 +77,15 @@ def _platform(machine: Machine) -> str:
     return "windows" if os_value.startswith("Windows") else "darwin" if os_value.startswith("Darwin") else "linux"
 
 
-def _usable(model: dict[str, Any]) -> bool:
-    caps = model.get("capabilities") or []
+def _arch(machine: Machine) -> str:
+    os_value = str(machine.value("os") or "").rstrip(")")
+    return os_value.rsplit(" ", 1)[-1]
+
+
+def _usable(model: dict[str, Any], known: set[str]) -> bool:
+    caps = model.get("capabilities")
+    if caps is None:  # read from disk with Ollama stopped: only a model this installer knows can be trusted
+        return model.get("name") in known
     return "tools" in caps and "completion" in caps
 
 
@@ -85,7 +93,8 @@ def choose_model(machine: Machine, candidates: list[dict[str, Any]], choices: Ch
                  free_disk_mb: float | None) -> dict[str, Any]:
     """The model that will answer, with the reason and the GPU fit. Never one that does not fit RAM or disk."""
     ollama = machine.value("ollama") or {}
-    installed = [m for m in ollama.get("models", []) if _usable(m)]
+    known = {c["name"] for c in candidates}
+    installed = [m for m in ollama.get("models", []) if _usable(m, known)]
     gpu = machine.value("gpu") or {}
     ram = machine.value("ram") or {}
     ram_mb = ram.get("total_mb")
@@ -120,30 +129,27 @@ def choose_model(machine: Machine, candidates: list[dict[str, Any]], choices: Ch
         if not fits_ram(size_mb):
             return {"name": "", "error": f"{cand['name']} needs {needs_mb(size_mb):.0f} MB and this machine has {ram_mb} MB of RAM"}
         return describe(cand["name"], size_mb, False, "chosen by you", cand["download_bytes"])
+    # Quality first. The candidates are in order of how well they answered:
+    # gemma4 was the only model that invented no facts in the evaluation. This
+    # used to take the largest model that fits the GPU, which chose the 1.5B
+    # qwen2.5 on a 4 GB laptop that had gemma4 installed. A model that fits RAM
+    # may split between GPU and CPU: the note says so, and the check after
+    # install offers a smaller one if it is too slow.
     usable = [m for m in installed if fits_ram(m["size_mb"])]
-    if free_gpu is not None:
-        fitting = [m for m in usable if gpu_fit(m["size_mb"], free_gpu) == "fits"]
-        if fitting:
-            best = max(fitting, key=lambda m: m["size_mb"])
-            return describe(best["name"], best["size_mb"], True, "the largest installed model that can call tools and fits the GPU")
+    for cand in candidates:
+        match = next((m for m in usable if m["name"] == cand["name"]), None)
+        if match:
+            return describe(match["name"], match["size_mb"], True, "the best model installed here that fits this machine")
     if usable:
-        best = min(usable, key=lambda m: m["size_mb"])
-        return describe(best["name"], best["size_mb"], True, "already installed and able to call tools; the smallest of them spills the least")
+        best = max(usable, key=lambda m: m["size_mb"])
+        return describe(best["name"], best["size_mb"], True, "the largest installed model that can call tools and fits the RAM")
     if choices.offline:
         return {"name": "", "error": "offline, and no installed Ollama model can call tools"}
-    pullable = [c for c in candidates if fits_ram(c["download_bytes"] / 2**20)
-                and (free_disk_mb is None or c["download_bytes"] / 2**20 < free_disk_mb)]
-    if not pullable:
-        return {"name": "", "error": "no model this installer offers fits this machine's RAM and free disk"}
-    if free_gpu is not None:
-        fitting = [c for c in pullable if gpu_fit(c["download_bytes"] / 2**20, free_gpu) == "fits"]
-        if fitting:
-            best = max(fitting, key=lambda c: c["download_bytes"])
-            return describe(best["name"], best["download_bytes"] / 2**20, False, "the largest offered model that fits the GPU",
-                            best["download_bytes"])
-    best = min(pullable, key=lambda c: c["download_bytes"])
-    return describe(best["name"], best["download_bytes"] / 2**20, False, "the smallest offered model; nothing larger fits",
-                    best["download_bytes"])
+    for cand in candidates:
+        size_mb = cand["download_bytes"] / 2**20
+        if fits_ram(size_mb) and (free_disk_mb is None or size_mb < free_disk_mb):
+            return describe(cand["name"], size_mb, False, "the best offered model that fits this machine", cand["download_bytes"])
+    return {"name": "", "error": "no model this installer offers fits this machine's RAM and free disk"}
 
 
 def plan(machine: Machine, manifest: Manifest, choices: Choices | None = None) -> dict[str, Any]:
@@ -165,7 +171,10 @@ def plan(machine: Machine, manifest: Manifest, choices: Choices | None = None) -
     if gpu_speech and not nvidia:
         unavailable.append({"feature": "speech recognition on the GPU", "why": "it needs an NVIDIA GPU"})
         gpu_speech = False
-    if not ollama.get("running"):
+    # A stopped Ollama is installed by the plan, so it is only "unavailable"
+    # when no pinned build exists for this machine or the plan cannot fetch one.
+    ollama_builds = files_for(manifest.by_id.get("ollama", {}), platform, _arch(machine))
+    if not ollama.get("installed") and not ollama.get("running") and (not ollama_builds or choices.offline):
         unavailable.append({"feature": "answers from a local model", "why": ollama.get("reason") or "Ollama is not running"})
     pythons = machine.value("python") or []
     reuse_python = pythons[0] if pythons else None
@@ -202,10 +211,20 @@ def plan(machine: Machine, manifest: Manifest, choices: Choices | None = None) -
             row.update(action="reuse", reason=f"{c['model']} is already in Ollama")
         elif c["id"] == "ollama" and ollama.get("running"):
             row.update(action="reuse", reason=f"Ollama {ollama.get('version', '')} is running".replace("  ", " "))
+        elif c["id"] == "ollama" and ollama.get("installed"):
+            row.update(action="reuse", reason="Ollama is installed but stopped; setup starts it")
         elif c["id"] in installed:
             row.update(action="reuse", reason="installed and verified before; checked again")
         elif c["id"] in set(existing.get("files_present") or []):
             row.update(action="reuse", reason="the pinned files are already in place; their hashes are checked again")
+        elif "files_by_platform" in c:
+            files = files_for(c, platform, _arch(machine))
+            if not files:
+                row.update(action="skip", reason=f"no build is pinned for {platform} {_arch(machine)}")
+            else:
+                size_of = sum(f["size"] for f in files)
+                row.update(action="install", reason=c["reason"], download_bytes=size_of,
+                           disk_bytes=c["size"].get("disk_bytes") or size_of)
         else:
             size = c["size"]
             row.update(action="install", reason=c["reason"], download_bytes=size.get("download_bytes") or 0,

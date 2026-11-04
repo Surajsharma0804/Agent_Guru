@@ -49,16 +49,17 @@ def rows(plan):
 
 def test_no_gpu_runs_the_model_on_the_cpu_and_skips_gpu_speech(manifest):
     plan = pl.plan(machine(gpu=None), manifest)
-    assert plan["model"]["name"] == "qwen2.5:1.5b" and plan["model"]["gpu_fit"] == "cpu"  # nosec B101
+    assert plan["model"]["name"] == "gemma4:latest" and plan["model"]["gpu_fit"] == "cpu"  # nosec B101
     assert rows(plan)["voice-gpu"]["action"] == "skip" and "NVIDIA" in rows(plan)["voice-gpu"]["reason"]  # nosec B101
 
 
-def test_a_4_gb_gpu_picks_the_largest_model_that_fits_beside_whisper(manifest):
+def test_a_4_gb_gpu_still_gets_the_best_model_and_is_told_it_splits(manifest):
     # The development laptop: 4096 MB, 3049 MB used of which Ollama itself holds 3000.
     plan = pl.plan(machine(gpu=nvidia(4096, 3049), loaded=[{"name": "gemma4:latest", "vram_mb": 3000}]), manifest)
     model = plan["model"]
     assert plan["gpu_speech"] and model["gpu_free_for_model_mb"] == 4096 - 49 - pl.WHISPER_GPU_MB  # nosec B101
-    assert model["name"] == "qwen2.5:1.5b" and model["gpu_fit"] == "fits" and model["reused"]  # nosec B101
+    assert model["name"] == "gemma4:latest" and model["gpu_fit"] == "partial" and model["reused"]  # nosec B101
+    assert "splits between GPU and CPU" in model["note"]  # nosec B101
 
 
 def test_a_model_that_splits_between_gpu_and_cpu_says_so(manifest):
@@ -78,10 +79,15 @@ def test_an_installed_model_is_preferred_to_a_download(manifest):
     assert rows(plan)["llm-model"]["download_bytes"] == 0  # nosec B101
 
 
-def test_with_no_usable_model_installed_it_offers_one_that_fits(manifest):
+def test_with_no_usable_model_installed_it_offers_the_best_that_fits(manifest):
     plan = pl.plan(machine(gpu=nvidia(4096), models=(CHAT_ONLY,)), manifest)
-    assert plan["model"]["name"] == "qwen2.5:1.5b" and not plan["model"]["reused"]  # nosec B101
-    assert rows(plan)["llm-model"]["download_bytes"] == 986061892  # nosec B101  the registry's exact bytes
+    assert plan["model"]["name"] == "gemma4:latest" and not plan["model"]["reused"]  # nosec B101
+    assert rows(plan)["llm-model"]["download_bytes"] == 6583656505  # nosec B101  the registry's exact bytes
+
+
+def test_the_best_model_gives_way_when_the_disk_cannot_hold_it(manifest):
+    plan = pl.plan(machine(models=(CHAT_ONLY,), free_mb=5000), manifest)
+    assert plan["model"]["name"] == "gemma4:e2b"  # nosec B101
 
 
 def test_it_never_picks_a_model_too_big_for_ram(manifest):
@@ -113,11 +119,41 @@ def test_no_python_means_the_private_runtime_is_downloaded(manifest):
     assert reuse["action"] == "reuse" and reuse["python"] == "C:/Py/python.exe"  # nosec B101
 
 
-def test_ollama_absent_is_named_as_unavailable(manifest):
+def test_ollama_absent_is_installed_by_the_plan_at_its_pinned_size(manifest):
     plan = pl.plan(machine(running=False), manifest)
+    row = rows(plan)["ollama"]
+    assert row["action"] == "install" and row["download_bytes"] == 1676266440  # nosec B101
+    assert "release-assets.githubusercontent.com" in plan["hosts"]  # nosec B101
+    assert not any(u["feature"] == "answers from a local model" for u in plan["unavailable"])  # nosec B101
+
+
+def test_ollama_absent_offline_is_named_as_unavailable(manifest):
+    plan = pl.plan(machine(running=False), manifest, pl.Choices(offline=True))
     assert any(u["feature"] == "answers from a local model" for u in plan["unavailable"])  # nosec B101
-    present = pl.plan(machine(running=True), manifest)
-    assert not any(u["feature"] == "answers from a local model" for u in present["unavailable"])  # nosec B101
+
+
+def test_a_running_ollama_is_reused(manifest):
+    plan = pl.plan(machine(running=True), manifest)
+    assert rows(plan)["ollama"]["action"] == "reuse" and rows(plan)["ollama"]["download_bytes"] == 0  # nosec B101
+
+
+@pytest.mark.parametrize(("os_name", "arch", "ollama_bytes", "python_bytes"), [
+    ("Linux 6.6", "x86_64", 1525346571, 76935188), ("Darwin 24", "arm64", 186689993, 25394044),
+    ("Darwin 24", "x86_64", 186689993, 25155145)])
+def test_each_os_gets_its_own_pinned_builds(manifest, os_name, arch, ollama_bytes, python_bytes):
+    m = machine(running=False, pythons=(), os_name=os_name)
+    m.probes["os"].value = f"{os_name} (x, {arch})"
+    plan = pl.plan(m, manifest)
+    assert rows(plan)["ollama"]["download_bytes"] == ollama_bytes  # nosec B101
+    assert rows(plan)["python-runtime"]["download_bytes"] == python_bytes  # nosec B101
+
+
+def test_a_chip_with_no_pinned_build_is_skipped_with_the_reason(manifest):
+    # Giving an ARM Linux machine the x86 build would fail after the download.
+    m = machine(running=False, pythons=(), os_name="Linux 6.6")
+    m.probes["os"].value = "Linux 6.6 (x, aarch64)"
+    row = rows(pl.plan(m, manifest))["ollama"]
+    assert row["action"] == "skip" and "no build is pinned" in row["reason"]  # nosec B101
 
 
 def test_no_microphone_is_named_and_typed_chat_still_works(manifest):
@@ -162,3 +198,15 @@ def test_making_a_plan_writes_nothing_and_opens_no_socket(manifest, tmp_path, mo
 def test_the_platform_filter_skips_windows_only_parts_on_macos(manifest):
     plan = pl.plan(machine(os_name="Darwin 24"), manifest)
     assert rows(plan)["voice-gpu"]["action"] == "skip"  # nosec B101
+
+
+def test_a_stopped_ollama_is_started_and_its_models_are_reused(manifest):
+    m = machine(running=False)
+    m.probes["ollama"].value.update(installed=True, models=[{"name": "gemma4:latest", "size_mb": 9163.2, "capabilities": None},
+                                                            {"name": "strange:1b", "size_mb": 10.0, "capabilities": None}])
+    plan = pl.plan(m, manifest)
+    assert rows(plan)["ollama"]["action"] == "reuse" and rows(plan)["ollama"]["download_bytes"] == 0  # nosec B101
+    assert plan["model"]["name"] == "gemma4:latest" and plan["model"]["reused"]  # nosec B101
+    # A model nothing is known about is not trusted to call tools.
+    m.probes["ollama"].value["models"] = [{"name": "strange:1b", "size_mb": 10.0, "capabilities": None}]
+    assert pl.plan(m, manifest)["model"]["name"] != "strange:1b"  # nosec B101
