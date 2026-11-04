@@ -96,10 +96,10 @@ def current_platform() -> str:
     return {"win32": "windows", "darwin": "darwin"}.get(sys.platform, "linux")
 
 
-def _spawn(args: list[str]) -> None:
-    """Start a long-running program and leave it running after this process ends."""
-    subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,  # nosec B603
-                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+def _spawn(args: list[str]) -> int:
+    """Start a long-running program and leave it running after this process ends; its process id."""
+    return subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,  # nosec B603
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).pid
 
 
 def _http_lines(url: str, body: dict[str, Any], timeout: float = 60.0) -> Iterator[dict[str, Any]]:
@@ -127,7 +127,7 @@ class ActionContext:
     model: str = ""
     platform: str = field(default_factory=current_platform)
     arch: str = field(default_factory=_platform.machine)
-    spawn: Callable[[list[str]], None] = _spawn
+    spawn: Callable[[list[str]], int | None] = _spawn
     which: Callable[[str], str | None] = shutil.which
     sleep: Callable[[float], None] = time.sleep
 
@@ -480,7 +480,11 @@ def _unpack_zst(ctx: ActionContext, archive: Path, folder: Path) -> None:
 
 def _start_ollama(ctx: ActionContext, exe: str) -> None:
     if not ollama_version(ctx.ollama_host):
-        ctx.spawn([exe, "serve"])
+        pid = ctx.spawn([exe, "serve"])
+        if isinstance(pid, int) and ctx.layout.runtime_root in Path(exe).parents:
+            # Uninstall stops the Ollama this install started: it kept running
+            # from a deleted folder otherwise (seen in a real Linux uninstall).
+            ctx.layout.ollama_pid_file.write_text(str(pid), encoding="utf-8")
     for _ in range(120):
         if ollama_version(ctx.ollama_host):
             return
