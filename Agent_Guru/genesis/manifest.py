@@ -23,7 +23,7 @@ MANIFEST_PATH = Path(__file__).resolve().parent / "components.json"
 
 #: The eight stage nodes of the install screen, in order.
 STAGES = ("Foundation", "Memory", "Intelligence", "Voice", "Awareness", "Capabilities", "Protection", "Awakening")
-TIERS = ("core", "voice", "vision", "research", "browser", "coding")
+TIERS = ("core", "voice", "vision", "research", "browser", "coding", "startup")
 PLATFORMS = ("windows", "linux", "darwin")
 NOT_REVERSIBLE = "not reversible"
 REQUIRED_FIELDS = ("id", "title", "stage", "tier", "required", "platforms", "depends_on", "size", "source",
