@@ -175,3 +175,4 @@ details.log summary { cursor: pointer; color: var(--text-dim); }
   border-radius: var(--radius-small); padding: var(--space-2) var(--space-3); resize: vertical; }
 .tier input[type="text"], .tier input[type="number"], .tier input[type="password"], .tier select { width: 14rem; height: auto; font: inherit;
   color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--radius-small); padding: var(--space-1) var(--space-2); }
+.core-small { max-width: 260px; margin: 0 auto; }
