@@ -15,10 +15,12 @@ from Agent_Guru.genesis.layout import Layout
 class Recorder:
     def __init__(self, answers=None):
         self.calls: list[list[str]] = []
+        self.envs: list[dict[str, str]] = []
         self.answers = answers or {}
 
     def __call__(self, args, cwd=None, env=None, on_line=None, should_stop=None, timeout=0):
         self.calls.append(list(args))
+        self.envs.append(env or {})
         for key, (code, out, lines) in self.answers.items():
             if key in " ".join(args):
                 for line in lines:
@@ -197,4 +199,11 @@ def test_runtime_task_output_is_read_from_its_last_json_line(tmp_path):
     ctx.layout.venv_python.parent.mkdir(parents=True)
     ctx.layout.venv_python.write_bytes(b"")
     assert act.run_runtime_task(ctx, "core.import", []) == {"result": "PASS", "detail": "ok", "seconds": 1.5}  # nosec B101
-    assert rec.calls[0][1:4] == ["-I", "-m", "Agent_Guru.genesis.runtime_tasks"]  # nosec B101
+    # -s, not -I: -I ignores PYTHONPATH, and the app's source is found through it.
+    assert rec.calls[0][1:4] == ["-s", "-m", "Agent_Guru.genesis.runtime_tasks"]  # nosec B101
+    assert rec.envs[0]["PYTHONPATH"] == str(ctx.layout.app_root)  # nosec B101
+
+
+def test_a_program_that_cannot_start_is_named_in_the_error(tmp_path):
+    with pytest.raises(act.ActionError, match="could not start .*no-such-python.exe"):
+        act._run([str(tmp_path / "no-such-python.exe"), "-V"])

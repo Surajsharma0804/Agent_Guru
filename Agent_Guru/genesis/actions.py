@@ -62,9 +62,15 @@ def _run(args: list[str], cwd: Path | None = None, env: dict[str, str] | None = 
          on_line: Callable[[str], None] | None = None, should_stop: Callable[[], bool] | None = None,
          timeout: float = 3600.0) -> tuple[int, str]:
     """Run a program from an argument list, streaming its output lines; (exit code, last 4000 chars)."""
-    proc = subprocess.Popen(args, cwd=str(cwd) if cwd else None, env=env, stdout=subprocess.PIPE,  # nosec B603
-                            stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
-                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        proc = subprocess.Popen(args, cwd=str(cwd) if cwd else None, env=env, stdout=subprocess.PIPE,  # nosec B603
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except OSError as exc:
+        # The bare FileNotFoundError said "[WinError 2] The system cannot find
+        # the file specified" without saying which file.
+        msg = f"could not start {args[0]}: {exc.strerror or exc}"
+        raise ActionError(msg) from exc
     tail: list[str] = []
     start = time.monotonic()
     assert proc.stdout is not None  # nosec B101 - PIPE was requested
@@ -414,7 +420,11 @@ def run_runtime_task(ctx: ActionContext, task: str, args: list[str], timeout: fl
         raise ActionError(msg)
     if not ctx.layout.venv_python.is_file():
         return {"result": "NOT INSTALLED", "detail": "the private environment does not exist yet"}
-    code, out = ctx.run([str(ctx.layout.venv_python), "-I", "-m", "Agent_Guru.genesis.runtime_tasks", task, *args],
+    # -s, not -I: isolated mode also ignores PYTHONPATH and the current
+    # folder, so the first real install's checks all failed with "No module
+    # named 'Agent_Guru'". -s keeps the user's own site-packages out, and the
+    # environment is built by _venv_env, which drops every other PYTHON*.
+    code, out = ctx.run([str(ctx.layout.venv_python), "-s", "-m", "Agent_Guru.genesis.runtime_tasks", task, *args],
                         cwd=ctx.layout.app_root, env=_venv_env(ctx.layout), should_stop=ctx.should_stop,
                         timeout=timeout)
     lines = [ln for ln in out.splitlines() if ln.startswith("{") and '"result"' in ln]
