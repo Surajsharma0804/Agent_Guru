@@ -107,6 +107,7 @@ class Seams:
     exists: Callable[[Path], bool] = lambda p: p.exists()
     webview2_version: Callable[[], str | None] = lambda: _webview2_version()
     audio_counts: Callable[[], tuple[int, int] | None] = lambda: _audio_counts()
+    long_paths: Callable[[], bool | None] = lambda: _long_paths()
 
 
 # --- Windows-only readers (ctypes and winreg, read access only) -------------
@@ -156,6 +157,20 @@ def _webview2_version() -> str | None:
         if version and version != "0.0.0.0":  # nosec B104
             return str(version)
     return None
+
+
+def _long_paths() -> bool | None:
+    """Whether Windows allows paths over 260 characters (LongPathsEnabled), read only; None off Windows."""
+    if platform.system() != "Windows":
+        return None
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\FileSystem", 0,
+                            winreg.KEY_READ) as handle:
+            return bool(winreg.QueryValueEx(handle, "LongPathsEnabled")[0])
+    except OSError:
+        return False
 
 
 def _audio_counts() -> tuple[int, int] | None:
@@ -242,7 +257,11 @@ def probe_disk(s: Seams, target: Path) -> Probe:
         free = s.disk_free(probe_at)
     except OSError as exc:
         return unknown("disk", "Free disk", f"{probe_at}: {exc}")
-    return ok("disk", "Free disk", {"target": str(target), "measured_at": str(probe_at), "free_mb": free // 2**20})
+    # Windows refuses paths over 260 characters unless LongPathsEnabled is
+    # set, and the deepest file pip writes is 143 characters below the venv
+    # (measured over every tier). The planner refuses a target too long for it.
+    return ok("disk", "Free disk", {"target": str(target), "measured_at": str(probe_at), "free_mb": free // 2**20,
+                                    "target_chars": len(str(target)), "long_paths": s.long_paths()})
 
 
 def probe_python(s: Seams) -> Probe:
@@ -315,8 +334,17 @@ def probe_ollama(s: Seams) -> Probe:
             caps = []
         models.append({"name": name, "size_mb": round((tag.get("size") or 0) / 2**20, 1), "capabilities": caps,
                        "parameters": (tag.get("details") or {}).get("parameter_size", "")})
+    # What Ollama holds in GPU memory right now: the planner subtracts it from
+    # the GPU's used memory, so the model being replaced is not counted as
+    # memory some other program needs.
+    loaded = []
+    try:
+        loaded = [{"name": m.get("name", ""), "vram_mb": round((m.get("size_vram") or 0) / 2**20, 1)}
+                  for m in s.http_json(host + "/api/ps").get("models") or []]
+    except (OSError, ValueError):
+        loaded = []
     return ok("ollama", "Ollama", {"running": True, "installed": True, "where": where,
-                                   "version": version, "models": models})
+                                   "version": version, "models": models, "loaded": loaded})
 
 
 def probe_audio(s: Seams) -> Probe:
@@ -341,13 +369,29 @@ def probe_webview2(s: Seams) -> Probe:
     return ok("webview2", "WebView2", version)
 
 
-def probe_existing(s: Seams, layout: Any) -> Probe:
+def probe_existing(s: Seams, layout: Any, pinned: list[tuple[str, Path, list[tuple[str, int]]]] | None = None) -> Probe:
+    """The install's own state, plus which pinned downloads are already on disk at their size.
+
+    *pinned* is (component id, folder, [(file name, size)]). Only names and
+    sizes are compared here, which costs nothing; a component found this way
+    is planned as "reuse", and the executor still hashes every file before it
+    counts as installed. Without this, a machine that already had the 354 MB
+    voice from an earlier start was told it would download it again.
+    """
     from Agent_Guru.genesis import journal
 
     events, bad = journal.read(layout.journal_path)
+    present = []
+    for cid, folder, files in pinned or []:
+        try:
+            if files and all((folder / name).is_file() and (folder / name).stat().st_size == size for name, size in files):
+                present.append(cid)
+        except OSError:
+            continue
     return ok("existing", "Existing install", {
         "runtime": s.exists(layout.venv_python),
         "installed_components": sorted(journal.installed_components(events)),
+        "files_present": present,
         "journal_events": len(events), "journal_unreadable_lines": bad,
         "settings": s.exists(layout.settings_path), "data_folder": s.exists(layout.data_dir),
     })
@@ -368,7 +412,8 @@ class Machine:
 
 
 def scan(layout: Any, hosts: list[str], seams: Seams | None = None,
-         on_result: Callable[[Probe], None] | None = None, *, network: bool = True) -> Machine:
+         on_result: Callable[[Probe], None] | None = None, *, network: bool = True,
+         pinned: list[tuple[str, Path, list[tuple[str, int]]]] | None = None) -> Machine:
     """Run every probe in screen order, calling *on_result* as each one returns."""
     s = seams or Seams()
     machine = Machine()
@@ -379,7 +424,7 @@ def scan(layout: Any, hosts: list[str], seams: Seams | None = None,
         ("python", "Python 3.11 to 3.13", lambda: probe_python(s)), ("git", "Git", lambda: probe_git(s)),
         ("ollama", "Ollama", lambda: probe_ollama(s)), ("audio", "Audio devices", lambda: probe_audio(s)),
         ("webview2", "WebView2", lambda: probe_webview2(s)),
-        ("existing", "Existing install", lambda: probe_existing(s, layout)),
+        ("existing", "Existing install", lambda: probe_existing(s, layout, pinned)),
         ("network", "Download hosts", (lambda: probe_network(s, hosts)) if network else
          (lambda: unknown("network", "Download hosts", "not checked: offline install"))),
     ]
