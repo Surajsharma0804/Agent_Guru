@@ -33,6 +33,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import sys
 from pathlib import Path
 from typing import Any
@@ -198,6 +199,10 @@ def uninstall(layout: Layout, *, remove_data: bool) -> str:
     if not layout.runtime_root.is_dir():
         msg = f"{root} is not an Agent Guru install: it has no runtime folder"
         raise ValueError(msg)
+    try:
+        os.kill(int(layout.ollama_pid_file.read_text(encoding="utf-8")), signal.SIGTERM)
+    except (OSError, ValueError):
+        pass
     shutil.rmtree(root)
     if remove_data and layout.data_dir.is_dir():
         shutil.rmtree(layout.data_dir)
