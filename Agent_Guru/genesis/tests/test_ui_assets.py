@@ -59,6 +59,12 @@ def test_every_string_key_the_page_uses_exists():
     assert all(f"ws.tab.{s}" in strings for s in ("talk", "tasks", "studio", "control", "doctor"))  # nosec B101
 
 
+def test_the_plan_says_in_plain_words_that_the_microphone_starts_with_the_computer():
+    strings = json.loads(_text("strings.en.json"))
+    assert '"tier." + name' in _text("app.js")  # nosec B101
+    assert "Hey Guru" in strings["tier.startup"] and "tray icon" in strings["tier.startup"]  # nosec B101
+
+
 def test_the_ui_text_has_no_long_dashes():
     for name in ("index.html", "workspace.html", "strings.en.json", "app.js", "workspace.js", "core.js", "tokens.css"):
         assert not re.search("[\u2013\u2014]", _text(name)), name  # nosec B101
