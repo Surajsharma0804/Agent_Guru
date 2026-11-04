@@ -65,6 +65,18 @@ def stage_states(views: dict[str, jr.ComponentView], manifest: mf.Manifest,
     return out
 
 
+#: System Doctor's plain words for each result.
+_PLAIN = {"PASS": "{title} works.", "WARNING": "{title} works, with a limit: {detail}",
+          "NOT INSTALLED": "{title} is missing. Repair installs it.",
+          "NOT CONFIGURED": "{title} is installed, but something it needs is not set: {detail}",
+          "FAILED": "{title} did not work when checked. Repair reinstalls it. What the check saw: {detail}",
+          "NOT APPLICABLE": "{title} does not apply to this machine."}
+
+
+def explain(title: str, label: str, detail: str) -> str:
+    return _PLAIN[label].format(title=title, detail=detail)
+
+
 def _expect(body: dict[str, Any], fields: dict[str, type | tuple[type, ...]]) -> dict[str, Any]:
     unknown = set(body) - set(fields)
     if unknown:
@@ -87,7 +99,7 @@ class GenesisApp:
         self.journal_path = replay_journal or layout.journal_path
         self._executor_factory = executor_factory or ex.Executor
         self._launcher = launcher or (lambda args, cwd: subprocess.Popen(args, cwd=str(cwd),  # nosec B603
-                                                                         env=act._venv_env(layout)))
+                                                                         env=self.app_env()))
         self.lock = threading.Lock()
         self.probe_rows: list[dict[str, Any]] = []
         self.scanning = False
@@ -99,6 +111,11 @@ class GenesisApp:
         self.summary: dict[str, Any] | None = None
         self.run_id = ""
         self.close: Callable[[], None] = lambda: None
+
+    def app_env(self) -> dict[str, str]:
+        """The installed app's environment: its window on, and where to leave the window's address."""
+        return {**act._venv_env(self.layout), "AGENT_GURU_WORKSPACE": "1", "AGENT_GURU_INSTALL_ROOT": str(self.layout.install_root),
+                "AGENT_GURU_WORKSPACE_FILE": str(self.workspace_file)}
 
     # --- reading ------------------------------------------------------------
 
@@ -226,6 +243,7 @@ class GenesisApp:
                 r = verify.run(c["probe"], ctx, c)
                 journal.append(run_id, c["id"], c["stage"], "verified" if r.counts_as_installed else "failed",
                                {"result": r.label, "detail": r.detail, "needs_person": r.needs_person, **r.data,
+                                "explanation": explain(c["title"], r.label, r.detail),
                                 **({} if r.counts_as_installed else {"error": r.detail})})
 
         threading.Thread(target=work, name="genesis-verify", daemon=True).start()
@@ -253,8 +271,66 @@ class GenesisApp:
             return refused
         if "first-start" not in jr.installed_components(jr.read(self.layout.journal_path)[0]):
             return 409, {"error": "Agent Guru is not installed and verified yet"}
+        self.workspace_file.unlink(missing_ok=True)
+        ollama = act.private_ollama(self.layout, act.current_platform())
+        if ollama and not act.ollama_version(act.ActionContext(self.layout, lambda k, d: None).ollama_host):
+            act._spawn([str(ollama), "serve"])
         proc = self._launcher([str(self.layout.venv_python), "-m", "Agent_Guru"], self.layout.app_root)
         return 202, {"started": True, "pid": getattr(proc, "pid", None)}
+
+    @property
+    def workspace_file(self) -> Path:
+        return self.layout.runtime_root / "workspace.json"
+
+    def launched(self, body: dict[str, Any]) -> tuple[int, Any]:
+        """The running app's window address, once it has started."""
+        try:
+            return 200, json.loads(self.workspace_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return 200, {"url": ""}
+
+    def component(self, body: dict[str, Any]) -> tuple[int, Any]:
+        """Install, repair or remove one component through the same executor as setup."""
+        _expect(body, {"id": str, "action": str})
+        refused = self._refuse_in_replay()
+        if refused:
+            return refused
+        cid, action = body.get("id", ""), body.get("action", "")
+        by_id = self.manifest.by_id
+        if cid not in by_id or action not in ("install", "repair", "remove"):
+            return 400, {"error": "unknown component or action"}
+        if self.run_thread and self.run_thread.is_alive():
+            return 409, {"error": "another job is running"}
+        if action == "remove" and by_id[cid]["required"]:
+            return 409, {"error": "a required part cannot be removed"}
+        run_id = jr.new_run_id()
+        self.run_id = run_id
+
+        def work() -> None:
+            machine = self.machine or probes.scan(self.layout, [], self.seams, network=False,
+                                                  pinned=cli.pinned_files(self.layout, self.manifest))
+            self.machine = machine
+            plan = planner.plan(machine, self.manifest, planner.Choices(tiers={t: True for t in planner.DEFAULT_TIERS}))
+            wanted = set(mf.order(self.manifest, [cid]))
+            for row in plan["components"]:
+                if row["id"] == cid:
+                    row["action"] = "install"
+                elif row["id"] in wanted:
+                    row["action"] = "reuse"
+                else:
+                    row.update(action="skip", reason="not part of this job")
+            engine = self._executor_factory(self.layout, self.manifest, plan)
+            self.engine = engine
+            if action == "remove":
+                self.summary = {"rolled_back": engine.rollback([cid], run_id)}
+            else:
+                if action == "repair":
+                    engine.force = {cid}
+                self.summary = engine.run(run_id).to_dict()
+
+        self.run_thread = threading.Thread(target=work, name="genesis-component", daemon=True)
+        self.run_thread.start()
+        return 202, {"run_id": run_id}
 
     def heartbeat(self, body: dict[str, Any]) -> tuple[int, Any]:
         return 200, {"ok": True}
@@ -279,5 +355,6 @@ class GenesisApp:
                  ("POST", "/api/cancel"): self.cancel, ("POST", "/api/pause"): self.pause,
                  ("POST", "/api/verify"): self.verify_all, ("POST", "/api/confirm"): self.confirm,
                  ("POST", "/api/launch"): self.launch, ("POST", "/api/heartbeat"): self.heartbeat,
+                 ("GET", "/api/launched"): self.launched, ("POST", "/api/component"): self.component,
                  ("POST", "/api/close"): self.close_window}
         return {k: guarded(v) for k, v in table.items()}
