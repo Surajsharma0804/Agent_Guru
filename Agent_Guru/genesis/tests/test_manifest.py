@@ -154,3 +154,23 @@ def test_order_puts_dependencies_first(real):
         for dep in real.by_id[cid]["depends_on"]:
             assert seq.index(dep) < seq.index(cid)  # nosec B101
     assert seq[0] == "python-runtime" and seq[-1] == "first-start"  # nosec B101
+
+
+def test_every_os_has_its_python_and_ollama_pinned(real):
+    for cid in ("python-runtime", "ollama"):
+        for platform, arch in (("windows", "AMD64"), ("linux", "x86_64"), ("darwin", "arm64"), ("darwin", "x86_64")):
+            files = mf.files_for(real.by_id[cid], platform, arch)
+            assert len(files) == 1 and len(files[0]["sha256"]) == 64, (cid, platform, arch)  # nosec B101
+    assert mf.files_for(real.by_id["ollama"], "linux", "aarch64") == []  # nosec B101  never an x86 build on ARM
+
+
+def test_windows_only_packages_are_not_in_the_common_lists(real):
+    for c in real.components:
+        assert not {"pywin32", "pycaw"} & set(c.get("packages", [])), c["id"]  # nosec B101
+    assert real.by_id["core-packages"]["platform_packages"] == {"windows": ["pywin32"]}  # nosec B101
+
+
+def test_a_pinned_platform_file_needs_a_real_hash_too(real):
+    bad = copy.deepcopy(real.by_id["ollama"]["files_by_platform"])
+    bad["windows"][0]["sha256"] = "unknown"
+    assert any("no real SHA-256" in p for p in problems(_with(real, "ollama", files_by_platform=bad)))  # nosec B101
