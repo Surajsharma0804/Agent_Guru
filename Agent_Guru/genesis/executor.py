@@ -116,6 +116,8 @@ class Executor:
         self._probe = probes or verify.run
         self._stop = threading.Event()
         self._paused = False
+        #: Components to reinstall even though they pass: a repair.
+        self.force: set[str] = set()
 
     def cancel(self) -> None:
         self._stop.set()
@@ -192,7 +194,8 @@ class Executor:
             ctx = self._ctx(run_id, cid, stage)
             j.append(run_id, cid, stage, "started", {})
             try:
-                if (cid in verified_before or rows[cid]["action"] == "reuse") and not act.is_stale(ctx, c):
+                if (cid in verified_before or rows[cid]["action"] == "reuse") and cid not in self.force \
+                        and not act.is_stale(ctx, c):
                     result = self._probe(c["probe"], ctx, c)
                     if result.counts_as_installed:
                         j.append(run_id, cid, stage, "reused", {"result": result.label, "detail": result.detail,
