@@ -134,6 +134,7 @@ PROBES: dict[str, Callable[[act.ActionContext, dict[str, Any]], Result]] = {
     "coding.check": _task("coding.check"),
     "research.reach": _task("research.reach"),
     "vault.check": _task("vault.check"),
+    "voice.import": _task("voice.import"),
 }
 
 
