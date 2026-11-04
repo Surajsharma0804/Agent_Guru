@@ -595,6 +595,10 @@ async def run() -> None:
 
         if local_api.enabled():
             api_task = asyncio.create_task(local_api.serve(orch, api_stop))
+        from Agent_Guru.integration import workspace as _workspace
+
+        if _workspace.enabled():
+            _workspace.start(orch, asyncio.get_running_loop())
     except Exception as e:
         logger.warning("Local API unavailable (%s)", e)
     # Messages from the owner's Telegram chats, as typed turns; off unless
@@ -677,6 +681,7 @@ async def run() -> None:
         personality_name = detection.personality.value.upper()
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
         logger.info("[%s] Listening for your command...", personality_name)
+        orch.events.publish("listen.started")
 
         await asyncio.sleep(0.5)
 
@@ -692,6 +697,8 @@ async def run() -> None:
         except Exception as exc:
             logger.warning("Command audio capture failed: %s", exc)
             audio_bytes = b""
+        finally:
+            orch.events.publish("listen.finished")
 
         def _thinking_tone() -> None:
             # Play a short "thinking" tone so the user knows we heard them
