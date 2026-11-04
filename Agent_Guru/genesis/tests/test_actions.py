@@ -433,3 +433,33 @@ def test_an_installed_but_stopped_ollama_is_started_not_reinstalled(tmp_path, mo
                      sleep=lambda s: None, download=lambda *a, **k: downloads.append(a))
     out = act.act_ollama_install(ctx, _ollama({"name": "x", "size": 1, "sha256": "0" * 64, "url": "https://x.test/o"}))
     assert out.reused and spawned == [["C:/Ollama/ollama.exe", "serve"]] and downloads == []  # nosec B101
+
+
+def test_a_changed_bundle_makes_the_app_stale(tmp_path):
+    bundle = tmp_path / "bundle" / "app"
+    bundle.mkdir(parents=True)
+    (bundle / "main.py").write_text("one", encoding="utf-8")
+    ctx, _ = ctx_for(tmp_path)
+    ctx.layout = Layout(tmp_path / "AG", tmp_path / "AG" / "app", bundled_app=bundle)
+    component = {"install": "app.files"}
+    assert act.is_stale(ctx, component)  # nosec B101
+    act.act_app_files(ctx, component)
+    assert not act.is_stale(ctx, component)  # nosec B101
+    (bundle / "main.py").write_text("second", encoding="utf-8")
+    assert act.is_stale(ctx, component)  # nosec B101
+
+
+def test_a_changed_package_list_or_lock_makes_a_tier_stale(tmp_path):
+    ctx, _ = ctx_for(tmp_path, Recorder())
+    tier = {"id": "core", "install": "pip.tier", "packages": ["scipy"]}
+    assert act.is_stale(ctx, tier)  # nosec B101  never installed by this version
+    act.act_pip_tier(ctx, tier)
+    assert not act.is_stale(ctx, tier)  # nosec B101
+    assert act.is_stale(ctx, {**tier, "packages": ["scipy", "keyring"]})  # nosec B101
+    ctx.layout.lock_file.write_text("scipy==2\n", encoding="utf-8")
+    assert act.is_stale(ctx, tier)  # nosec B101
+
+
+def test_only_the_app_and_package_tiers_can_be_stale(tmp_path):
+    ctx, _ = ctx_for(tmp_path)
+    assert not act.is_stale(ctx, {"install": "files.download"})  # nosec B101

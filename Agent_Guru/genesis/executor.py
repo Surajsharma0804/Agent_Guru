@@ -192,7 +192,7 @@ class Executor:
             ctx = self._ctx(run_id, cid, stage)
             j.append(run_id, cid, stage, "started", {})
             try:
-                if cid in verified_before or rows[cid]["action"] == "reuse":
+                if (cid in verified_before or rows[cid]["action"] == "reuse") and not act.is_stale(ctx, c):
                     result = self._probe(c["probe"], ctx, c)
                     if result.counts_as_installed:
                         j.append(run_id, cid, stage, "reused", {"result": result.label, "detail": result.detail,

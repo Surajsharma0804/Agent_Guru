@@ -99,7 +99,9 @@ def engine():
 
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize("scenario", ["fresh", "reuse", "failure", "cancel"])
-def test_each_screen_shows_exactly_what_the_journal_says(tmp_path, engine, scenario):
+def test_each_screen_shows_exactly_what_the_journal_says(tmp_path, engine, scenario, monkeypatch):
+    # The recording's fake actions write no build stamps: its components are current.
+    monkeypatch.setattr(act, "is_stale", lambda ctx, component: False)
     journal = record(tmp_path, scenario)
     events, _ = jr.read(journal)
     last_run = events[-1].run_id

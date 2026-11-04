@@ -373,6 +373,7 @@ def act_pip_tier(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     if code != 0:
         msg = f"pip could not install {component['id']} (exit {code}): {out.strip()[-600:]}"
         raise ActionError(msg)
+    (work / f"{component['id']}.stamp").write_text(_tier_stamp(ctx, component), encoding="utf-8")
     installed: list[str] = []
     try:
         installed = [i["metadata"]["name"] for i in json.loads(report.read_text(encoding="utf-8")).get("install", [])]
@@ -537,6 +538,30 @@ def _tree_id(folder: Path) -> str:
     entries = sorted(f"{p.relative_to(folder).as_posix()}:{p.stat().st_size}" for p in folder.rglob("*")
                      if p.is_file() and p.name != ".genesis-build")
     return hashlib.sha256("\n".join(entries).encode()).hexdigest()
+
+
+def _tier_stamp(ctx: ActionContext, component: dict[str, Any]) -> str:
+    packages = "\n".join(packages_for(component, ctx.platform))
+    lock = ctx.layout.lock_file.read_bytes() if ctx.layout.lock_file.is_file() else b""
+    return hashlib.sha256(packages.encode() + lock).hexdigest()
+
+
+def is_stale(ctx: ActionContext, component: dict[str, Any]) -> bool:
+    """True when a component that passes its check still belongs to an older build.
+
+    A check says a component works, not that it is the current one. Going by
+    the check alone, a new installer reused the old application and never
+    installed a package the new one needs, so an update changed nothing.
+    """
+    if component["install"] == "app.files":
+        bundled = ctx.layout.bundled_app
+        marker = ctx.layout.app_root / ".genesis-build"
+        return bundled is not None and bundled.is_dir() and (
+            not marker.is_file() or marker.read_text(encoding="utf-8") != _tree_id(bundled))
+    if component["install"] == "pip.tier":
+        stamp = ctx.layout.cache_dir / "tiers" / f"{component['id']}.stamp"
+        return not stamp.is_file() or stamp.read_text(encoding="utf-8") != _tier_stamp(ctx, component)
+    return False
 
 
 def act_app_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
