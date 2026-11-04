@@ -21,6 +21,7 @@ if _project_root not in sys.path:
 #: the command is used, so a plain launch does not pay for them.
 COMMANDS: dict[str, tuple[str, str, str]] = {
     "doctor": ("Agent_Guru.platform.error_handling.doctor", "run", "check the machine"),
+    "genesis": ("Agent_Guru.genesis.cli", "run", "plan, install, verify or report this install (--plan changes nothing)"),
     "documents": ("Agent_Guru.platform.features.documents", "run", "add, remove or list documents to answer from"),
     "mcp": ("Agent_Guru.integration.mcp_tools", "run", "list or call tools on MCP servers, through the policy"),
     "models": ("Agent_Guru.llm.model_catalog", "run", "the models installed in Ollama and whether they fit the GPU"),
