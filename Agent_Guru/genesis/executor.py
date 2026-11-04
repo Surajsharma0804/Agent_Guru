@@ -198,6 +198,11 @@ class Executor:
                         j.append(run_id, cid, stage, "reused", {"result": result.label, "detail": result.detail,
                                                                 "needs_person": result.needs_person, **result.data})
                         summary.reused.append(cid)
+                        # A rerun must report what still only half works, as
+                        # the first run did: this list stayed empty on reuse,
+                        # though --verify showed the wake-word fallback.
+                        if result.label == "WARNING":
+                            summary.warnings.append(cid)
                         done_ok.add(cid)
                         continue
                 outcome = self._actions[c["install"]](ctx, c)
