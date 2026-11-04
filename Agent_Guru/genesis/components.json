@@ -12,7 +12,9 @@
    "required": true,
    "license": "PSF-2.0",
    "hosts": [
-    "api.nuget.org"
+    "api.nuget.org",
+    "github.com",
+    "release-assets.githubusercontent.com"
    ],
    "id": "python-runtime",
    "title": "Python runtime",
@@ -23,19 +25,70 @@
     "disk_bytes": 41943040,
     "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15; unpacked size counted with du; starting it is UNVERIFIED here"
    },
-   "source": "a compatible Python 3.11 to 3.13 already on the machine, otherwise the NuGet package python 3.13.15",
+   "source": "a compatible Python 3.11 to 3.13 already on the machine, otherwise the NuGet package python 3.13.15 on Windows and python-build-standalone 3.13.18 elsewhere",
    "probe": "python.ok",
    "install": "runtime.python",
    "rollback": "runtime.remove_python",
    "reason": "Agent Guru is written in Python; the installer never uses or changes your own Python packages",
-   "files": [
-    {
-     "name": "python.3.13.15.nupkg",
-     "size": 14391248,
-     "sha256": "05357887df50d3153efc681bdf432c321d3e2f9ce5788f99f4515b27e8fda0ac",
-     "url": "https://api.nuget.org/v3-flatcontainer/python/3.13.15/python.3.13.15.nupkg"
-    }
-   ]
+   "files_by_platform": {
+    "windows": [
+     {
+      "name": "python.3.13.15.nupkg",
+      "size": 14391248,
+      "sha256": "05357887df50d3153efc681bdf432c321d3e2f9ce5788f99f4515b27e8fda0ac",
+      "url": "https://api.nuget.org/v3-flatcontainer/python/3.13.15/python.3.13.15.nupkg"
+     }
+    ],
+    "darwin-arm64": [
+     {
+      "name": "cpython-3.13.18+20261026-aarch64-apple-darwin-install_only.tar.gz",
+      "size": 25394044,
+      "sha256": "e5af2fde6a937a0e0c795a0c595c4efb70578d57463a2657c819992b9b9acbac",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.13.18%2B20261026-aarch64-apple-darwin-install_only.tar.gz"
+     }
+    ],
+    "darwin-x86_64": [
+     {
+      "name": "cpython-3.13.18+20261026-x86_64-apple-darwin-install_only.tar.gz",
+      "size": 25155145,
+      "sha256": "708be9e7df297f68bdae589ea9e62a621db5abe7708f79e851c41410347452d1",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.13.18%2B20261026-x86_64-apple-darwin-install_only.tar.gz"
+     }
+    ],
+    "linux-x86_64": [
+     {
+      "name": "cpython-3.13.18+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "size": 76935188,
+      "sha256": "126343c54daff4068efc1ac269518d0cc202d57857794948103dd1454e8881be",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.13.18%2B20261026-x86_64-unknown-linux-gnu-install_only.tar.gz"
+     }
+    ]
+   }
+  },
+  {
+   "id": "app-files",
+   "title": "Application files",
+   "stage": "Foundation",
+   "tier": "core",
+   "required": true,
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [],
+   "license": "Apache-2.0",
+   "hosts": [],
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 11800000,
+    "measured": "measured 2026-11-04, source without tests"
+   },
+   "source": "this installer",
+   "probe": "app.present",
+   "install": "app.files",
+   "rollback": "not reversible",
+   "reason": "the assistant itself, copied out of the installer where the installer cannot hold it"
   },
   {
    "platforms": [
@@ -71,7 +124,8 @@
     "darwin"
    ],
    "depends_on": [
-    "private-env"
+    "private-env",
+    "app-files"
    ],
    "required": true,
    "license": "each package's own (all permissive or LGPL)",
@@ -103,13 +157,17 @@
     "aiohttp",
     "ollama",
     "numpy",
-    "pywin32",
     "onnxruntime",
     "tokenizers",
     "requests",
     "scipy"
    ],
-   "reason": "text chat, memory, settings and the local model client"
+   "reason": "text chat, memory, settings and the local model client",
+   "platform_packages": {
+    "windows": [
+     "pywin32"
+    ]
+   }
   },
   {
    "platforms": [
@@ -219,7 +277,10 @@
    "depends_on": [],
    "required": true,
    "license": "MIT",
-   "hosts": [],
+   "hosts": [
+    "github.com",
+    "release-assets.githubusercontent.com"
+   ],
    "id": "ollama",
    "title": "Ollama",
    "stage": "Intelligence",
@@ -227,13 +288,48 @@
    "size": {
     "download_bytes": null,
     "disk_bytes": null,
-    "measured": "UNVERIFIED: Ollama is its own application and the person installs it"
+    "measured": "UNVERIFIED: the plan states this machine's pinned download size; disk size not measured"
    },
-   "source": "https://ollama.com/download (not downloaded by this installer)",
+   "source": "the Ollama 0.40.13 release, checked against the hashes Ollama publishes",
    "probe": "ollama.running",
-   "install": "ollama.present",
+   "install": "ollama.install",
    "rollback": "not reversible",
-   "reason": "runs the language model on this machine"
+   "reason": "runs the language model on this machine",
+   "files_by_platform": {
+    "windows": [
+     {
+      "name": "OllamaSetup.exe",
+      "size": 1676266440,
+      "sha256": "9e3c76e54e7184c68e88a2378b909bf59bbe454f83c076cb4f4a717e946ae719",
+      "url": "https://github.com/ollama/ollama/releases/download/v0.40.13/OllamaSetup.exe"
+     }
+    ],
+    "darwin-arm64": [
+     {
+      "name": "ollama-darwin.tgz",
+      "size": 186689993,
+      "sha256": "bae29252232b9e1358cf5801a7d65a07442af18fb5467cb68c7fc3711f59c511",
+      "url": "https://github.com/ollama/ollama/releases/download/v0.40.13/ollama-darwin.tgz"
+     }
+    ],
+    "darwin-x86_64": [
+     {
+      "name": "ollama-darwin.tgz",
+      "size": 186689993,
+      "sha256": "bae29252232b9e1358cf5801a7d65a07442af18fb5467cb68c7fc3711f59c511",
+      "url": "https://github.com/ollama/ollama/releases/download/v0.40.13/ollama-darwin.tgz"
+     }
+    ],
+    "linux-x86_64": [
+     {
+      "name": "ollama-linux-amd64.tar.zst",
+      "size": 1525346571,
+      "sha256": "c9490e0f520be21271d969e6703f012268b1d39f8b70dd58854e5bfef7a75bb6",
+      "url": "https://github.com/ollama/ollama/releases/download/v0.40.13/ollama-linux-amd64.tar.zst"
+     }
+    ]
+   },
+   "outside_install": "on Windows the Ollama installer adds Ollama for this user; elsewhere it stays in the install folder"
   },
   {
    "platforms": [
@@ -267,19 +363,19 @@
    "outside_install": "the model goes into Ollama's own model folder",
    "candidates": [
     {
-     "name": "qwen2.5:1.5b",
-     "download_bytes": 986061892
+     "name": "gemma4:latest",
+     "download_bytes": 6583656505
     },
     {
      "name": "gemma4:e2b",
      "download_bytes": 4587156505
     },
     {
-     "name": "gemma4:latest",
-     "download_bytes": 6583656505
+     "name": "qwen2.5:1.5b",
+     "download_bytes": 986061892
     }
    ],
-   "candidates_measured": "registry.ollama.ai manifest layer sizes, 2026-11-04; each one can call tools (checked with /api/show here)"
+   "candidates_measured": "best first; registry.ollama.ai manifest layer sizes, 2026-11-04; each can call tools (checked with /api/show here)"
   },
   {
    "platforms": [
@@ -320,13 +416,17 @@
     "librosa",
     "soundfile",
     "scipy",
-    "pycaw",
     "pyautogui"
    ],
    "extra_index": [
     "https://download.pytorch.org/whl/cpu"
    ],
-   "reason": "speech recognition, the voice, and finding where speech starts and stops"
+   "reason": "speech recognition, the voice, and finding where speech starts and stops",
+   "platform_packages": {
+    "windows": [
+     "pycaw"
+    ]
+   }
   },
   {
    "platforms": [

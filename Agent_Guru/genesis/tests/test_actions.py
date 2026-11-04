@@ -40,7 +40,7 @@ def ctx_for(tmp_path, run=None, **kw):
 
 def test_every_manifest_action_is_in_the_table_and_nothing_else_is_callable():
     assert set(act.ACTIONS) == {"runtime.python", "runtime.remove_python", "runtime.venv", "runtime.remove_venv",  # nosec B101
-                                "pip.tier", "pip.uninstall_tier", "files.download", "files.remove", "ollama.present",
+                                "pip.tier", "pip.uninstall_tier", "files.download", "files.remove", "ollama.install", "app.files",
                                 "ollama.pull", "runtime.task", "data.folder", "nothing"}
 
 
@@ -253,3 +253,167 @@ def test_wrong_bytes_are_not_retried_on_another_source(tmp_path):
     with pytest.raises(act.ActionError, match="pinned sha256"):
         act.act_download_files(ctx, _pinned(b"x", ["https://a.test/m", "https://b.test/m"]))
     assert asked == ["https://a.test/m"]  # nosec B101
+
+
+def test_the_lock_is_used_without_cpu_builds_on_macos(tmp_path):
+    # PyTorch's CPU index has no macOS builds, so "torch==2.14.1+cpu" cannot resolve there.
+    rec = Recorder()
+    ctx, _ = ctx_for(tmp_path, rec, platform="darwin")
+    ctx.layout.lock_file.write_text("torch==2.14.1+cpu\nscipy==1.18.1\n", encoding="utf-8")
+    act.act_pip_tier(ctx, {"id": "voice", "packages": ["torch"], "extra_index": ["https://download.pytorch.org/whl/cpu"]})
+    args = rec.calls[0]
+    assert Path(args[args.index("-c") + 1]).read_text(encoding="utf-8").split() == ["torch==2.14.1", "scipy==1.18.1"]  # nosec B101
+    assert "--extra-index-url" not in args  # nosec B101
+
+
+def test_windows_only_packages_install_only_on_windows(tmp_path):
+    for platform, want in (("windows", ["scipy", "pywin32"]), ("linux", ["scipy"]), ("darwin", ["scipy"])):
+        rec = Recorder()
+        ctx, _ = ctx_for(tmp_path, rec, platform=platform)
+        act.act_pip_tier(ctx, {"id": "core", "packages": ["scipy"], "platform_packages": {"windows": ["pywin32"]}})
+        args = rec.calls[0]
+        assert Path(args[args.index("-r") + 1]).read_text(encoding="utf-8").split() == want  # nosec B101
+
+
+def _pbs(path: Path, members: dict[str, bytes]) -> dict:
+    import hashlib
+    import io
+    import tarfile
+
+    with tarfile.open(path, "w:gz") as tf:
+        for name, data in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o755
+            tf.addfile(info, io.BytesIO(data))
+    data = path.read_bytes()
+    return {"name": path.name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest(), "url": "https://x.test/p"}
+
+
+def test_the_standalone_python_is_unpacked_on_linux(tmp_path):
+    entry = _pbs(tmp_path / "cpython.tar.gz", {"python/bin/python3": b"#!", "python/lib/os.py": b"x"})
+    ctx, _ = ctx_for(tmp_path, platform="linux", arch="x86_64")
+    cached = ctx.layout.cache_dir / "files" / entry["sha256"][:16] / entry["name"]
+    cached.parent.mkdir(parents=True)
+    cached.write_bytes((tmp_path / "cpython.tar.gz").read_bytes())
+    out = act.act_runtime_python(ctx, {"id": "python-runtime", "files_by_platform": {"linux-x86_64": [entry]}})
+    assert (ctx.layout.private_python_dir / "bin" / "python3").is_file()  # nosec B101
+    assert out.detail["python"].endswith("python3")  # nosec B101
+
+
+def test_a_python_archive_with_an_escaping_member_is_refused(tmp_path):
+    entry = _pbs(tmp_path / "cpython.tar.gz", {"python/bin/python3": b"#!", "../../evil.txt": b"x"})
+    ctx, _ = ctx_for(tmp_path, platform="linux", arch="x86_64")
+    cached = ctx.layout.cache_dir / "files" / entry["sha256"][:16] / entry["name"]
+    cached.parent.mkdir(parents=True)
+    cached.write_bytes((tmp_path / "cpython.tar.gz").read_bytes())
+    import tarfile
+
+    with pytest.raises(tarfile.FilterError):
+        act.act_runtime_python(ctx, {"id": "python-runtime", "files_by_platform": {"linux-x86_64": [entry]}})
+    assert not list(tmp_path.rglob("evil.txt"))  # nosec B101
+
+
+def test_no_python_pinned_for_this_chip_says_so(tmp_path):
+    ctx, _ = ctx_for(tmp_path, platform="linux", arch="riscv64")
+    with pytest.raises(act.ActionError, match="no private Python is pinned"):
+        act.act_runtime_python(ctx, {"id": "python-runtime", "files_by_platform": {"linux-x86_64": []}})
+
+
+def _ollama(entry):
+    return {"id": "ollama", "files_by_platform": {"windows": [entry], "linux-x86_64": [entry], "darwin-arm64": [entry]}}
+
+
+def _cached(ctx, entry, source):
+    cached = ctx.layout.cache_dir / "files" / entry["sha256"][:16] / entry["name"]
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_bytes(source.read_bytes())
+    return cached
+
+
+def test_a_running_ollama_is_left_alone(tmp_path, monkeypatch):
+    downloads = []
+    monkeypatch.setattr(act, "ollama_version", lambda host: "0.40.13")
+    ctx, _ = ctx_for(tmp_path, download=lambda *a, **k: downloads.append(a))
+    out = act.act_ollama_install(ctx, _ollama({"name": "x", "size": 1, "sha256": "0" * 64, "url": "https://x.test/o"}))
+    assert out.reused and downloads == []  # nosec B101
+
+
+def test_windows_runs_the_pinned_installer_silently_then_waits_for_it(tmp_path, monkeypatch):
+    answers = iter(["", "", "", "0.40.13", "0.40.13"])
+    monkeypatch.setattr(act, "ollama_version", lambda host: next(answers))
+    source = tmp_path / "OllamaSetup.exe"
+    source.write_bytes(b"MZ")
+    import hashlib
+
+    entry = {"name": source.name, "size": 2, "sha256": hashlib.sha256(b"MZ").hexdigest(), "url": "https://x.test/o"}
+    rec, spawned = Recorder(), []
+    ctx, _ = ctx_for(tmp_path, rec, platform="windows", spawn=spawned.append, sleep=lambda s: None, which=lambda n: None)
+    cached = _cached(ctx, entry, source)
+    out = act.act_ollama_install(ctx, _ollama(entry))
+    assert rec.calls == [[str(cached), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"]]  # nosec B101
+    assert spawned and spawned[0][-1] == "serve" and out.detail == {"version": "0.40.13"}  # nosec B101
+
+
+def test_linux_unpacks_zstd_with_tar_and_needs_no_root(tmp_path, monkeypatch):
+    answers = iter(["", "", "0.40.13", "0.40.13"])
+    monkeypatch.setattr(act, "ollama_version", lambda host: next(answers))
+    source = tmp_path / "ollama.tar.zst"
+    source.write_bytes(b"z")
+    import hashlib
+
+    entry = {"name": source.name, "size": 1, "sha256": hashlib.sha256(b"z").hexdigest(), "url": "https://x.test/o"}
+    rec, spawned = Recorder(), []
+    ctx, _ = ctx_for(tmp_path, rec, platform="linux", arch="x86_64", spawn=spawned.append, sleep=lambda s: None,
+                     which=lambda n: None)
+    cached = _cached(ctx, entry, source)
+    act.act_ollama_install(ctx, _ollama(entry))
+    assert rec.calls == [["tar", "--zstd", "-xf", str(cached), "-C", str(ctx.layout.runtime_root / "ollama")]]  # nosec B101
+    assert "sudo" not in " ".join(rec.calls[0]) and spawned[0][1:] == ["serve"]  # nosec B101
+
+
+def test_ollama_that_never_answers_is_a_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(act, "ollama_version", lambda host: "")
+    source = tmp_path / "ollama.tgz"
+    entry = _pbs(source, {"ollama": b"#!"})
+    ctx, _ = ctx_for(tmp_path, platform="darwin", arch="arm64", spawn=lambda a: None, sleep=lambda s: None,
+                     which=lambda n: None)
+    _cached(ctx, entry, source)
+    with pytest.raises(act.ActionError, match="did not start answering"):
+        act.act_ollama_install(ctx, _ollama(entry))
+
+
+def test_an_unpinned_chip_gets_no_ollama(tmp_path, monkeypatch):
+    monkeypatch.setattr(act, "ollama_version", lambda host: "")
+    ctx, _ = ctx_for(tmp_path, platform="linux", arch="aarch64", which=lambda n: None)
+    with pytest.raises(act.ActionError, match="no Ollama build is pinned"):
+        act.act_ollama_install(ctx, _ollama({"name": "x", "size": 1, "sha256": "0" * 64, "url": "https://x.test/o"}))
+
+
+def test_the_application_is_copied_out_of_the_bundle_once(tmp_path):
+    bundle = tmp_path / "bundle" / "app"
+    (bundle / "Agent_Guru").mkdir(parents=True)
+    (bundle / "main.py").write_text("x", encoding="utf-8")
+    ctx, _ = ctx_for(tmp_path)
+    ctx.layout = Layout(tmp_path / "AG", tmp_path / "AG" / "app", bundled_app=bundle)
+    assert not act.act_app_files(ctx, {}).reused  # nosec B101
+    assert (tmp_path / "AG" / "app" / "main.py").read_text(encoding="utf-8") == "x"  # nosec B101
+    assert act.act_app_files(ctx, {}).reused  # nosec B101  the same build: nothing to copy
+    (bundle / "main.py").write_text("newer", encoding="utf-8")
+    assert not act.act_app_files(ctx, {}).reused  # nosec B101  a new version replaces it
+    assert (tmp_path / "AG" / "app" / "main.py").read_text(encoding="utf-8") == "newer"  # nosec B101
+
+
+def test_nothing_is_copied_where_nothing_is_bundled(tmp_path):
+    ctx, _ = ctx_for(tmp_path)
+    assert act.act_app_files(ctx, {}).reused  # nosec B101
+
+
+def test_an_installed_but_stopped_ollama_is_started_not_reinstalled(tmp_path, monkeypatch):
+    answers = iter(["", "", "0.40.13", "0.40.13"])
+    monkeypatch.setattr(act, "ollama_version", lambda host: next(answers))
+    downloads, spawned = [], []
+    ctx, _ = ctx_for(tmp_path, platform="windows", which=lambda n: "C:/Ollama/ollama.exe", spawn=spawned.append,
+                     sleep=lambda s: None, download=lambda *a, **k: downloads.append(a))
+    out = act.act_ollama_install(ctx, _ollama({"name": "x", "size": 1, "sha256": "0" * 64, "url": "https://x.test/o"}))
+    assert out.reused and spawned == [["C:/Ollama/ollama.exe", "serve"]] and downloads == []  # nosec B101

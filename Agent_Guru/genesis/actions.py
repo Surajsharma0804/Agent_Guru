@@ -16,12 +16,15 @@ raises ActionError with a message for the person, or raises Cancelled.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import platform as _platform
 import re
 import shutil
 import subprocess  # nosec B404 - argument lists to the managed runtime's own programs, never a shell
 import sys
+import tarfile
 import time
 import urllib.request
 import zipfile
@@ -31,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from Agent_Guru.genesis.layout import Layout
+from Agent_Guru.genesis.manifest import files_for, packages_for
 from Agent_Guru.utils import verified_files as vf
 from Agent_Guru.utils.path_utils import app_data_dir
 
@@ -88,6 +92,16 @@ def _run(args: list[str], cwd: Path | None = None, env: dict[str, str] | None = 
     return proc.wait(), "".join(tail)[-4000:]
 
 
+def current_platform() -> str:
+    return {"win32": "windows", "darwin": "darwin"}.get(sys.platform, "linux")
+
+
+def _spawn(args: list[str]) -> None:
+    """Start a long-running program and leave it running after this process ends."""
+    subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,  # nosec B603
+                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 def _http_lines(url: str, body: dict[str, Any], timeout: float = 60.0) -> Iterator[dict[str, Any]]:
     """POST JSON and yield each JSON line of a streamed reply (Ollama's pull API)."""
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})  # noqa: S310
@@ -111,6 +125,11 @@ class ActionContext:
     #: The Python the plan chose: a compatible one already installed, or "" for the private runtime.
     python: str = ""
     model: str = ""
+    platform: str = field(default_factory=current_platform)
+    arch: str = field(default_factory=_platform.machine)
+    spawn: Callable[[list[str]], None] = _spawn
+    which: Callable[[str], str | None] = shutil.which
+    sleep: Callable[[float], None] = time.sleep
 
     def check(self) -> None:
         if self.should_stop():
@@ -166,10 +185,31 @@ def resolve_dest(token: str, layout: Layout) -> Path:
     raise ActionError(msg)
 
 
-def _pins(component: dict[str, Any]) -> list[tuple[vf.PinnedFile, list[str]]]:
-    """Each pinned file with its URLs: the source first, then mirrors of the same bytes."""
+def _pins(component: dict[str, Any], ctx: ActionContext) -> list[tuple[vf.PinnedFile, list[str]]]:
+    """Each pinned file for this machine with its URLs: the source first, then mirrors of the same bytes."""
     return [(vf.PinnedFile(f["name"], int(f["size"]), f["sha256"]), [f["url"], *f.get("mirrors", [])])
-            for f in component.get("files", [])]
+            for f in files_for(component, ctx.platform, ctx.arch)]
+
+
+def private_python(ctx: ActionContext) -> Path:
+    """The private runtime's interpreter: the NuGet layout on Windows, the standalone build elsewhere."""
+    folder = ctx.layout.private_python_dir
+    return folder / "python.exe" if ctx.platform == "windows" else folder / "bin" / "python3"
+
+
+def _safe_rel(name: str, prefix: str, archive: str) -> Path | None:
+    """*name* relative to *prefix*, or None outside it; refuses a path that would escape.
+
+    anchor catches "tools//x" and "tools/C:/x" as well, which is_absolute()
+    misses on Windows for a rooted path without a drive.
+    """
+    if not name.startswith(prefix) or name.endswith("/"):
+        return None
+    rel = Path(name[len(prefix):])
+    if rel.anchor or ".." in rel.parts:
+        msg = f"{archive} holds an unsafe path {name!r}; nothing was unpacked"
+        raise ActionError(msg)
+    return rel
 
 
 def _fetch(ctx: ActionContext, pin: vf.PinnedFile, urls: list[str], dest: Path) -> bool:
@@ -228,33 +268,37 @@ def act_runtime_python(ctx: ActionContext, component: dict[str, Any]) -> Outcome
             raise ActionError(msg)
         return Outcome(reused=True, detail={"python": ctx.python, "version": version})
     target = ctx.layout.private_python_dir
-    exe = target / "python.exe"
+    exe = private_python(ctx)
     if exe.is_file() and _python_version(ctx, exe):
         return Outcome(reused=True, detail={"python": str(exe), "version": _python_version(ctx, exe)})
-    if sys.platform != "win32":
-        msg = "no Python 3.11 to 3.13 was found; install one from your system's packages and run again"
+    pins = _pins(component, ctx)
+    if not pins:
+        msg = f"no private Python is pinned for {ctx.platform} {ctx.arch}; install Python 3.11 to 3.13 and run again"
         raise ActionError(msg)
-    (pin, urls), = _pins(component)
+    (pin, urls), = pins
     archive = ctx.layout.cache_dir / "files" / pin.digest[:16] / pin.name
     _fetch(ctx, pin, urls, archive)
     ctx.check()
     staging = target.with_name("python.unpacking")
     shutil.rmtree(staging, ignore_errors=True)
-    with zipfile.ZipFile(archive) as zf:
-        for info in zf.infolist():
-            name = info.filename
-            if not name.startswith("tools/") or name.endswith("/"):
-                continue
-            rel = Path(name[len("tools/"):])
-            # anchor catches "tools//x" and "tools/C:/x" as well, which
-            # is_absolute() misses on Windows for a rooted path without a drive.
-            if rel.anchor or ".." in rel.parts:
-                msg = f"{pin.name} holds an unsafe path {name!r}; nothing was unpacked"
-                raise ActionError(msg)
-            out = staging / rel
-            out.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(info) as src, out.open("wb") as dst:
-                shutil.copyfileobj(src, dst)
+    if pin.name.endswith(".nupkg"):
+        with zipfile.ZipFile(archive) as zf:
+            for info in zf.infolist():
+                rel = _safe_rel(info.filename, "tools/", pin.name)
+                if rel is None:
+                    continue
+                out = staging / rel
+                out.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, out.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+    else:
+        # python-build-standalone: one top folder "python". filter="data"
+        # refuses links and paths that leave the folder.
+        with tarfile.open(archive) as tf:
+            tf.extractall(staging.parent / "python.unpacked", filter="data")  # nosec B202
+        shutil.rmtree(staging, ignore_errors=True)
+        os.replace(staging.parent / "python.unpacked" / "python", staging)
+        shutil.rmtree(staging.parent / "python.unpacked", ignore_errors=True)
     shutil.rmtree(target, ignore_errors=True)
     os.replace(staging, target)
     version = _python_version(ctx, exe)
@@ -265,7 +309,7 @@ def act_runtime_python(ctx: ActionContext, component: dict[str, Any]) -> Outcome
 
 
 def _base_python(ctx: ActionContext) -> str:
-    return ctx.python or str(ctx.layout.private_python_dir / "python.exe")
+    return ctx.python or str(private_python(ctx))
 
 
 def act_runtime_venv(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
@@ -284,7 +328,7 @@ _PIP_PROGRESS = re.compile(r"Progress (\d+) of (\d+)")
 
 def act_pip_tier(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     """pip install the component's packages, versions from the lock, into the private environment."""
-    packages = component["packages"]
+    packages = packages_for(component, ctx.platform)
     bad = [p for p in packages if not PACKAGE_NAME.match(p)]
     if bad:
         msg = f"refusing package names {bad}: only bare names are installed, versions come from the lock"
@@ -297,13 +341,20 @@ def act_pip_tier(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     reqs = work / f"{component['id']}.txt"
     reqs.write_text("\n".join(packages) + "\n", encoding="utf-8")
     report = work / f"{component['id']}.report.json"
+    constraints = ctx.layout.lock_file
+    if ctx.platform == "darwin":
+        # The lock pins PyTorch's +cpu builds, which that index does not
+        # publish for macOS: there the same versions come from PyPI, and they
+        # are CPU builds already.
+        constraints = work / "constraints-darwin.txt"
+        constraints.write_text(ctx.layout.lock_file.read_text(encoding="utf-8").replace("+cpu", ""), encoding="utf-8")
     args = [str(ctx.layout.venv_python), "-I", "-m", "pip", "install", "--no-input", "--progress-bar", "raw",
             "--cache-dir", str(ctx.layout.cache_dir / "pip"), "--report", str(report),
-            "-r", str(reqs), "-c", str(ctx.layout.lock_file)]
+            "-r", str(reqs), "-c", str(constraints)]
     if ctx.offline_dir is not None:
         args += ["--no-index", "--find-links", str(ctx.offline_dir / "wheels")]
     else:
-        for index in component.get("extra_index", []):
+        for index in [] if ctx.platform == "darwin" else component.get("extra_index", []):
             if index not in ALLOWED_INDEXES:
                 msg = f"package index {index!r} is not on the allowed list"
                 raise ActionError(msg)
@@ -360,7 +411,7 @@ def act_pip_uninstall_tier(ctx: ActionContext, component: dict[str, Any]) -> Out
 def act_download_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     dest_dir = resolve_dest(component["dest"], ctx.layout)
     reused = True
-    for pin, urls in _pins(component):
+    for pin, urls in _pins(component, ctx):
         ctx.check()
         reused = _fetch(ctx, pin, urls, dest_dir / pin.name) and reused
     return Outcome(reused=reused, detail={"dest": str(dest_dir)})
@@ -370,7 +421,7 @@ def act_remove_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     """Delete exactly the pinned files this component placed; never the folder or anything else in it."""
     dest_dir = resolve_dest(component["dest"], ctx.layout)
     removed = []
-    for pin, _ in _pins(component):
+    for pin, _ in _pins(component, ctx):
         path = dest_dir / pin.name
         if path.is_file():
             path.unlink()
@@ -378,16 +429,114 @@ def act_remove_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     return Outcome(detail={"removed": removed})
 
 
-def act_ollama_present(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
-    """Ollama is its own application: reused when it answers, otherwise the person is told how to get it."""
+def ollama_version(host: str) -> str:
+    """The running Ollama's version, or "" when nothing answers."""
     try:
-        with urllib.request.urlopen(ctx.ollama_host + "/api/version", timeout=3) as response:  # noqa: S310  # nosec B310
-            version = json.loads(response.read()).get("version", "")
-    except (OSError, ValueError) as exc:
-        msg = ("Ollama is not running. Install it from https://ollama.com/download, start it, then choose Retry. "
-               f"({type(exc).__name__})")
-        raise ActionError(msg) from exc
-    return Outcome(reused=True, detail={"version": version})
+        with urllib.request.urlopen(host + "/api/version", timeout=3) as response:  # noqa: S310  # nosec B310
+            return str(json.loads(response.read()).get("version", "")) or "unknown"
+    except (OSError, ValueError):
+        return ""
+
+
+def private_ollama(layout: Layout, platform: str) -> Path | None:
+    """The Ollama this installer unpacked on Linux or macOS, if there is one."""
+    folder = layout.runtime_root / "ollama"
+    for exe in (folder / "bin" / "ollama", folder / "ollama"):
+        if platform != "windows" and exe.is_file():
+            return exe
+    return None
+
+
+def _start_ollama(ctx: ActionContext, exe: str) -> None:
+    if not ollama_version(ctx.ollama_host):
+        ctx.spawn([exe, "serve"])
+    for _ in range(120):
+        if ollama_version(ctx.ollama_host):
+            return
+        ctx.check()
+        ctx.sleep(1.0)
+    msg = f"Ollama was installed but did not start answering at {exe}"
+    raise ActionError(msg)
+
+
+def act_ollama_install(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
+    """Reuse a running Ollama; otherwise install the pinned release and start it.
+
+    Ollama's own script for Linux pipes curl into a root shell, which this
+    installer will not do. Here it is a pinned file, checked against the hash
+    Ollama publishes, and on Linux and macOS it is unpacked into the private
+    runtime with no root and started as a plain process.
+    """
+    version = ollama_version(ctx.ollama_host)
+    if version:
+        return Outcome(reused=True, detail={"version": version})
+    # Installed but stopped: start it. Reinstalling would fetch 1.7 GB for nothing.
+    installed = ctx.which("ollama") or private_ollama(ctx.layout, ctx.platform)
+    if installed:
+        _start_ollama(ctx, str(installed))
+        return Outcome(reused=True, detail={"version": ollama_version(ctx.ollama_host)})
+    pins = _pins(component, ctx)
+    if not pins:
+        msg = f"no Ollama build is pinned for {ctx.platform} {ctx.arch}"
+        raise ActionError(msg)
+    (pin, urls), = pins
+    archive = ctx.layout.cache_dir / "files" / pin.digest[:16] / pin.name
+    _fetch(ctx, pin, urls, archive)
+    ctx.check()
+    if ctx.platform == "windows":
+        code, out = ctx.run([str(archive), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"], timeout=1800)
+        if code != 0:
+            msg = f"the Ollama installer stopped with exit {code}: {out.strip()[-300:]}"
+            raise ActionError(msg)
+        exe = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Programs" / "Ollama" / "ollama.exe"
+    else:
+        folder = ctx.layout.runtime_root / "ollama"
+        folder.mkdir(parents=True, exist_ok=True)
+        if pin.name.endswith(".zst"):
+            # Python 3.13's tarfile cannot read zstd.
+            code, out = ctx.run(["tar", "--zstd", "-xf", str(archive), "-C", str(folder)], timeout=1800)
+            if code != 0:
+                msg = f"unpacking Ollama needs tar with zstd support (install zstd): {out.strip()[-300:]}"
+                raise ActionError(msg)
+        else:
+            with tarfile.open(archive) as tf:
+                tf.extractall(folder, filter="data")  # nosec B202
+        exe = private_ollama(ctx.layout, ctx.platform) or folder / "ollama"
+    _start_ollama(ctx, str(exe))
+    return Outcome(detail={"version": ollama_version(ctx.ollama_host)})
+
+
+def _tree_id(folder: Path) -> str:
+    """Names and sizes of every file: enough to tell one build of the app from another, without hashing it."""
+    entries = sorted(f"{p.relative_to(folder).as_posix()}:{p.stat().st_size}" for p in folder.rglob("*")
+                     if p.is_file() and p.name != ".genesis-build")
+    return hashlib.sha256("\n".join(entries).encode()).hexdigest()
+
+
+def act_app_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
+    """Copy the application out of a frozen bundle, which is read-only or goes away when the launcher exits.
+
+    Where nothing is bundled (the Windows installer places the source
+    itself, and a checkout is its own source) there is nothing to copy.
+    """
+    bundled = ctx.layout.bundled_app
+    target = ctx.layout.app_root
+    if bundled is None:
+        return Outcome(reused=True, detail={"app": str(target)})
+    if not bundled.is_dir():
+        msg = f"this build carries no application source at {bundled}"
+        raise ActionError(msg)
+    build = _tree_id(bundled)
+    marker = target / ".genesis-build"
+    if marker.is_file() and marker.read_text(encoding="utf-8") == build:
+        return Outcome(reused=True, detail={"app": str(target)})
+    staging = target.with_name("app.copying")
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.copytree(bundled, staging)
+    (staging / ".genesis-build").write_text(build, encoding="utf-8")
+    shutil.rmtree(target, ignore_errors=True)
+    os.replace(staging, target)
+    return Outcome(detail={"app": str(target)})
 
 
 def act_ollama_pull(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
@@ -494,7 +643,8 @@ ACTIONS: dict[str, Callable[[ActionContext, dict[str, Any]], Outcome]] = {
     "pip.uninstall_tier": act_pip_uninstall_tier,
     "files.download": act_download_files,
     "files.remove": act_remove_files,
-    "ollama.present": act_ollama_present,
+    "ollama.install": act_ollama_install,
+    "app.files": act_app_files,
     "ollama.pull": act_ollama_pull,
     "runtime.task": act_runtime_task,
     "data.folder": act_data_folder,

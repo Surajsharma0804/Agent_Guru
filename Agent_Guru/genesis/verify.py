@@ -57,7 +57,7 @@ def _task(task: str, *args_from: str, needs_person: str = "") -> Callable[[act.A
 
 
 def probe_python(ctx: act.ActionContext, component: dict[str, Any]) -> Result:
-    exe = ctx.python or str(ctx.layout.private_python_dir / "python.exe")
+    exe = ctx.python or str(act.private_python(ctx))
     version = act._python_version(ctx, exe)
     return Result("PASS", f"Python {version}", {"python": exe}) if version else \
         Result("NOT INSTALLED", f"no working Python 3.11 to 3.13 at {exe}")
@@ -78,9 +78,16 @@ def probe_ollama(ctx: act.ActionContext, component: dict[str, Any]) -> Result:
     return Result("PASS", f"Ollama {version} is running")
 
 
+def probe_app(ctx: act.ActionContext, component: dict[str, Any]) -> Result:
+    needed = [ctx.layout.lock_file, ctx.layout.app_root / "Agent_Guru" / "__init__.py", ctx.layout.app_root / "main.py"]
+    missing = [p.name for p in needed if not p.is_file()]
+    return Result("NOT INSTALLED", f"missing from {ctx.layout.app_root}: {', '.join(missing)}") if missing else \
+        Result("PASS", f"the application source is in {ctx.layout.app_root}")
+
+
 def probe_files(ctx: act.ActionContext, component: dict[str, Any]) -> Result:
     dest = act.resolve_dest(component["dest"], ctx.layout)
-    pins = [p for p, _ in act._pins(component)]
+    pins = [p for p, _ in act._pins(component, ctx)]
     found = vf.verify(dest, pins)
     if not found:
         return Result("PASS", f"{len(pins)} pinned files match their SHA-256 in {dest}")
@@ -119,6 +126,7 @@ PROBES: dict[str, Callable[[act.ActionContext, dict[str, Any]], Result]] = {
     "venv.ok": probe_venv,
     "ollama.running": probe_ollama,
     "files.pinned": probe_files,
+    "app.present": probe_app,
     "data.folder": probe_data_folder,
     "gpu.cuda": probe_gpu_addon,
     "core.import": _task("core.import"),
