@@ -20,11 +20,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-#: Memory beyond the weights: KV cache, activations and the CUDA context,
-#: at the 4k-token context the assistant uses. Ollama's own estimate is
-#: close to this for 2B to 8B models.
-_OVERHEAD_FACTOR = 1.2
-_OVERHEAD_MB = 500
+from Agent_Guru.utils.model_fit import gpu_fit, needs_mb
 
 
 @dataclass(slots=True)
@@ -88,10 +84,9 @@ def installed(timeout: float = 10.0) -> list[ModelEntry]:
                     entry.capabilities = list(shown.get("capabilities") or [])
                 except (httpx.HTTPError, ValueError, TypeError):
                     pass
-                entry.needs_mb = round(entry.size_mb * _OVERHEAD_FACTOR + _OVERHEAD_MB, 0)
+                entry.needs_mb = needs_mb(entry.size_mb)
                 if total:
-                    free = total - used
-                    entry.gpu_fit = "fits" if entry.needs_mb <= free else ("partial" if entry.size_mb * 0.3 <= free else "cpu")
+                    entry.gpu_fit = gpu_fit(entry.size_mb, total - used)
                 entries.append(entry)
     except httpx.HTTPError as exc:
         msg = f"Ollama at {host} did not answer: {exc}"
