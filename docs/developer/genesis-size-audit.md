@@ -153,3 +153,29 @@ Models are never bundled and are listed for the plan only:
 | Deleting `tests/` folders inside installed wheels | 47.0 MB in the core, 115.1 MB in voice | edits installed packages behind pip's back (`RECORD` no longer matches), and a repair would put them back |
 | Debug symbols in wheels | 0 MB | none found (no `.pdb` files) |
 | The int8 embedding export | 67 MB | changes the vectors (lowest cosine 0.973) |
+
+## The builds as shipped, 2026-11-04
+
+The direction changed after the tables above: only the download is kept small,
+and the install is complete, with no limit on its size. Every tier is on by
+default, and setup picks the best model that fits the machine.
+
+| Output | Bytes |
+|---|---|
+| `dist/AgentGuru-1.0.0-Setup.exe` (Windows) | 13,803,975 |
+| `dist/AgentGuru-1.0.0-x86_64.AppImage` (Linux) | 37,435,896 |
+| macOS `.dmg` | not built: it needs a Mac, `./installer/macos/build_dmg.sh` |
+
+Measured on the real Windows window, default plan, this machine: 22 components
+in 44.6 minutes including the downloads, 20 checks PASS, Speaking UNVERIFIED by
+design because a person has to confirm hearing it, and Wake word a WARNING
+because no trained model ships. Frame interval during the pip install: p50
+16.7 ms, p95 16.9 ms, worst 17.7 ms.
+
+Running in the background, on the same install: listening 19.7 s after start,
+0.2 percent of one core and 1.8 GB of memory while listening. That memory is the
+cost of answering in 2 to 4 s instead of 17 s: Whisper and Kokoro stay loaded.
+
+Added since the tables above: keyring and its dependencies, for encrypting
+secrets on macOS and Linux, pystray and python-xlib for the tray icon, and a
+`startup` tier of no size.
