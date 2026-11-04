@@ -8,7 +8,7 @@
   /* A replay may open on a given screen; it changes only what is shown. */
   var startScreen = (location.hash.match(/screen=([a-z]+)/) || [])[1] || "opening";
   history.replaceState(null, "", location.pathname);
-  var S = {}, STAGES = [], state = null, lastSeq = 0, screen = "opening", announced = {}, core = null, coreOnline = null;
+  var S = {}, STAGES = [], state = null, lastSeq = 0, screen = "opening", announced = {}, core = null, coreOnline = null, coreInstall = null;
   var SCREENS = ["opening", "scan", "plan", "install", "verify", "online"];
 
   function $(id) { return document.getElementById(id); }
@@ -119,6 +119,7 @@
     });
     if (core) core.update(st, STAGES);
     if (coreOnline) coreOnline.update(st, STAGES);
+    if (coreInstall) coreInstall.update(st, STAGES);
   }
 
   function renderComponents() {
@@ -188,6 +189,7 @@
       if (s.replay) { $("replay").hidden = false; $("replay").textContent = s.replay_label; }
       STAGES = Object.keys(s.stages);
       if (screen === "scan") { renderProbes(s.probes); $("to-plan").disabled = s.scanning || !s.probes.length; }
+      if (screen === "install" && !coreInstall) coreInstall = window.GuruCore.mount($("core-install"));
       if (screen === "install" || screen === "verify" || screen === "online") renderStages(s.stages);
       if (screen === "install") {
         renderComponents();
@@ -260,7 +262,7 @@
     wire();
     show(SCREENS.indexOf(startScreen) >= 0 ? startScreen : "opening");
     core = window.GuruCore.mount($("core"));
-    window.GenesisDebug = { core: function () { return core && core.stats; }, state: function () { return state; } };
+    window.GenesisDebug = { core: function () { return core && core.stats; }, install: function () { return coreInstall && coreInstall.stats; }, state: function () { return state; } };
     refresh();
     setInterval(refresh, 500);
     setInterval(function () { api("POST", "/api/heartbeat", {}); }, 10000);
