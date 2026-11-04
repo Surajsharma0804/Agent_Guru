@@ -306,3 +306,22 @@ def test_the_cancel_flag_is_safe_to_set_from_another_thread(layout, monkeypatch)
     t.join()
     s = e.run()
     assert s.cancelled == ["core", "memory", "voice", "voice-check", "awake"] and not s.performed  # nosec B101
+
+
+def test_the_python_the_plan_reuses_reaches_every_component(layout, monkeypatch):
+    # The first real install failed at the venv: the reused Python was given
+    # only to the python-runtime row, so the venv step looked for the private
+    # runtime and raised FileNotFoundError.
+    monkeypatch.setattr(vf.urllib.request, "urlopen", Server())
+    seen = {}
+    fakes = Fakes()
+
+    def install(ctx, c):
+        seen[c["id"]] = ctx.python
+        return fakes.fake_install(ctx, c)
+
+    plan = plan_for()
+    plan["python"] = {"reuse": {"version": "3.13.15", "path": "C:/Py/313/python.exe"}}
+    e = ex.Executor(layout, MANIFEST, plan, actions={**fakes.actions(), "fake": install}, probes=fakes.probe)
+    e.run()
+    assert seen and set(seen.values()) == {"C:/Py/313/python.exe"}  # nosec B101
