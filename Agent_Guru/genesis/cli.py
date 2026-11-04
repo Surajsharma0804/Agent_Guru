@@ -10,6 +10,8 @@ approve a plan, --yes is another.
     agent-guru genesis --root D:\\AG --verify        check every installed component
     agent-guru genesis --root D:\\AG --report out.json   the redacted system report
     agent-guru genesis --root D:\\AG --offline E:\\ag-offline --yes   install from a folder
+    agent-guru genesis --uninstall --yes            remove the app, keep your data (Linux, macOS)
+    agent-guru genesis --uninstall --remove-data --yes   remove your data too
 
 From an installed copy --root is not needed: the install folder is the
 launcher's own. Exit codes:
@@ -30,6 +32,7 @@ import getpass
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -57,6 +60,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--tiers", help="comma-separated optional tiers to turn on (voice,vision,research,browser,coding)")
     p.add_argument("--no-tiers", help="comma-separated optional tiers to turn off")
     p.add_argument("--model", help="the Ollama model to use instead of the plan's choice")
+    p.add_argument("--uninstall", action="store_true", help="remove this install; your data stays unless --remove-data")
+    p.add_argument("--remove-data", action="store_true", help="with --uninstall, also delete memory, settings and models")
     return p
 
 
@@ -182,6 +187,24 @@ def report(layout: Layout, manifest: mf.Manifest, machine: probes.Machine | None
     return json.loads(redact(json.dumps(data, default=str)))
 
 
+def uninstall(layout: Layout, *, remove_data: bool) -> str:
+    """Remove the install folder. On Windows Inno Setup's uninstaller does this.
+
+    Only a folder that holds this installer's runtime is removed, so a mistyped
+    --root cannot delete someone's folder. The user's data is a separate
+    folder and stays unless asked for by name.
+    """
+    root = layout.install_root
+    if not layout.runtime_root.is_dir():
+        msg = f"{root} is not an Agent Guru install: it has no runtime folder"
+        raise ValueError(msg)
+    shutil.rmtree(root)
+    if remove_data and layout.data_dir.is_dir():
+        shutil.rmtree(layout.data_dir)
+        return f"removed {root} and your data in {layout.data_dir}"
+    return f"removed {root}; your data is still in {layout.data_dir}"
+
+
 def run(argv: list[str]) -> int:
     try:
         args = parser().parse_args(argv)
@@ -192,6 +215,16 @@ def run(argv: list[str]) -> int:
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return EXIT_USAGE
+    if args.uninstall:
+        if not args.yes:
+            print("Not approved: add --yes to remove this install.", file=sys.stderr)
+            return EXIT_NOT_APPROVED
+        try:
+            print(uninstall(layout, remove_data=args.remove_data))
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return EXIT_CANNOT
+        return EXIT_OK
     manifest = mf.load()
     if args.report is not None:
         machine = probes.scan(layout, [], network=False)
