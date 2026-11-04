@@ -50,3 +50,23 @@ def test_a_frozen_launcher_with_a_root_keeps_its_own_app_folder(monkeypatch, tmp
     layout = lay.default_layout(tmp_path / "elsewhere")
     assert layout.install_root == (tmp_path / "elsewhere").resolve()  # nosec B101
     assert layout.app_root == exe.parent.resolve() / "app"  # nosec B101
+
+
+def test_a_frozen_linux_build_installs_per_user_and_copies_the_app_out(monkeypatch, tmp_path):
+    # An AppImage's mount is read-only and goes away when it exits.
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "mount"), raising=False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+    layout = lay.default_layout()
+    assert layout.install_root == tmp_path / "share" / "AgentGuru"  # nosec B101
+    assert layout.app_root == layout.install_root / "app"  # nosec B101
+    assert layout.bundled_app == tmp_path / "mount" / "app"  # nosec B101
+
+
+def test_a_frozen_macos_build_stays_out_of_its_bundle(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(lay.Path, "home", classmethod(lambda cls: tmp_path))
+    layout = lay.default_layout()
+    assert layout.install_root == tmp_path / "Library" / "Application Support" / "AgentGuru"  # nosec B101
