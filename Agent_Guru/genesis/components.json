@@ -852,7 +852,8 @@
    "probe": "autostart.present",
    "install": "autostart.on",
    "rollback": "autostart.off",
-   "reason": "starts the assistant in the background when you sign in, so Hey Guru works without opening a window; a tray icon shows it is listening"
+   "reason": "starts the assistant in the background when you sign in, so Hey Guru works without opening a window; a tray icon shows it is listening",
+   "outside_install": "a start at sign-in entry for your account, which starts the assistant and its microphone; Control Center or uninstalling removes it"
   }
  ]
 }
