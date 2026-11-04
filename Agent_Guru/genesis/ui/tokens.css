@@ -81,7 +81,7 @@ p { margin: 0 0 var(--space-4); }
 
 .panel { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-5); }
 .glass { background: var(--bg-glass); backdrop-filter: blur(14px); }
-.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-5); }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: var(--space-5); }
 
 .rows { list-style: none; margin: 0; padding: 0; }
 .rows li { display: grid; grid-template-columns: 1.2rem minmax(9rem, 14rem) minmax(0, 1fr); gap: var(--space-3);
@@ -139,6 +139,9 @@ details.log summary { cursor: pointer; color: var(--text-dim); }
    they are not keyboard stops, so no focus ring. Controls keep theirs. */
 [tabindex="-1"]:focus { outline: none; }
 .tier span { text-transform: capitalize; }
+/* A label and a 14rem input side by side need more than the 320 px WCAG reflow
+   width: the row ran 51 px past the window with no way to scroll to it. */
+.tier { flex-wrap: wrap; }
 .ring { fill: none; stroke-width: 1.2; }
 .ring-0 { stroke: var(--node-dim); } .ring-1 { stroke: var(--node-building); } .ring-2 { stroke: var(--node-lit); }
 .ring-3 { stroke: var(--node-reused); stroke-dasharray: 0.6 1.2; }
@@ -176,3 +179,6 @@ details.log summary { cursor: pointer; color: var(--text-dim); }
 .tier input[type="text"], .tier input[type="number"], .tier input[type="password"], .tier select { width: 14rem; height: auto; font: inherit;
   color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--radius-small); padding: var(--space-1) var(--space-2); }
 .core-small { max-width: 260px; margin: 0 auto; }
+/* Three columns cannot fit at the WCAG reflow width: the Repair button in System
+   Doctor ran 34 px off the window. One column there. */
+@media (max-width: 480px) { .rows li, .rows.results li { grid-template-columns: minmax(0, 1fr); } }
