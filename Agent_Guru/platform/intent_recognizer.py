@@ -541,6 +541,20 @@ _COMPOSE_REQUEST = re.compile(
 #: Wording that makes it a send: the verb itself, or the text to send.
 _SEND_SIGNAL = re.compile(r"\bsend\b|\bsaying\b|\b(?:that|which)\s+says\b|[\"“][^\"”]+[\"”]|:\s*\S", re.IGNORECASE)
 
+#: A sentence that opens by asking about something. The patterns below match
+#: a word anywhere, so 11 of 14 general questions measured were taken as
+#: contacting someone: "what is a phone number" dialled "number", "is there a
+#: phone in the room" dialled "in the room", "how does email work" opened
+#: email, and none reached the model. "can you" and "please" stay out of this
+#: list: "can you call John" is a command.
+_ASKS_ABOUT = re.compile(
+    r"\s*(?:what|what's|whats|why|how|who|whom|whose|when|where|which"
+    r"|is|are|am|was|were|does|do|did|has|have|had|should|shall"
+    r"|explain|describe|define|summari[sz]e|translate"
+    r"|tell\s+me\s+(?:about|how|what|why|who|when|where))\b",
+    re.IGNORECASE,
+)
+
 _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(
@@ -550,7 +564,23 @@ _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "send_message",
     ),
     (re.compile(r"\b(call|phone|dial|ring)\b.+", re.IGNORECASE), "make_call"),
-    (re.compile(r"\b(reply|respond|answer)\b.+", re.IGNORECASE), "reply"),
+    # A reply needs someone to reply to. This matched the word and anything
+    # after it, so "What is two plus two? Answer in one short sentence." became
+    # a message with no recipient: the policy refused it, the model was never
+    # asked, and the typed turn showed nothing at all. "answer" is a noun as
+    # often as a verb and "reply briefly: ..." names no one, so without
+    # "saying" it takes "reply to" or "respond to" and a name.
+    (re.compile(r"\b(?:reply|respond|answer)\b.+?\b(?:saying|(?:that|which)\s+says)\b", re.IGNORECASE), "reply"),
+    (
+        re.compile(
+            r"\b(?:reply|respond)\s+(?:back\s+)?to\s+"
+            r"(?!(?:this|that|these|those|the|it|me|what|how|why|when|which|a|an|all|any|each|every)\b"
+            r"|my\s+(?:question|message|query|email|text)\b)"
+            r"\w+(?:\s+\w+)?\s*(?:\bthat\b|[:,]|$)",
+            re.IGNORECASE,
+        ),
+        "reply",
+    ),
     (re.compile(r"\b(email|mail)\b.+", re.IGNORECASE), "email"),
     (re.compile(r"\b(message|text)\b.+", re.IGNORECASE), "send_message"),
     # send "hello" to John: no message noun, so the patterns above missed it
@@ -739,7 +769,7 @@ _MESSAGE_FORMS = [
     ),
     # reply to John saying sounds good
     re.compile(
-        rf"\b(?:reply|respond)\s+to\s+(?P<contact>.+?)(?:{_MESSAGE_BOUNDARY}(?P<message>.+))?$",
+        rf"\b(?:reply|respond|answer)\s+(?:back\s+)?(?:to\s+)?(?P<contact>.+?)(?:(?:{_MESSAGE_BOUNDARY}|\s+that\s+)(?P<message>.+))?$",
         re.IGNORECASE,
     ),
     # send a message saying hello (no recipient)
@@ -1045,6 +1075,8 @@ class _RuleEngine:
         return None
 
     def _try_communication(self, text: str, plat: str) -> IntentResult | None:
+        if _ASKS_ABOUT.match(text):
+            return None
         for pattern, action in _COMMUNICATION_PATTERNS:
             if pattern.search(text):
                 if action in ("send_message", "reply"):
