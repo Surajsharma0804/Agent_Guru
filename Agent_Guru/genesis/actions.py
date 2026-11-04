@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from Agent_Guru.genesis import autostart
 from Agent_Guru.genesis.layout import Layout
 from Agent_Guru.genesis.manifest import files_for, packages_for
 from Agent_Guru.utils import verified_files as vf
@@ -689,7 +690,21 @@ def act_remove_private_python(ctx: ActionContext, component: dict[str, Any]) -> 
     return Outcome(detail={"removed": str(target)})
 
 
+def act_autostart_on(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
+    """Start the assistant at sign-in, for this person only."""
+    try:
+        return Outcome(detail={"entry": str(autostart.install(ctx.layout, ctx.platform))})
+    except OSError as exc:
+        raise ActionError(str(exc)) from exc
+
+
+def act_autostart_off(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
+    return Outcome(detail={"removed": autostart.remove(ctx.platform)})
+
+
 ACTIONS: dict[str, Callable[[ActionContext, dict[str, Any]], Outcome]] = {
+    "autostart.on": act_autostart_on,
+    "autostart.off": act_autostart_off,
     "runtime.python": act_runtime_python,
     "runtime.remove_python": act_remove_private_python,
     "runtime.venv": act_runtime_venv,
