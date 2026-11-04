@@ -206,6 +206,7 @@ class _AudioCapture:
         self.reopen_attempts: int = 0
         self.last_error: str = ""
         self._next_reopen_at: float = 0.0
+        self.no_audio_library = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -527,6 +528,16 @@ class _AudioCapture:
                 blocksize=int(self._sample_rate * self._duration),
             )
             stream.start()
+        except ImportError as exc:
+            # Not installed cannot change while this process runs. It was
+            # retried every 10 s for the whole session, a warning each time,
+            # and after 8 s the assistant told the owner to check the
+            # microphone was connected, on an install chosen without voice.
+            logger.warning("No audio library is installed (%s) - this install cannot listen", exc)
+            self.no_audio_library = True
+            self.failing_since = None
+            self.last_error = str(exc)
+            return False
         except Exception as exc:
             self.reopen_attempts = attempt
             self.last_error = str(exc)
@@ -552,6 +563,8 @@ class _AudioCapture:
         """Read one frame from a sounddevice stream, reopening it if it failed."""
         if self._stream is None:
             if self.failing_since is None:
+                if self.no_audio_library:
+                    time.sleep(n_samples / self._sample_rate)
                 return np.zeros(n_samples, dtype=np.float32)
             wait = self._next_reopen_at - time.monotonic()
             if wait > 0:
@@ -1238,6 +1251,11 @@ class WakeWordManager:
             except Exception:
                 logger.exception("Listen loop error")
                 await asyncio.sleep(0.1)
+
+    @property
+    def no_audio_library(self) -> bool:
+        """True when this install has nothing to listen with, as opposed to a lost microphone."""
+        return self._audio_capture is not None and self._audio_capture.no_audio_library
 
     async def _report_microphone_health(self) -> None:
         """Tell the user once when the mic stays lost, and again when it is back.
