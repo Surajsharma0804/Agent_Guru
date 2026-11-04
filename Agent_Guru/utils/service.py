@@ -148,13 +148,18 @@ def start(command: list[str] | None = None, wait_s: float = 20.0) -> tuple[bool,
     return True, f"Agent Guru was started (process {child.pid}) but has not reported in yet; see {_data('service.log')}"
 
 
+def request_stop() -> None:
+    """Leave the stop request the running assistant watches for."""
+    _data(_STOP).write_text(str(time.time()), encoding="utf-8")
+
+
 def stop(wait_s: float = STOP_WAIT_S) -> tuple[bool, str]:
     """Ask the running assistant to shut down; (stopped, what happened)."""
     running = state()
     if not running:
         return False, "Agent Guru is not running."
     pid = int(running["pid"])
-    _data(_STOP).write_text(str(time.time()), encoding="utf-8")
+    request_stop()
     deadline = time.monotonic() + wait_s
     while time.monotonic() < deadline:
         if not _alive(pid):
@@ -212,14 +217,9 @@ def autostart(on: bool) -> str:
         return "Agent Guru was not set to start at log-in."
     entry.parent.mkdir(parents=True, exist_ok=True)
     if sys.platform == "win32":
-        import win32com.client  # type: ignore[import-untyped]
+        from Agent_Guru.genesis import autostart as _sign_in
 
-        link = win32com.client.Dispatch("WScript.Shell").CreateShortcut(str(entry))
-        link.TargetPath = _interpreter()
-        link.Arguments = "-m Agent_Guru service start"
-        link.WorkingDirectory = str(_PROJECT_ROOT)
-        link.Description = "Start Agent Guru in the background"
-        link.Save()
+        _sign_in.write("windows", [_interpreter(), "-m", "Agent_Guru", "service", "start"], _PROJECT_ROOT, entry)
     else:
         entry.write_text(startup_file_text(sys.executable, str(_PROJECT_ROOT)), encoding="utf-8")
     how = "" if sys.platform == "win32" else (
