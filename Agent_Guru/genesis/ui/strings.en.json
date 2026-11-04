@@ -104,6 +104,7 @@
  "ws.spoken": "Spoken",
  "ws.other": "Other",
  "ws.working": "Working on it",
+ "ws.noreply": "No reply came back. The log has the reason.",
  "ws.tasks": "Tasks",
  "ws.notasks": "Nothing is scheduled.",
  "ws.studio": "Configuration Studio",
