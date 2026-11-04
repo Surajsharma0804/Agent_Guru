@@ -58,8 +58,15 @@ def test_the_installer_is_per_user_solid_lzma2_and_asks_for_no_admin():
 
 def test_every_optional_task_starts_unticked():
     tasks = [line for line in ISS.splitlines() if line.startswith('Name: "') and "GroupDescription" in line]
-    assert len(tasks) == 2 and all("Flags: unchecked" in t for t in tasks)  # nosec B101
-    assert '{userstartup}' in ISS and 'Tasks: startup' in ISS  # nosec B101
+    assert len(tasks) == 1 and all("Flags: unchecked" in t for t in tasks)  # nosec B101
+
+
+def test_start_at_sign_in_is_the_plans_choice_and_uninstall_undoes_it():
+    """The installer's own task duplicated the plan's box and opened setup at every sign-in."""
+    assert 'Tasks: startup' not in ISS and 'Name: "startup"' not in ISS  # nosec B101
+    assert 'Type: files; Name: "{userstartup}\\Agent Guru.lnk"' in ISS  # nosec B101
+    # A running assistant holds the files uninstall has to delete.
+    assert 'Parameters: "--stop"' in ISS and "[UninstallRun]" in ISS  # nosec B101
 
 
 def test_nothing_touches_path_the_registry_or_the_firewall():
