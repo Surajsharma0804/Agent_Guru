@@ -66,7 +66,7 @@ def stage_states(views: dict[str, jr.ComponentView], manifest: mf.Manifest,
 
 
 #: System Doctor's plain words for each result.
-_PLAIN = {"PASS": "{title} works.", "WARNING": "{title} works, with a limit: {detail}",
+_PLAIN = {"PASS": "{title} works.", "WARNING": "{title} works, with a limit: {detail}",  # nosec B105 - result labels
           "NOT INSTALLED": "{title} is missing. Repair installs it.",
           "NOT CONFIGURED": "{title} is installed, but something it needs is not set: {detail}",
           "FAILED": "{title} did not work when checked. Repair reinstalls it. What the check saw: {detail}",
