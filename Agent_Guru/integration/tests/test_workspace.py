@@ -224,3 +224,136 @@ def test_the_pipeline_publishes_each_turns_start_and_end():
     topics = [t for t, _ in seen]
     assert topics[:2] == ["speech.started", "speech.finished"]  # nosec B101  once, however deep
     assert ("turn.queued", "b") in seen and topics.count("turn.started") == 2 and topics.count("turn.ended") == 2  # nosec B101
+
+
+def event(topic, **data):
+    return SimpleNamespace(topic=topic, data=data)
+
+
+def test_a_turn_is_one_row_when_the_record_has_its_own_id(workspace):
+    """In the real window each turn was two rows: one stuck on "Working on it", one with the answer."""
+    workspace.on_event(event("turn.started", source=ws.SOURCE, turn_id=7, heard="how are you"))
+    assert workspace.turns[0]["heard"] == "how are you" and workspace.turns[0]["status"] == "working"  # nosec B101
+    workspace.on_event(event("turn.finished", turn_id="0813e60b", source_turn=7, heard="how are you", said="Fine.", status="success"))
+    workspace.on_event(event("turn.ended", source=ws.SOURCE, turn_id=7))
+    assert [(t["turn"], t["heard"], t["said"], t["status"]) for t in workspace.turns] == [(7, "how are you", "Fine.", "success")]  # nosec B101
+
+
+def test_a_turn_that_ends_with_no_record_does_not_stay_working(workspace):
+    workspace.on_event(event("turn.started", source=ws.SOURCE, turn_id=3))
+    workspace.on_event(event("turn.ended", source=ws.SOURCE, turn_id=3))
+    assert workspace.turns[0]["status"] == "no reply"  # nosec B101
+
+
+def test_a_message_the_queue_turns_away_is_shown(workspace):
+    """It starts no turn, so no event names it and the message just vanished."""
+
+    async def full(text, source="typed"):
+        return SimpleNamespace(error="busy", llm_response="One moment.")
+
+    workspace.orch.run_text_turn = full
+    assert post(workspace, "/api/turn", {"text": "hello"})[0] == 202  # nosec B101
+    for _ in range(200):
+        if workspace.turns:
+            break
+        threading.Event().wait(0.01)
+    assert [(t["heard"], t["said"], t["status"]) for t in workspace.turns] == [("hello", "One moment.", "busy")]  # nosec B101
+
+
+def test_an_install_with_no_audio_library_has_no_microphone_to_mute(workspace):
+    workspace.orch.microphone = SimpleNamespace(no_audio_library=True, muted=False, set_muted=lambda m: None)
+    assert workspace.state({})[1]["microphone"] == "none"  # nosec B101
+    assert post(workspace, "/api/mic", {"muted": True})[0] == 409  # nosec B101
+
+
+def _real_orchestrator(model):
+    from Agent_Guru.integration.orchestrator import IntegrationOrchestrator
+    from Agent_Guru.policy import PolicyEngine
+    from Agent_Guru.policy.defaults import install_default_policies
+
+    engine = PolicyEngine()
+    install_default_policies(engine)
+    orch = IntegrationOrchestrator(speech_engine=None, vision_engine=None, llm_runtime=model, platform_controller=SimpleNamespace(),
+                                   agent_orchestrator=None, memory=None, reasoning=None, security=None, policy=engine,
+                                   avatar=None, deployment=None, gpu_pool=None)
+
+    async def no_web(*a, **k):
+        return ""
+
+    orch._fetch_web_context = no_web
+    return orch
+
+
+def test_the_question_that_was_met_with_silence_is_answered_in_its_own_row():
+    """The sentence from the real window, through the real pipeline to the row the page draws."""
+    asked = []
+    started = []
+
+    class Model:
+        async def complete(self, request):
+            asked.append(request)
+            return SimpleNamespace(content="Four.", finish_reason="stop", tool_calls=[])
+
+    async def main():
+        orch = _real_orchestrator(Model())
+        window = ws.Workspace(orch, asyncio.get_running_loop())
+        orch.events.subscribe("turn.started", lambda e: started.append(e.data.get("heard")))
+        await orch.run_text_turn("What is two plus two? Answer in one short sentence.", source=ws.SOURCE)
+        await asyncio.sleep(0.05)
+        orch.close_scheduler()
+        return list(window.turns)
+
+    rows = asyncio.run(main())
+    assert len(asked) == 1  # nosec B101
+    # On screen from the start, not only once the model has finished.
+    assert started == ["What is two plus two? Answer in one short sentence."]  # nosec B101
+    assert [(r["turn"], r["heard"], r["said"]) for r in rows] == [  # nosec B101
+        (1, "What is two plus two? Answer in one short sentence.", "Four.")]
+
+
+def test_a_refused_typed_turn_shows_the_refusal_not_silence():
+    """The refusal was worded only for speech, so a typed one recorded and displayed nothing."""
+
+    async def main():
+        orch = _real_orchestrator(SimpleNamespace())
+        window = ws.Workspace(orch, asyncio.get_running_loop())
+
+        async def nothing_allowed(*a, **k):
+            return False
+
+        async def a_command(*a, **k):
+            return "system_control:shutdown"
+
+        orch._stage_policy = nothing_allowed
+        orch._stage_intent = a_command
+        result = await orch.run_text_turn("shut down now", source=ws.SOURCE)
+        await asyncio.sleep(0.05)
+        orch.close_scheduler()
+        return result, list(window.turns)
+
+    result, rows = asyncio.run(main())
+    assert result.reply == "I can't do that - it isn't allowed in my current settings."  # nosec B101
+    assert [r["said"] for r in rows] == [result.reply]  # nosec B101
+
+
+def test_reminders_work_without_an_audio_library(monkeypatch):
+    """An install without voice could not restore or list reminders at all."""
+    import builtins
+
+    real = builtins.__import__
+
+    def no_sounddevice(name, *a, **k):
+        if name == "sounddevice":
+            raise ModuleNotFoundError("No module named 'sounddevice'")
+        return real(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", no_sounddevice)
+
+    async def main():
+        orch = _real_orchestrator(SimpleNamespace())
+        orch.speech_engine = SimpleNamespace(tts_engine=object())
+        rows = orch._reminders().list_reminders()
+        orch.close_scheduler()
+        return rows
+
+    assert asyncio.run(main()) == []  # nosec B101
