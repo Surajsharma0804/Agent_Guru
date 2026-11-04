@@ -13,7 +13,7 @@ APP_PATH="/Applications/$APP_BUNDLE.app"
 SUPPORT_DIR="$HOME/Library/Application Support/AgentGuru"
 LOGS_DIR="$HOME/Library/Logs/AgentGuru"
 PREFS_FILE="$HOME/Library/Preferences/com.agentguru.app.plist"
-LAUNCH_AGENT="$HOME/Library/LaunchAgents/com.agentguru.app.plist"
+LAUNCH_AGENT="$HOME/Library/LaunchAgents/com.agentguru.assistant.plist"
 
 KEEP_DATA=0
 for arg in "$@"; do
