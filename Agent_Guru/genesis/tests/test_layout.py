@@ -41,3 +41,12 @@ def test_a_frozen_launcher_installs_next_to_itself(monkeypatch, tmp_path):
 def test_the_source_root_is_the_checkout():
     assert (lay.source_root() / "Agent_Guru" / "genesis" / "layout.py").is_file()  # nosec B101
     assert isinstance(lay.source_root(), Path)  # nosec B101
+
+
+def test_a_frozen_launcher_with_a_root_keeps_its_own_app_folder(monkeypatch, tmp_path):
+    exe = tmp_path / "Agent Guru" / "AgentGuru.exe"
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    layout = lay.default_layout(tmp_path / "elsewhere")
+    assert layout.install_root == (tmp_path / "elsewhere").resolve()  # nosec B101
+    assert layout.app_root == exe.parent.resolve() / "app"  # nosec B101
