@@ -44,6 +44,25 @@ class Manifest:
         return [c["id"] for c in self.components]
 
 
+def platform_key(platform: str, arch: str = "") -> str:
+    """The key of a files_by_platform table: one build per chip on Linux and macOS."""
+    chip = "arm64" if arch.lower() in ("arm64", "aarch64") else "x86_64" if arch.lower() in ("x86_64", "amd64") else arch.lower()
+    return platform if platform == "windows" else f"{platform}-{chip}"
+
+
+def files_for(component: dict[str, Any], platform: str, arch: str = "") -> list[dict[str, Any]]:
+    """The pinned files this component takes on this machine."""
+    table = component.get("files_by_platform")
+    if table is not None:
+        return list(table.get(platform_key(platform, arch), []))
+    return list(component.get("files", []))
+
+
+def packages_for(component: dict[str, Any], platform: str) -> list[str]:
+    """The packages this component installs here: pywin32 and pycaw have no Linux or macOS wheels."""
+    return [*component.get("packages", []), *component.get("platform_packages", {}).get(platform, [])]
+
+
 def load(path: Path = MANIFEST_PATH) -> Manifest:
     raw = json.loads(path.read_text(encoding="utf-8"))
     return Manifest(tuple(raw["components"]))
@@ -134,7 +153,8 @@ def validate(manifest: Manifest, probe_ids: Iterable[str], action_ids: Iterable[
                 problems.append(f"{cid}: {key} is unknown but not marked UNVERIFIED")
             if value is not None and (not isinstance(value, int) or value < 0):
                 problems.append(f"{cid}: {key} must be a byte count")
-        for f in c.get("files", []):
+        everyone = [f for files in c.get("files_by_platform", {}).values() for f in files]
+        for f in [*c.get("files", []), *everyone]:
             if not _SHA256.match(str(f.get("sha256", ""))):
                 problems.append(f"{cid}: {f.get('name')} has no real SHA-256")
             if not isinstance(f.get("size"), int) or f["size"] <= 0:
@@ -146,7 +166,8 @@ def validate(manifest: Manifest, probe_ids: Iterable[str], action_ids: Iterable[
         if c["install"] == "pip.tier":
             if not c.get("packages"):
                 problems.append(f"{cid}: a package component lists no packages")
-            for pkg in c.get("packages", []):
+            extras = [p for group in c.get("platform_packages", {}).values() for p in group]
+            for pkg in [*c.get("packages", []), *extras]:
                 if pins is not None and normalise(pkg) not in pins:
                     problems.append(f"{cid}: {pkg} is not pinned in requirements-lock.txt")
     cycle = _cycle({c["id"]: c for c in manifest.components if "id" in c})
