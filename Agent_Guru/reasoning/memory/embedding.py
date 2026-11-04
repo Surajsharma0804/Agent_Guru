@@ -22,14 +22,123 @@ Version: 1.0.0
 
 import logging
 import threading
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-import torch
 
 from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
+from Agent_Guru.utils.path_utils import app_data_dir
 
 logger = logging.getLogger(__name__)
+
+# torch is no longer imported at module scope. It was imported here only to
+# pick "cuda" or "cpu", and that one line made every import of the memory
+# package load torch: 532 MB on disk and most of the 1,232 MB a typed turn
+# with memory loaded (measured 2026-11-04 in the development venv). The ONNX
+# route below needs no torch at all, and the sentence-transformers route
+# imports it when it actually loads a model.
+
+
+def _onnx_folder(model_name: str) -> Path:
+    """Where the ONNX export of *model_name* is kept, if it is installed.
+
+    The installer puts model.onnx and tokenizer.json from the model's pinned
+    revision here, each checked against its SHA-256. The folder is Agent
+    Guru's own and not the Hugging Face cache, so the installer never writes
+    into a cache another program owns.
+    """
+    return app_data_dir("models", "embedding", model_name.rsplit("/", 1)[-1], create=False)
+
+
+class _OnnxSentenceEncoder:
+    """all-MiniLM-L6-v2 run by onnxruntime, with the same encode() as SentenceTransformer.
+
+    This exists so an install does not need torch, transformers and
+    sentence-transformers for memory search: on Windows with Python 3.13 that
+    stack is 221 MB more to download than onnxruntime and tokenizers alone
+    (272.6 MB against 51.7 MB for the whole core, resolved against the lock).
+
+    The computation is the one sentence-transformers performs for this model:
+    the tokenizer from the same revision, truncation at 256 tokens
+    (sentence_bert_config.json; tokenizer.json alone says 128), mean pooling
+    of the last hidden state over the attention mask, then L2 normalisation.
+    Checked on 38 texts (English, Hinglish, Devanagari, an empty string, a
+    single letter and two texts longer than 256 tokens): the cosine
+    similarity between the two routes' vectors was 1.000000 at the lowest,
+    to six decimals, and 8 of 8 retrieval queries picked the same memory.
+    The int8 export from the same repository was rejected: its lowest cosine
+    was 0.973.
+
+    Only the arguments the callers in this repository pass are accepted; an
+    unexpected one is a TypeError instead of being ignored, so a caller
+    relying on a SentenceTransformer feature this class lacks fails loudly.
+    """
+
+    _MAX_TOKENS = 256
+
+    def __init__(self, folder: Path) -> None:
+        import onnxruntime as ort
+        from tokenizers import Tokenizer
+
+        self._tokenizer = Tokenizer.from_file(str(folder / "tokenizer.json"))
+        self._tokenizer.enable_truncation(max_length=self._MAX_TOKENS)
+        self._tokenizer.enable_padding()
+        self._session = ort.InferenceSession(str(folder / "model.onnx"), providers=["CPUExecutionProvider"])
+        self._inputs = {i.name for i in self._session.get_inputs()}
+        self._dimension = int(self._session.get_outputs()[0].shape[-1])
+
+    def get_sentence_embedding_dimension(self) -> int:
+        return self._dimension
+
+    def encode(
+        self,
+        sentences: str | list[str],
+        batch_size: int = 32,
+        convert_to_numpy: bool = True,
+        normalize_embeddings: bool = False,
+        show_progress_bar: bool | None = None,
+    ) -> np.ndarray:
+        single = isinstance(sentences, str)
+        texts = [sentences] if single else list(sentences)
+        chunks = []
+        for start in range(0, len(texts), max(1, batch_size)):
+            batch = self._tokenizer.encode_batch(texts[start:start + batch_size])
+            ids = np.array([e.ids for e in batch], dtype=np.int64)
+            mask = np.array([e.attention_mask for e in batch], dtype=np.int64)
+            feed = {"input_ids": ids, "attention_mask": mask}
+            if "token_type_ids" in self._inputs:
+                feed["token_type_ids"] = np.array([e.type_ids for e in batch], dtype=np.int64)
+            hidden = np.asarray(self._session.run(None, feed)[0], dtype=np.float32)
+            weights = mask[..., None].astype(np.float32)
+            pooled = (hidden * weights).sum(axis=1) / np.clip(weights.sum(axis=1), 1e-9, None)
+            if normalize_embeddings:
+                pooled = pooled / np.clip(np.linalg.norm(pooled, axis=1, keepdims=True), 1e-12, None)
+            chunks.append(pooled.astype(np.float32))
+        vectors = np.concatenate(chunks) if chunks else np.zeros((0, self._dimension), dtype=np.float32)
+        return vectors[0] if single else vectors
+
+
+def _onnx_encoder(model_name: str) -> _OnnxSentenceEncoder | None:
+    """The ONNX route when its files and libraries are installed, else None."""
+    folder = _onnx_folder(model_name)
+    if not ((folder / "model.onnx").is_file() and (folder / "tokenizer.json").is_file()):
+        return None
+    try:
+        return _OnnxSentenceEncoder(folder)
+    except ImportError as exc:
+        logger.warning("ONNX embedding files are in %s but %s; using sentence-transformers", folder, exc)
+        return None
+
+
+def _default_device(model_name: str) -> str:
+    if (_onnx_folder(model_name) / "model.onnx").is_file():
+        return "cpu"
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 # Process-wide model cache, keyed by (model_name, device).
 #
@@ -65,6 +174,16 @@ def _load_model(model_name: str, device: str) -> Any:
     with _MODEL_CACHE_LOCK:
         cached = _MODEL_CACHE.get(key)
         if cached is None:
+            # The ONNX export wins when it is installed: same vectors, 5.4x
+            # faster on the 38-text check (0.24 s against 1.31 s on the CPU),
+            # and no torch in the process. Where it is not installed, as in a
+            # development checkout, nothing changes.
+            cached = _onnx_encoder(model_name)
+            if cached is not None:
+                logger.info("Loading model %s with onnxruntime (first use)", model_name)
+                _MODEL_CACHE[key] = cached
+                return cached
+
             from sentence_transformers import SentenceTransformer
 
             logger.info("Loading model %s on %s (first use)", model_name, device)
@@ -135,11 +254,7 @@ class EmbeddingGenerator:
         """
         self.model_name = model_name
 
-        # Auto-detect device if not specified
-        if device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        else:
-            self.device = device
+        self.device = _default_device(model_name) if device is None else device
 
         logger.info(
             f"Initializing EmbeddingGenerator with model={model_name}, device={self.device}",
@@ -148,17 +263,19 @@ class EmbeddingGenerator:
         # Availability probe, kept so a missing optional dependency produces
         # the actionable message below rather than a bare ImportError from
         # inside _load_model(). The name itself is unused here -- the real
-        # import happens in _load_model().
-        try:
-            import sentence_transformers  # noqa: F401
-        except ImportError as e:
-            msg = (
-                "sentence-transformers is required for embedding generation. "
-                "Install with: pip install sentence-transformers"
-            )
-            raise ImportError(
-                msg,
-            ) from e
+        # import happens in _load_model(). It is skipped when the ONNX export
+        # is installed, which is the route an install without torch takes.
+        if not (_onnx_folder(model_name) / "model.onnx").is_file():
+            try:
+                import sentence_transformers  # noqa: F401
+            except ImportError as e:
+                msg = (
+                    "sentence-transformers is required for embedding generation. "
+                    "Install with: pip install sentence-transformers"
+                )
+                raise ImportError(
+                    msg,
+                ) from e
 
         # Load model
         try:
