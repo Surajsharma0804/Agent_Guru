@@ -34,7 +34,9 @@ def test_plan_text_names_the_model_the_sizes_and_what_changes_outside(tmp_path, 
     cli.run(["--root", str(tmp_path / "AG"), "--plan"])
     text = capsys.readouterr().out
     assert "Model: gemma4:latest" in text and "Download " in text and "Outside the install folder" in text  # nosec B101
-    assert "Nothing is added to startup, PATH or the firewall." in text  # nosec B101
+    assert "Nothing is added to PATH or the firewall." in text  # nosec B101
+    # A plan that starts a microphone at sign-in says so, here, not in small print.
+    assert "Outside the install folder: a start at sign-in entry" in text  # nosec B101
 
 
 def test_a_wrong_command_line_exits_2(tmp_path, capsys):

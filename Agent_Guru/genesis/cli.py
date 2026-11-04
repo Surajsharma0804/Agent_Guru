@@ -127,7 +127,7 @@ def print_plan(plan: dict[str, Any], out: Any = None) -> None:
         w(f"  Cannot install here: {plan['path_problem']}\n")
     if t["fits"] is False:
         w("  Cannot install here: not enough free disk space\n")
-    w("  Nothing is added to startup, PATH or the firewall.\n")
+    w("  Nothing is added to PATH or the firewall.\n")
 
 
 def pinned_files(layout: Layout, manifest: mf.Manifest) -> list[tuple[str, Path, list[tuple[str, int]]]]:
