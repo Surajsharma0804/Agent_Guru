@@ -128,3 +128,29 @@ def test_a_skipped_component_does_not_keep_its_stage_building():
     voice = [c["id"] for c in MANIFEST.components if c["stage"] == "Voice"]
     events = [(c, "skipped" if c == "voice-gpu" else "reused", {}) for c in voice]
     assert ga.stage_states(views(*events), MANIFEST)["Voice"]["state"] == "reused"  # nosec B101
+
+
+def test_a_required_part_cannot_be_removed_and_unknown_jobs_are_refused(app):
+    routes = app.routes()
+    assert routes[("POST", "/api/component")]({"id": "core-packages", "action": "remove"})[0] == 409  # nosec B101
+    assert routes[("POST", "/api/component")]({"id": "nope", "action": "repair"})[0] == 400  # nosec B101
+    assert routes[("POST", "/api/component")]({"id": "voice-packages", "action": "shell"})[0] == 400  # nosec B101
+
+
+def test_a_replay_changes_no_component(tmp_path):
+    journal = tmp_path / "recorded.jsonl"
+    jr.Journal(journal).append("r", "core-packages", "Foundation", "verified")
+    a = ga.GenesisApp(Layout(tmp_path / "AG", tmp_path / "app"), MANIFEST, replay_journal=journal)
+    assert a.routes()[("POST", "/api/component")]({"id": "voice-packages", "action": "remove"})[0] == 403  # nosec B101
+
+
+def test_the_doctor_explains_each_result_in_plain_words():
+    assert ga.explain("Voice", "NOT INSTALLED", "x") == "Voice is missing. Repair installs it."  # nosec B101
+    assert "what the check saw: timed out" in ga.explain("Voice", "FAILED", "timed out").lower()  # nosec B101
+
+
+def test_launch_hands_the_app_where_to_leave_its_window(app):
+    env = app.app_env()
+    assert env["AGENT_GURU_WORKSPACE"] == "1" and env["AGENT_GURU_INSTALL_ROOT"] == str(app.layout.install_root)  # nosec B101
+    assert env["AGENT_GURU_WORKSPACE_FILE"] == str(app.workspace_file)  # nosec B101
+    assert app.routes()[("GET", "/api/launched")]({})[1] == {"url": ""}  # nosec B101
