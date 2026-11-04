@@ -131,8 +131,13 @@ class Executor:
 
         kw = dict(self._context_kw)
         row = next((r for r in self.plan["components"] if r["id"] == cid), {})
-        if row.get("python"):
-            kw.setdefault("python", row["python"])
+        # The Python the plan chose is every component's, not only the
+        # python-runtime row's: the venv is built from it. When it was set
+        # only on that row, the first real install looked for the private
+        # runtime instead and failed with FileNotFoundError (2026-11-04).
+        reuse = (self.plan.get("python") or {}).get("reuse") or {}
+        if reuse.get("path"):
+            kw.setdefault("python", reuse["path"])
         if row.get("model"):
             kw["model"] = row["model"]
         return act.ActionContext(layout=self.layout, emit=emit, should_stop=self._stop.is_set, **kw)
