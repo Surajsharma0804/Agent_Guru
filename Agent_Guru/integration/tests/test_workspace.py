@@ -357,3 +357,31 @@ def test_reminders_work_without_an_audio_library(monkeypatch):
         return rows
 
     assert asyncio.run(main()) == []  # nosec B101
+
+
+@pytest.fixture
+def owner_memory(monkeypatch):
+    store = {}
+    monkeypatch.setattr("Agent_Guru.platform.features.user_memory.get_user_memory",
+                        lambda: SimpleNamespace(get=lambda key, default=None: store.get(key, default), set=store.__setitem__))
+    return store
+
+
+def test_the_owners_name_round_trips(workspace, owner_memory):
+    routes = workspace.routes()
+    assert routes[("GET", "/api/owner")]({})[1] == {"name": ""}  # nosec B101
+    assert post(workspace, "/api/owner", {"name": "  Suraj "})[0] == 200 and owner_memory["name"] == "Suraj"  # nosec B101
+    assert routes[("GET", "/api/owner")]({})[1] == {"name": "Suraj"}  # nosec B101
+
+
+@pytest.mark.parametrize("name", ["", "   ", "x" * 41])
+def test_a_name_that_cannot_be_said_is_refused(workspace, owner_memory, name):
+    assert post(workspace, "/api/owner", {"name": name})[0] == 400 and owner_memory == {}  # nosec B101
+
+
+def test_quit_leaves_the_stop_request_the_assistant_watches_for(workspace, monkeypatch):
+    from Agent_Guru.utils import service
+
+    asked = []
+    monkeypatch.setattr(service, "request_stop", lambda: asked.append(True))
+    assert post(workspace, "/api/quit", {})[0] == 200 and asked == [True]  # nosec B101
