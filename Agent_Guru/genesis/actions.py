@@ -166,12 +166,23 @@ def resolve_dest(token: str, layout: Layout) -> Path:
     raise ActionError(msg)
 
 
-def _pins(component: dict[str, Any]) -> list[tuple[vf.PinnedFile, str]]:
-    return [(vf.PinnedFile(f["name"], int(f["size"]), f["sha256"]), f["url"]) for f in component.get("files", [])]
+def _pins(component: dict[str, Any]) -> list[tuple[vf.PinnedFile, list[str]]]:
+    """Each pinned file with its URLs: the source first, then mirrors of the same bytes."""
+    return [(vf.PinnedFile(f["name"], int(f["size"]), f["sha256"]), [f["url"], *f.get("mirrors", [])])
+            for f in component.get("files", [])]
 
 
-def _fetch(ctx: ActionContext, pin: vf.PinnedFile, url: str, dest: Path) -> bool:
-    """Put the pinned file at *dest* through the download cache; True when nothing was downloaded."""
+def _fetch(ctx: ActionContext, pin: vf.PinnedFile, urls: list[str], dest: Path) -> bool:
+    """Put the pinned file at *dest* through the download cache; True when nothing was downloaded.
+
+    A mirror is tried when a source cannot be reached. It cannot change what
+    is installed: every source is checked against the same pinned size and
+    hash. This exists because a network filter can block one host outright: on
+    2026-11-04 a Sophos device here re-signed GitHub's release host, so the
+    voice could not be fetched from GitHub with certificate checks on, and
+    turning those off is never the answer. A hash mismatch is not retried on
+    another source: wrong bytes mean something is wrong, not that a host is down.
+    """
     if dest.is_file() and not vf.problems(dest, pin):
         return True
     cached = ctx.layout.cache_dir / "files" / pin.digest[:16] / pin.name
@@ -184,13 +195,23 @@ def _fetch(ctx: ActionContext, pin: vf.PinnedFile, url: str, dest: Path) -> bool
             vf.copy_in(source, cached, pin)
         else:
             throttle = _Throttle(ctx, pin.name)
-            try:
-                ctx.download(url, cached, pin, resume=True, should_stop=ctx.should_stop,
-                             progress=lambda name, done, total: throttle(done, total))
-            except vf.DownloadCancelled as exc:
-                raise Cancelled(str(exc)) from exc
-            except (vf.DownloadError, vf.VerificationError, OSError) as exc:
-                raise ActionError(str(exc)) from exc
+            errors: list[str] = []
+            for url in urls:
+                try:
+                    ctx.download(url, cached, pin, resume=True, should_stop=ctx.should_stop,
+                                 progress=lambda name, done, total: throttle(done, total))
+                    errors = []
+                    break
+                except vf.DownloadCancelled as exc:
+                    raise Cancelled(str(exc)) from exc
+                except vf.VerificationError as exc:
+                    raise ActionError(str(exc)) from exc
+                except OSError as exc:
+                    errors.append(str(exc))
+                    if len(urls) > 1:
+                        ctx.emit("log", {"line": f"{pin.name}: {exc}; trying the next source"})
+            if errors:
+                raise ActionError("; ".join(errors))
     vf.copy_in(cached, dest, pin)
     return False
 
@@ -213,9 +234,9 @@ def act_runtime_python(ctx: ActionContext, component: dict[str, Any]) -> Outcome
     if sys.platform != "win32":
         msg = "no Python 3.11 to 3.13 was found; install one from your system's packages and run again"
         raise ActionError(msg)
-    (pin, url), = _pins(component)
+    (pin, urls), = _pins(component)
     archive = ctx.layout.cache_dir / "files" / pin.digest[:16] / pin.name
-    _fetch(ctx, pin, url, archive)
+    _fetch(ctx, pin, urls, archive)
     ctx.check()
     staging = target.with_name("python.unpacking")
     shutil.rmtree(staging, ignore_errors=True)
@@ -339,9 +360,9 @@ def act_pip_uninstall_tier(ctx: ActionContext, component: dict[str, Any]) -> Out
 def act_download_files(ctx: ActionContext, component: dict[str, Any]) -> Outcome:
     dest_dir = resolve_dest(component["dest"], ctx.layout)
     reused = True
-    for pin, url in _pins(component):
+    for pin, urls in _pins(component):
         ctx.check()
-        reused = _fetch(ctx, pin, url, dest_dir / pin.name) and reused
+        reused = _fetch(ctx, pin, urls, dest_dir / pin.name) and reused
     return Outcome(reused=reused, detail={"dest": str(dest_dir)})
 
 
