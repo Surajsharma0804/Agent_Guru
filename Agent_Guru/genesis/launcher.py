@@ -61,9 +61,13 @@ def main(argv: list[str] | None = None) -> int:
 
         window = webview.create_window("Agent Guru", url, width=1240, height=860, background_color="#07090D")
         window.events.closed += server.stop
-        webview.start()
-        server.stop()
-        return 0
+        try:
+            webview.start()
+        except Exception as exc:  # noqa: BLE001 - no GTK or Qt bindings in a frozen Linux build: use the browser
+            print(f"no web view ({type(exc).__name__}); using the default browser", flush=True)
+        else:
+            server.stop()
+            return 0
     webbrowser.open(url)
     server.stopped.wait()
     return 0
