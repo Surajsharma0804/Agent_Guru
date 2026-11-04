@@ -15,11 +15,13 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess  # nosec B404 - starts the installed app from a fixed argument list
+import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from Agent_Guru.genesis import assistant
 from Agent_Guru.genesis import actions as act
 from Agent_Guru.genesis import cli
 from Agent_Guru.genesis import executor as ex
@@ -98,8 +100,7 @@ class GenesisApp:
         self.replay = replay_journal
         self.journal_path = replay_journal or layout.journal_path
         self._executor_factory = executor_factory or ex.Executor
-        self._launcher = launcher or (lambda args, cwd: subprocess.Popen(args, cwd=str(cwd),  # nosec B603
-                                                                         env=self.app_env()))
+        self._launcher = launcher or self._start_detached
         self.lock = threading.Lock()
         self.probe_rows: list[dict[str, Any]] = []
         self.scanning = False
@@ -112,10 +113,40 @@ class GenesisApp:
         self.run_id = ""
         self.close: Callable[[], None] = lambda: None
 
+    def _start_detached(self, args: list[str], cwd: Path) -> Any:
+        """Start the assistant with no console, to outlive this process.
+
+        It inherited the launcher's console, so it died with a terminal and
+        would have opened a black window at every sign-in.
+        """
+        log = (self.layout.runtime_root / "assistant.log").open("ab")
+        try:
+            return subprocess.Popen(args, cwd=str(cwd), env=self.app_env(), stdin=subprocess.DEVNULL, stdout=log, stderr=log,  # nosec B603
+                                    start_new_session=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        finally:
+            log.close()
+
+    def installed(self) -> bool:
+        return "first-start" in jr.installed_components(jr.read(self.layout.journal_path)[0])
+
+    def start_assistant(self) -> dict[str, Any]:
+        """Start the assistant unless one is running or already on its way."""
+        running = assistant.window_url(self.layout)
+        if running or assistant.starting(self.layout):
+            return {"started": False, "running": True}
+        self.workspace_file.unlink(missing_ok=True)
+        ollama = act.private_ollama(self.layout, act.current_platform())
+        if ollama and not act.ollama_version(act.ActionContext(self.layout, lambda k, d: None).ollama_host):
+            act._spawn([str(ollama), "serve"])
+        proc = self._launcher([str(self.layout.venv_python), "-m", "Agent_Guru"], self.layout.app_root)
+        assistant.remember(self.layout, getattr(proc, "pid", None))
+        return {"started": True, "pid": getattr(proc, "pid", None)}
+
     def app_env(self) -> dict[str, str]:
         """The installed app's environment: its window on, and where to leave the window's address."""
         return {**act._venv_env(self.layout), "AGENT_GURU_WORKSPACE": "1", "AGENT_GURU_INSTALL_ROOT": str(self.layout.install_root),
-                "AGENT_GURU_WORKSPACE_FILE": str(self.workspace_file)}
+                "AGENT_GURU_WORKSPACE_FILE": str(self.workspace_file),
+                **({"AGENT_GURU_LAUNCHER": sys.executable} if getattr(sys, "frozen", False) else {})}
 
     # --- reading ------------------------------------------------------------
 
@@ -269,18 +300,13 @@ class GenesisApp:
         refused = self._refuse_in_replay()
         if refused:
             return refused
-        if "first-start" not in jr.installed_components(jr.read(self.layout.journal_path)[0]):
+        if not self.installed():
             return 409, {"error": "Agent Guru is not installed and verified yet"}
-        self.workspace_file.unlink(missing_ok=True)
-        ollama = act.private_ollama(self.layout, act.current_platform())
-        if ollama and not act.ollama_version(act.ActionContext(self.layout, lambda k, d: None).ollama_host):
-            act._spawn([str(ollama), "serve"])
-        proc = self._launcher([str(self.layout.venv_python), "-m", "Agent_Guru"], self.layout.app_root)
-        return 202, {"started": True, "pid": getattr(proc, "pid", None)}
+        return 202, self.start_assistant()
 
     @property
     def workspace_file(self) -> Path:
-        return self.layout.runtime_root / "workspace.json"
+        return assistant.workspace_file(self.layout)
 
     def launched(self, body: dict[str, Any]) -> tuple[int, Any]:
         """The running app's window address, once it has started."""
