@@ -315,6 +315,8 @@ def _imports(names: list[str], what: str) -> dict[str, Any]:
             importlib.import_module(name)
         except ImportError as exc:
             return _missing(exc)
+        except OSError as exc:  # sounddevice on Linux, without the PortAudio system library
+            return _result("NOT CONFIGURED", f"{name} needs a system library: {exc}")
     return _result("PASS", what)
 
 
