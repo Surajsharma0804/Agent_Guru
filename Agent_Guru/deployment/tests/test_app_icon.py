@@ -30,5 +30,7 @@ def test_the_committed_icon_has_every_size():
 def test_the_exe_and_the_installer_use_that_icon():
     spec = (ROOT / "AgentGuru.spec").read_text(encoding="utf-8")
     setup = (ROOT / "AgentGuru_setup.iss").read_text(encoding="utf-8")
-    assert "icon=str(ROOT / 'assets' / 'icon.ico')" in spec  # nosec B101
+    # One name for both programs since the spec also builds Linux and macOS, where there is no .ico.
+    assert "ICON = str(ROOT / 'assets' / 'icon.ico') if WINDOWS else None" in spec  # nosec B101
+    assert spec.count("icon=ICON,") == 2  # nosec B101
     assert "SetupIconFile=assets\\icon.ico" in setup  # nosec B101
