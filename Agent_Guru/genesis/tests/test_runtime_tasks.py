@@ -37,7 +37,10 @@ def test_the_chat_check_refuses_a_model_name_before_loading_anything(monkeypatch
 
 
 def test_whisper_refuses_an_unknown_size_before_loading_anything(monkeypatch):
+    # Both names: in a full run an earlier test has loaded the submodule, and
+    # blocking the parent alone let the real download_model run.
     monkeypatch.setitem(sys.modules, "faster_whisper", None)
+    monkeypatch.setitem(sys.modules, "faster_whisper.utils", None)
     assert rt.whisper_fetch(["tiny", "gigantic"])["result"] == "FAILED"  # nosec B101
     assert rt.whisper_fetch([])["result"] == "NOT INSTALLED"  # nosec B101
 
