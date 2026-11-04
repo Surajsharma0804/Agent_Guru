@@ -38,11 +38,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from Agent_Guru.genesis import assistant, autostart
 from Agent_Guru.genesis import executor as ex
 from Agent_Guru.genesis import journal as jr
 from Agent_Guru.genesis import manifest as mf
 from Agent_Guru.genesis import planner, probes, verify
-from Agent_Guru.genesis.actions import ActionContext
+from Agent_Guru.genesis.actions import ActionContext, current_platform
 from Agent_Guru.genesis.layout import Layout, default_layout
 
 EXIT_OK, EXIT_FAILED, EXIT_USAGE, EXIT_CANNOT, EXIT_NOT_APPROVED, EXIT_BUSY, EXIT_CANCELLED = range(7)
@@ -199,6 +200,10 @@ def uninstall(layout: Layout, *, remove_data: bool) -> str:
     if not layout.runtime_root.is_dir():
         msg = f"{root} is not an Agent Guru install: it has no runtime folder"
         raise ValueError(msg)
+    # A running assistant holds these files, and a sign-in entry left behind
+    # would point at nothing on every start.
+    assistant.request_quit(layout)
+    autostart.remove(current_platform())
     try:
         os.kill(int(layout.ollama_pid_file.read_text(encoding="utf-8")), signal.SIGTERM)
     except (OSError, ValueError):
