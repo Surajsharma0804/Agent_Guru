@@ -115,3 +115,43 @@ def test_the_test_suite_itself_runs_in_an_isolated_profile():
     assert root is not None, "the root conftest did not isolate the profile"  # nosec B101
     for path in (Path.home(), user_memory._MEMORY_PATH, app_data_dir("x", create=False)):
         assert Path(root) in path.parents, f"{path} is outside the test profile {root}"  # nosec B101
+
+
+def test_nltk_data_stays_visible_to_an_isolated_run(tmp_path):
+    # Hidden with APPDATA, it sent every test run back to the download server.
+    from Agent_Guru.utils import profile_isolation
+
+    roaming = tmp_path / "real" / "Roaming"
+    (roaming / "nltk_data").mkdir(parents=True)
+    env = {"USERPROFILE": str(tmp_path / "real"), "APPDATA": str(roaming)}
+    saved = dict(profile_isolation.REAL_PROFILE)
+    try:
+        _ = _isolate_child_env(profile_isolation, tmp_path / "iso", env)
+    finally:
+        profile_isolation.REAL_PROFILE.clear()
+        profile_isolation.REAL_PROFILE.update(saved)
+    assert env["NLTK_DATA"] == str(roaming / "nltk_data")  # nosec B101
+
+
+def test_no_nltk_data_is_not_invented(tmp_path):
+    from Agent_Guru.utils import profile_isolation
+
+    env = {"USERPROFILE": str(tmp_path / "real"), "APPDATA": str(tmp_path / "real" / "Roaming")}
+    saved = dict(profile_isolation.REAL_PROFILE)
+    try:
+        _isolate_child_env(profile_isolation, tmp_path / "iso", env)
+    finally:
+        profile_isolation.REAL_PROFILE.clear()
+        profile_isolation.REAL_PROFILE.update(saved)
+    assert "NLTK_DATA" not in env  # nosec B101
+
+
+def _isolate_child_env(module, root, env):
+    # A child's environment, the form the soak harness uses. The loaded-module
+    # guard is about this process, not a child's, so it is emptied here.
+    original = module.CACHES_PATH_AT_IMPORT
+    module.CACHES_PATH_AT_IMPORT = ()
+    try:
+        return module.isolate_profile(root, environ=env, link_model_caches=False)
+    finally:
+        module.CACHES_PATH_AT_IMPORT = original
