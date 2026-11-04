@@ -82,7 +82,7 @@
       var li = el("li", { class: "turn" });
       li.appendChild(el("span", { class: "who" }, t(r.source === w.source ? "ws.typed" : r.source === "voice" ? "ws.spoken" : "ws.other")));
       if (r.heard) li.appendChild(el("p", { class: "heard" }, r.heard));
-      li.appendChild(el("p", { class: r.said ? "said" : "dim" }, r.said || t("ws.working")));
+      li.appendChild(el("p", { class: r.said ? "said" : "dim" }, r.said || t(r.status === "working" ? "ws.working" : "ws.noreply")));
       if (r.sources && r.sources.length) {
         var src = el("ol", { class: "sources" });
         r.sources.forEach(function (s) {
