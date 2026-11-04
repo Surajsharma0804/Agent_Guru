@@ -19,7 +19,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="${WORK:-$HOME/Library/Caches/agent-guru-build}"
-VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/pyproject.toml" | head -1)"
+# tr: a checkout made on Windows has CRLF, and the \r would end up in the file name.
+VERSION="$(tr -d '\r' < "$ROOT/pyproject.toml" | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
 ARCH="$(uname -m)"
 OUT="$ROOT/dist/AgentGuru-$VERSION-$ARCH.dmg"
 
