@@ -163,6 +163,8 @@ dependencies = [
     # the AttributeError and reported no face in every frame.
     "opencv-python>=4.8.0,<5",
     "pillow>=13.0.0",
+    # The tray icon of the assistant running with no window (utils/tray.py).
+    "pystray>=0.19.5",
     # insightface is deliberately not declared. vision/face_features.py and
     # vision/detection/detector.py fall back to stub embeddings and OpenCV's
     # Haar cascade without it, and it has never been installed in the
