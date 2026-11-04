@@ -191,10 +191,24 @@ class FakeOrb:
 
     def __init__(self):
         self.state = {"orb": "idle", "seq": 1, "turns": [], "waiting": 0, "microphone": "on", "questions": [], "source": "workspace"}
+        self.owner = "Suraj"
 
     def routes(self):
+        titles = {"core-packages": {"title": "Core packages", "tier": "core"}, "voice-packages": {"title": "Voice packages", "tier": "voice"}}
+        components = {"core-packages": {"state": "verified", "detail": {"result": "PASS", "explanation": "Working."}},
+                      "voice-packages": {"state": "failed", "detail": {"result": "FAILED", "explanation": "It did not import."}}}
+        machine_state = {"titles": titles, "installed": ["core-packages", "voice-packages"], "components": components, "running": False}
+        settings = {"controls": [{"key": "AGENT_GURU_TRACES", "label": "Keep a record of each turn", "control": "flag", "group": "Memory", "value": True}],
+                    "credentials": {"OPENAI_API_KEY": "not set"}}
         return {("GET", "/api/workspace"): lambda b: (200, self.state), ("POST", "/api/heartbeat"): lambda b: (200, {}),
-                ("POST", "/api/mic"): lambda b: (200, {}), ("POST", "/api/answer"): lambda b: (202, {})}
+                ("POST", "/api/mic"): lambda b: (200, {}), ("POST", "/api/answer"): lambda b: (202, {}),
+                ("GET", "/api/state"): lambda b: (200, machine_state), ("GET", "/api/events"): lambda b: (200, {"events": []}),
+                ("GET", "/api/tasks"): lambda b: (200, {"tasks": []}), ("GET", "/api/settings"): lambda b: (200, settings),
+                ("GET", "/api/owner"): lambda b: (200, {"name": self.owner}), ("POST", "/api/owner"): self.set_owner}
+
+    def set_owner(self, body):
+        self.owner = body["name"]
+        return 200, body
 
 
 @pytest.fixture
@@ -258,4 +272,221 @@ def test_the_tabs_work_from_the_keyboard(workspace_page):
     assert page.get_attribute("#t-tasks", "aria-selected") == "true"  # nosec B101
     page.keyboard.press("ArrowLeft")
     wait_until(page, "document.activeElement.id === 't-talk'")
+    assert errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+def test_a_refresh_leaves_keyboard_focus_on_the_yes_button(workspace_page):
+    """The lists were rebuilt every 400 ms, so Yes could not be reached without a mouse."""
+    fake, page, errors = workspace_page
+    fake.state["questions"] = [{"source": "workspace", "turn": 5, "question": "Send it?"}]
+    fake.state["turns"] = [{"turn": 1, "source": "workspace", "heard": "hello", "said": "Hi."}]
+    wait_until(page, "document.querySelectorAll('.question button').length === 2")
+    page.focus(".question button")
+    page.evaluate("window.keptRow = document.querySelector('.turn')")
+    page.wait_for_timeout(1200)
+    assert page.evaluate("document.activeElement.textContent") == "Yes"  # nosec B101
+    # A live list that is not replaced is not read out again.
+    assert page.evaluate("window.keptRow.isConnected") and errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize(("tab", "button"), [("control", "#control button"), ("doctor", "#doctor button")])
+def test_a_refresh_leaves_keyboard_focus_on_a_repair_button(workspace_page, tab, button):
+    _, page, errors = workspace_page
+    page.click(f"#t-{tab}")
+    wait_until(page, f"document.querySelectorAll('{button}').length > 0")
+    page.focus(button)
+    page.wait_for_timeout(1200)
+    assert page.evaluate("document.activeElement.tagName") == "BUTTON" and errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+def test_the_keyboard_reaches_every_control_in_order_with_a_visible_focus(workspace_page):
+    _, page, errors = workspace_page
+    seen = []
+    for _ in range(6):
+        page.keyboard.press("Tab")
+        seen.append(page.evaluate("document.activeElement.id || document.activeElement.className"))
+        assert page.evaluate("getComputedStyle(document.activeElement).outlineStyle") != "none", seen[-1]  # nosec B101
+    assert seen == ["skip", "mute", "contrast", "t-talk", "text", "btn"] and errors == []  # nosec B101
+
+
+CONTRAST = """() => {
+  function parse(c) { const m = c.match(/[\\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; }
+  function lum(c) {
+    const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+  }
+  function backdrop(e) {
+    for (let n = e; n; n = n.parentElement) {
+      const st = getComputedStyle(n);
+      if (st.backgroundImage !== "none") return null;
+      const b = parse(st.backgroundColor);
+      if (b.a === 1) return b;
+    }
+    return parse(getComputedStyle(document.body).backgroundColor);
+  }
+  const bad = []; let checked = 0;
+  for (const e of document.querySelectorAll("body *")) {
+    if (e.closest("[hidden]") || e.matches(":disabled") || e.classList.contains("sr-only") || e.tagName === "OPTION") continue;
+    const text = [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const r = e.getBoundingClientRect();
+    if (!text || r.width < 1 || r.height < 1 || getComputedStyle(e).visibility === "hidden") continue;
+    const bg = backdrop(e);
+    if (!bg) continue;
+    const a = lum(parse(getComputedStyle(e).color)), b = lum(bg);
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    checked += 1;
+    if (ratio < 4.5) bad.push([e.tagName, e.className, e.textContent.trim().slice(0, 30), Math.round(ratio * 100) / 100]);
+  }
+  return [checked, bad];
+}"""
+
+
+@pytest.mark.timeout(90)
+@pytest.mark.parametrize("contrast", [False, True])
+def test_every_visible_text_on_the_workspace_meets_4_5_to_1(workspace_page, contrast):
+    fake, page, errors = workspace_page
+    fake.state.update(waiting=1, turns=[{"turn": 1, "source": "workspace", "heard": "hello", "said": "Hi.", "sources": ["https://example.test/a"]},
+                                        {"turn": 2, "source": "voice", "heard": "next", "said": "", "status": "working"}],
+                      questions=[{"source": "workspace", "turn": 5, "question": "Send it?"}])
+    wait_until(page, "document.querySelectorAll('.question').length === 1")
+    if contrast:
+        page.click("#contrast")
+    total = 0
+    for tab in ("talk", "tasks", "studio", "control", "doctor"):
+        page.click(f"#t-{tab}")
+        page.wait_for_timeout(700)
+        checked, bad = page.evaluate(CONTRAST)
+        assert bad == [], tab  # nosec B101
+        total += checked
+    assert total > 30 and errors == []  # nosec B101
+
+
+@pytest.mark.timeout(90)
+@pytest.mark.parametrize("width", [640, 320])
+def test_text_at_200_percent_and_a_narrow_window_needs_no_sideways_scroll(workspace_page, width):
+    """A 1280 pixel window at 200 percent zoom is a 640 pixel page; 320 is the WCAG reflow width."""
+    _, page, errors = workspace_page
+    page.set_viewport_size({"width": width, "height": 450})
+    for tab in ("talk", "tasks", "studio", "control", "doctor"):
+        page.click(f"#t-{tab}")
+        page.wait_for_timeout(700)
+        over = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        assert over <= 0, (tab, over)  # nosec B101
+    assert errors == []  # nosec B101
+
+
+CORE_WITH = {
+    "webgl": "",
+    "canvas2d": """const real = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (kind, o) { return kind === "2d" ? real.call(this, kind, o) : null; };""",
+    "static": "HTMLCanvasElement.prototype.getContext = function () { return null; };",
+}
+
+
+def opening(tmp_path, engine, init="", reduced=False):
+    journal = record(tmp_path, "fresh")
+    app = ga.GenesisApp(Layout(tmp_path / "AG", tmp_path / "app"), MANIFEST, replay_journal=journal)
+    server = GenesisServer(app.routes(), replay=True)
+    context = engine.new_context(reduced_motion="reduce" if reduced else "no-preference")
+    # A headless page has no window to hold focus, so the test states it.
+    context.add_init_script("document.hasFocus = () => true;" + init)
+    page = context.new_page()
+    page.goto(server.start() + "&screen=opening")
+    wait_until(page, "window.GenesisDebug && !!GenesisDebug.core()")
+    return server, context, page
+
+
+def frames_in(page, ms):
+    before = page.evaluate("GenesisDebug.core().frames")
+    page.wait_for_timeout(ms)
+    return page.evaluate("GenesisDebug.core().frames") - before
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize("mode", ["webgl", "canvas2d", "static"])
+def test_the_core_falls_back_from_webgl_to_canvas_to_a_static_picture(tmp_path, engine, mode):
+    server, context, page = opening(tmp_path, engine, CORE_WITH[mode])
+    try:
+        assert page.evaluate("GenesisDebug.core().mode") == mode  # nosec B101
+        drawn = page.evaluate("[document.querySelectorAll('#core canvas').length, document.querySelectorAll('#core svg').length]")
+        assert drawn == ([0, 1] if mode == "static" else [1, 0])  # nosec B101
+    finally:
+        context.close()
+        server.stop()
+
+
+@pytest.mark.timeout(60)
+def test_the_core_stops_while_the_window_is_hidden_and_starts_again(tmp_path, engine):
+    server, context, page = opening(tmp_path, engine, "Object.defineProperty(document, 'hidden', { get: () => window.isHidden === true });")
+    try:
+        assert frames_in(page, 500) > 5  # nosec B101
+        page.evaluate("window.isHidden = true; document.dispatchEvent(new Event('visibilitychange'))")
+        page.wait_for_timeout(100)
+        assert frames_in(page, 600) == 0  # nosec B101
+        page.evaluate("window.isHidden = false; document.dispatchEvent(new Event('visibilitychange'))")
+        assert frames_in(page, 500) > 5  # nosec B101
+    finally:
+        context.close()
+        server.stop()
+
+
+@pytest.mark.timeout(60)
+def test_the_core_runs_at_30_frames_on_battery(tmp_path, engine):
+    server, context, page = opening(
+        tmp_path, engine, "navigator.getBattery = () => Promise.resolve({ charging: false, addEventListener() {} });")
+    try:
+        page.wait_for_timeout(200)
+        assert 5 < frames_in(page, 2000) <= 66  # nosec B101  30 a second, and a real display would give 120
+    finally:
+        context.close()
+        server.stop()
+
+
+@pytest.mark.timeout(60)
+def test_the_core_never_exceeds_60_frames_on_mains(tmp_path, engine):
+    server, context, page = opening(
+        tmp_path, engine, "navigator.getBattery = () => Promise.resolve({ charging: true, addEventListener() {} });")
+    try:
+        page.wait_for_timeout(200)
+        assert 5 < frames_in(page, 2000) <= 130  # nosec B101
+    finally:
+        context.close()
+        server.stop()
+
+
+@pytest.mark.timeout(60)
+def test_reduced_motion_draws_a_still_picture(tmp_path, engine):
+    server, context, page = opening(tmp_path, engine, reduced=True)
+    try:
+        assert frames_in(page, 800) == 0  # nosec B101
+    finally:
+        context.close()
+        server.stop()
+
+
+@pytest.mark.timeout(60)
+def test_the_studio_shows_and_saves_the_owners_name(workspace_page):
+    fake, page, errors = workspace_page
+    page.click("#t-studio")
+    wait_until(page, "document.getElementById('owner').value === 'Suraj'")
+    page.fill("#owner", "Chotu")
+    page.keyboard.press("Tab")
+    deadline = time.monotonic() + 5
+    while fake.owner != "Chotu" and time.monotonic() < deadline:
+        page.wait_for_timeout(50)
+    assert fake.owner == "Chotu" and errors == []  # nosec B101
+
+
+@pytest.mark.timeout(60)
+def test_the_window_says_when_the_assistant_has_gone_and_when_it_is_back(workspace_page):
+    """The window now outlives the assistant, and a page that stops hearing from it looked alive."""
+    _, page, errors = workspace_page
+    wait_until(page, "document.getElementById('orb-label').textContent === 'Idle'")
+    page.route("**/api/workspace", lambda route: route.abort())
+    wait_until(page, "document.getElementById('orb-label').textContent === 'The assistant is not running'")
+    page.unroute("**/api/workspace")
+    wait_until(page, "document.getElementById('orb-label').textContent === 'Idle'")
     assert errors == []  # nosec B101
