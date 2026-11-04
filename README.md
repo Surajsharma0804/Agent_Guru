@@ -381,8 +381,11 @@ needs a tool it says it will check and then does not, so the miss is a non-answe
   1.1 an hour on everyday sounds, 24.0 to 0.6 on music and 130.1 to 0.0 on talk. The cost is that a command whose
   name speech recognition mishears is dropped: 3 of 16 of the owner's takes said alone, 10 of 80 unseen synthetic
   voices; check yours with `scripts/name_check_eval.py`. A wake that no speech follows within 3 s, anything read in
-  the 3 s after a turn, and a transcript under 2 words or below -1.0 confidence are also ignored.
-  `python -m Agent_Guru mic mute` stops it listening. The startup log names the detector in use and why.
+  the 3 s after a turn, and a transcript under 2 words or below -1.0 confidence are also ignored. The wake phrase
+  said alone gets a hello by name and is then listened to: 43 of the owner's 50 recorded phrases were heard, with
+  no false hello in 96 minutes of speech, sounds and music, so about 1 in 7 needs saying again.
+  The tray icon, the window or `python -m Agent_Guru mic mute` stops it listening. The startup log names the
+  detector in use and why.
 - **4 GB of VRAM**: gemma4 does not fit entirely beside speech recognition, so part of it runs on the CPU. The
   `low-vram` recipe switches to the smaller gemma4:e2b, which gets 6 of 11 tool cases right against 11 of 11 (see
   "Choosing a model"). Swapping between models takes 17 to 19 s.
