@@ -61,7 +61,7 @@
       var label = el("label", { class: "tier" });
       var cost = plan.components.filter(function (r) { return r.tier === name && r.action === "install"; })
         .reduce(function (a, r) { return a + (r.download_bytes || 0); }, 0);
-      label.appendChild(el("span", {}, name + (plan.tiers[name] ? "  (" + mb(cost) + ")" : "")));
+      label.appendChild(el("span", {}, (S["tier." + name] || name) + (plan.tiers[name] ? "  (" + mb(cost) + ")" : "")));
       var box = el("input", { type: "checkbox" }); box.checked = plan.tiers[name]; box.disabled = name === "core";
       box.addEventListener("change", function () { replan(); });
       box.dataset.tier = name;
