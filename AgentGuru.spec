@@ -1,146 +1,102 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec file for Agent Guru.
+"""PyInstaller spec for the Agent Guru launcher.
 
-Build with:
-    .venv\\Scripts\\pyinstaller.exe AgentGuru.spec --noconfirm
+Only the launcher is frozen: the GENESIS engine, its window and the standard
+library. The application and its dependencies are not. This spec used to
+freeze main.py with everything its imports reach (torch, Whisper, OpenCV) into
+one folder. Now the installer stays small and the launcher builds the private
+runtime on the person's machine, from the pinned lock, with what that machine
+needs.
+
+One folder, not one file: a one-file build unpacks itself to a temporary
+folder on every start, which costs seconds and trips antivirus scanners. No
+UPX, for the same reason: packed executables start slower and draw false
+positives.
+
+Build in a venv holding only pyinstaller and pywebview, from the repository
+root, so nothing else can be picked up:
+
+    pyinstaller AgentGuru.spec --noconfirm
 """
-import os
-import sys
 from pathlib import Path
 
-ROOT = Path(os.path.abspath('.'))
+ROOT = Path(SPECPATH)
+GENESIS = ROOT / 'Agent_Guru' / 'genesis'
+
+# What the launcher reads at run time. The UI is listed folder by folder so
+# test_packaging.py can check it against the files on disk.
+datas = [
+    (str(GENESIS / 'components.json'), 'Agent_Guru/genesis'),
+    (str(GENESIS / 'ui'), 'Agent_Guru/genesis/ui'),
+]
+
+# genesis/runtime_tasks.py imports the application lazily, because it runs in
+# the managed runtime. PyInstaller follows imports inside functions too, so
+# without these it would freeze the whole assistant into the launcher.
+EXCLUDED_APP = [
+    'Agent_Guru.agent_orchestration', 'Agent_Guru.agents', 'Agent_Guru.avatar', 'Agent_Guru.connectors',
+    'Agent_Guru.context', 'Agent_Guru.core', 'Agent_Guru.deployment', 'Agent_Guru.emotion',
+    'Agent_Guru.explainability', 'Agent_Guru.fusion', 'Agent_Guru.goal_manager', 'Agent_Guru.health',
+    'Agent_Guru.integration', 'Agent_Guru.iot', 'Agent_Guru.learning', 'Agent_Guru.llm', 'Agent_Guru.memory',
+    'Agent_Guru.platform', 'Agent_Guru.policy', 'Agent_Guru.proactive', 'Agent_Guru.reasoning',
+    'Agent_Guru.recipes', 'Agent_Guru.resilience', 'Agent_Guru.sdk', 'Agent_Guru.security',
+    'Agent_Guru.self_improvement', 'Agent_Guru.skills', 'Agent_Guru.speech', 'Agent_Guru.sync',
+    'Agent_Guru.training', 'Agent_Guru.translation', 'Agent_Guru.verifier', 'Agent_Guru.vision',
+]
+# Standard-library parts nothing here uses, and the test packages.
+EXCLUDED_OTHER = ['tkinter', 'unittest', 'pydoc', 'pydoc_data', 'lib2to3', 'test', 'pytest', 'numpy', 'torch']
 
 a = Analysis(
-    [str(ROOT / 'main.py')],
+    [str(GENESIS / 'launcher.py')],
     pathex=[str(ROOT)],
     binaries=[],
-    datas=[
-        (str(ROOT / 'Agent_Guru'), 'Agent_Guru'),
-        (str(ROOT / 'assets'), 'assets'),
-    ],
-    hiddenimports=[
-        'Agent_Guru',
-        'Agent_Guru.speech',
-        'Agent_Guru.speech.filler_response',
-        'Agent_Guru.speech.biometric',
-        'Agent_Guru.speech.biometric.speaker_verifier',
-        'Agent_Guru.vision',
-        'Agent_Guru.llm',
-        'Agent_Guru.llm.companion_prompts',
-        'Agent_Guru.platform',
-        'Agent_Guru.platform.features',
-        'Agent_Guru.platform.features.reaction_rules',
-        'Agent_Guru.platform.features.confirmation',
-        'Agent_Guru.platform.features.user_memory',
-        'Agent_Guru.agents',
-        'Agent_Guru.memory',
-        'Agent_Guru.security',
-        'Agent_Guru.policy',
-        'Agent_Guru.emotion',
-        'Agent_Guru.integration',
-        'Agent_Guru.integration.orchestrator',
-        'pydantic',
-        'dotenv',
-        'sounddevice',
-        'numpy',
-        'json',
-        'asyncio',
-        'collections',
-        'pathlib',
-        'threading',
-        'logging',
-        're',
-    ],
+    datas=datas,
+    hiddenimports=['Agent_Guru.utils.path_utils', 'Agent_Guru.utils.verified_files', 'Agent_Guru.utils.model_fit',
+                   'Agent_Guru.utils.profile_isolation'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        # Heavy visualization - not needed at runtime for voice assistant
-        'matplotlib',
-        'matplotlib.pyplot',
-        'seaborn',
-        'plotly',
-        # NLP packages with broken hooks
-        'nltk',
-        'spacy',
-        # Testing frameworks
-        'pytest',
-        'hypothesis',
-        'unittest',
-        'test',
-        'tests',
-        '_pytest',
-        # Dev tools
-        'black',
-        'isort',
-        'flake8',
-        'mypy',
-        'pylint',
-        'ruff',
-        'bandit',
-        'pre_commit',
-        'safety',
-        # Interactive / notebook
-        'IPython',
-        'jupyter',
-        'notebook',
-        'ipykernel',
-        'ipywidgets',
-        # GUI toolkits we don't use
-        'tkinter',
-        'PyQt5',
-        'PyQt6',
-        'PySide2',
-        'PySide6',
-        'wx',
-        # Large optional deps
-        'tensorflow',
-        'jax',
-        'jaxlib',
-        'tensorboard',
-        'wandb',
-        'mlflow',
-        # Sphinx / docs
-        'sphinx',
-        'docutils',
-        # Other heavy packages with broken hooks
-        'numba',
-        'datasets',
-        'vllm',
-        'deepface',
-        'insightface',
-    ],
+    excludes=EXCLUDED_APP + EXCLUDED_OTHER,
     noarchive=False,
     optimize=1,
 )
 
 pyz = PYZ(a.pure)
 
-exe = EXE(
+window = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
     name='AgentGuru',
     debug=False,
-    bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
+    console=False,
+    icon=str(ROOT / 'assets' / 'icon.ico'),
+)
+
+# The same program with a console, for `AgentGuruCli genesis --plan` and a
+# terminal with no display: a windowed exe has no stdout to print to.
+terminal = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='AgentGuruCli',
+    debug=False,
+    strip=False,
+    upx=False,
     console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
     icon=str(ROOT / 'assets' / 'icon.ico'),
 )
 
 coll = COLLECT(
-    exe,
+    window,
+    terminal,
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
-    upx_exclude=[],
+    upx=False,
     name='AgentGuru',
 )
