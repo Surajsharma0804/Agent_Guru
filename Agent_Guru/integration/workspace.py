@@ -228,6 +228,30 @@ class Workspace:
             return 400, {"error": "not a setting of this screen"}
         return 200, {"saved": set_setting(key, str(body.get("value", "")))}
 
+    def owner(self, body: dict[str, Any]) -> tuple[int, Any]:
+        """The name the assistant greets its owner by, kept with what it remembers about them."""
+        from Agent_Guru.platform.features.user_memory import get_user_memory
+
+        return 200, {"name": str(get_user_memory().get("name") or "")}
+
+    def set_owner(self, body: dict[str, Any]) -> tuple[int, Any]:
+        _expect(body, {"name": str})
+        from Agent_Guru.platform.features.user_memory import get_user_memory
+
+        name = (body.get("name") or "").strip()
+        if not name or len(name) > 40:
+            return 400, {"error": "a name is 1 to 40 characters"}
+        get_user_memory().set("name", name)
+        return 200, {"name": name}
+
+    def quit(self, body: dict[str, Any]) -> tuple[int, Any]:
+        """Shut the assistant down as Ctrl+C does: the tray and the uninstaller have no console."""
+        _expect(body, {})
+        from Agent_Guru.utils import service
+
+        service.request_stop()
+        return 200, {"stopping": True}
+
     def set_credential(self, body: dict[str, Any]) -> tuple[int, Any]:
         """Keep a provider key in the vault. The value is never read back, logged or echoed."""
         _expect(body, {"name": str, "value": str})
@@ -251,7 +275,8 @@ class Workspace:
         table = {("GET", "/api/workspace"): self.state, ("GET", "/api/tasks"): self.tasks,
                  ("GET", "/api/settings"): self.settings, ("POST", "/api/turn"): self.turn,
                  ("POST", "/api/answer"): self.answer, ("POST", "/api/mic"): self.set_mic,
-                 ("POST", "/api/setting"): self.set_setting, ("POST", "/api/credential"): self.set_credential}
+                 ("POST", "/api/setting"): self.set_setting, ("POST", "/api/credential"): self.set_credential,
+                 ("GET", "/api/owner"): self.owner, ("POST", "/api/owner"): self.set_owner, ("POST", "/api/quit"): self.quit}
         routes = dict(self.genesis.routes()) if self.genesis is not None else {}
         routes.update({k: guarded(v) for k, v in table.items()})
         return routes
@@ -266,7 +291,7 @@ def start(orchestrator: Any, loop: asyncio.AbstractEventLoop) -> Any:
     root = os.environ.get("AGENT_GURU_INSTALL_ROOT")
     genesis = GenesisApp(default_layout(Path(root))) if root else None
     workspace = Workspace(orchestrator, loop, genesis)
-    server = GenesisServer(workspace.routes())
+    server = GenesisServer(workspace.routes(), outlives_window=True)
     if genesis is not None:
         genesis.close = server.stop
     url = server.start() .replace("/#t=", "/workspace.html#t=")
@@ -275,4 +300,7 @@ def start(orchestrator: Any, loop: asyncio.AbstractEventLoop) -> Any:
         path = Path(target)
         path.write_text(json.dumps({"url": url}), encoding="utf-8")
         path.chmod(0o600)
+    from Agent_Guru.utils import tray
+
+    tray.start(workspace, url)
     return server
