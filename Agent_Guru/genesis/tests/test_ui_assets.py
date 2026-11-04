@@ -21,26 +21,32 @@ def test_the_ui_fits_its_budget_fonts_included():
 
 
 def test_nothing_is_fetched_from_another_host_while_rendering():
-    for name in ("index.html", "tokens.css", "app.js", "core.js"):
+    for name in ("index.html", "workspace.html", "tokens.css", "app.js", "workspace.js", "core.js"):
         found = re.findall(r"https?://[^\s\"')]+", _text(name))
         assert found == [], (name, found)  # nosec B101
     assert "@import" not in _text("tokens.css")  # nosec B101
 
 
 def test_no_inline_style_or_script_that_the_content_policy_would_block():
-    html = _text("index.html")
-    assert "style=" not in html and not re.search(r"<script(?![^>]*\bsrc=)", html)  # nosec B101
-    assert " onclick=" not in html  # nosec B101
+    for name in ("index.html", "workspace.html"):
+        html = _text(name)
+        assert "style=" not in html and not re.search(r"<script(?![^>]*\bsrc=)", html), name  # nosec B101
+        assert " onclick=" not in html, name  # nosec B101
 
 
 def test_colours_live_only_in_the_tokens_file():
-    for name in ("index.html", "app.js", "core.js"):
+    for name in ("index.html", "workspace.html", "app.js", "workspace.js", "core.js"):
         assert re.findall(r"#[0-9a-fA-F]{6}\b", _text(name)) == [], name  # nosec B101
 
 
 def test_every_string_key_the_page_uses_exists():
     strings = json.loads(_text("strings.en.json"))
-    used = set(re.findall(r'data-s="([^"]+)"', _text("index.html"))) | set(re.findall(r'\bt\("([a-z.]+[a-zA-Z.]*)"', _text("app.js")))
+    used = set()
+    for name in ("index.html", "workspace.html"):
+        used |= set(re.findall(r'data-[sp]="([^"]+)"', _text(name)))
+    for name in ("app.js", "workspace.js"):
+        used |= set(re.findall(r'\bt\("([a-z.]+[a-zA-Z.]*)"', _text(name)))
+        used |= set(re.findall(r'"(ws\.[a-z.]+)"', _text(name)))
     assert not [k for k in used if not k.endswith(".") and k not in strings]  # nosec B101
     # The two keys built at run time, from a stage name and a journal state.
     from Agent_Guru.genesis.journal import _STATE_AFTER
@@ -48,10 +54,13 @@ def test_every_string_key_the_page_uses_exists():
 
     assert all(f"stage.{s}" in strings for s in STAGES)  # nosec B101
     assert all(f"state.{s}" in strings for s in ["not started", *_STATE_AFTER.values()])  # nosec B101
+    # Built at run time from the orb state and the tab name.
+    assert all(f"ws.orb.{s}" in strings for s in ("idle", "listening", "thinking", "speaking", "muted"))  # nosec B101
+    assert all(f"ws.tab.{s}" in strings for s in ("talk", "tasks", "studio", "control", "doctor"))  # nosec B101
 
 
 def test_the_ui_text_has_no_long_dashes():
-    for name in ("index.html", "strings.en.json", "app.js", "core.js", "tokens.css"):
+    for name in ("index.html", "workspace.html", "strings.en.json", "app.js", "workspace.js", "core.js", "tokens.css"):
         assert not re.search("[\u2013\u2014]", _text(name)), name  # nosec B101
 
 
