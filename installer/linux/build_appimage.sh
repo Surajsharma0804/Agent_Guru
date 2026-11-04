@@ -16,7 +16,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="${WORK:-$HOME/.cache/agent-guru-build}"
-VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/pyproject.toml" | head -1)"
+# tr: a checkout made on Windows has CRLF, and the \r would end up in the file name.
+VERSION="$(tr -d '\r' < "$ROOT/pyproject.toml" | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
 OUT="$ROOT/dist/AgentGuru-$VERSION-x86_64.AppImage"
 
 # The AppImage stub. Upstream publishes it only under a moving "continuous" tag,
@@ -27,7 +28,7 @@ RUNTIME_SHA256="617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46
 started=$SECONDS
 mkdir -p "$WORK" "$ROOT/dist"
 if [ ! -x "$WORK/venv/bin/python" ]; then
-    python3 -m venv "$WORK/venv"
+    "${PYTHON:-python3}" -m venv "$WORK/venv"
 fi
 # No pywebview here: its GTK bindings cannot be frozen into a portable file,
 # so on Linux the window is the default browser (Decision 5's fallback).
