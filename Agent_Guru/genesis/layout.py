@@ -14,9 +14,13 @@ Three kinds of place, kept apart because uninstalling treats them differently:
   downloads goes through it, so a repair or a reinstall of a component does
   not download the same bytes twice.
 
-A frozen launcher puts the install folder next to its executable. From a
-source checkout it is a folder the user names (--root), so a trial install
-never lands inside the repository.
+On Windows a frozen launcher puts the install folder next to its executable.
+On Linux and macOS it cannot: an AppImage runs from a read-only mount that
+disappears when it exits, and an app bundle must not change after it is
+signed. There the install folder is per user, and the application source
+is copied into it from the bundle (the app-files component). From a source
+checkout it is a folder the user names (--root), so a trial install never
+lands inside the repository.
 """
 
 from __future__ import annotations
@@ -33,6 +37,8 @@ from Agent_Guru.utils.path_utils import app_data_dir
 class Layout:
     install_root: Path
     app_root: Path
+    #: The application source inside a frozen bundle, where it must be copied out.
+    bundled_app: Path | None = None
 
     @property
     def runtime_root(self) -> Path:
@@ -83,8 +89,19 @@ def source_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def per_user_root() -> Path:
+    """Where a frozen launcher installs on Linux and macOS."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "AgentGuru"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "AgentGuru"
+
+
 def default_layout(root: Path | None = None) -> Layout:
     """The frozen install's folders, or *root* (required from a source checkout)."""
+    if getattr(sys, "frozen", False) and sys.platform != "win32":
+        install = Path(root).resolve() if root else per_user_root()
+        return Layout(install_root=install, app_root=install / "app",
+                      bundled_app=Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "app")
     if getattr(sys, "frozen", False):
         # The application source ships next to the launcher, in app\. It is
         # not inside the frozen bundle, so --root moves the install folder
