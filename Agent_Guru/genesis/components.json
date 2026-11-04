@@ -157,6 +157,7 @@
     "prometheus-client",
     "psutil",
     "pydantic",
+    "pystray",
     "python-dotenv",
     "requests",
     "scipy",
@@ -825,6 +826,33 @@
    "install": "nothing",
    "rollback": "not reversible",
    "reason": "the assistant's own modules load in the private environment"
+  },
+  {
+   "platforms": [
+    "windows",
+    "linux",
+    "darwin"
+   ],
+   "depends_on": [
+    "first-start"
+   ],
+   "required": false,
+   "license": "Apache-2.0",
+   "hosts": [],
+   "id": "autostart",
+   "title": "Start with the computer",
+   "stage": "Awakening",
+   "tier": "startup",
+   "size": {
+    "download_bytes": 0,
+    "disk_bytes": 0,
+    "measured": "measured 2026-11-04, Windows 11 x64, CPython 3.13.15"
+   },
+   "source": "this application",
+   "probe": "autostart.present",
+   "install": "autostart.on",
+   "rollback": "autostart.off",
+   "reason": "starts the assistant in the background when you sign in, so Hey Guru works without opening a window; a tray icon shows it is listening"
   }
  ]
 }
