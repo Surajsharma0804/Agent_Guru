@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import shutil
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -129,25 +130,70 @@ def _replace_verified(part: Path, dest: Path, pin: PinnedFile) -> None:
         part.unlink(missing_ok=True)
 
 
+class DownloadError(OSError):
+    """A download that stopped early. The message names the host, the file and how far it got."""
+
+
+class DownloadCancelled(Exception):  # noqa: N818 - a request, not a failure
+    """The caller asked the download to stop; the bytes so far are kept for a resume."""
+
+
 def download(url: str, dest: Path, pin: PinnedFile, *, timeout: float = 60.0,
-             progress: Callable[[str, int, int], None] | None = None) -> None:
-    """Fetch *url* into *dest*, verified; *dest* is untouched unless the new file is the pinned one."""
+             progress: Callable[[str, int, int], None] | None = None, resume: bool = False,
+             should_stop: Callable[[], bool] | None = None) -> None:
+    """Fetch *url* into *dest*, verified; *dest* is untouched unless the new file is the pinned one.
+
+    With resume=False (the model loaders) a download that stops for any
+    reason leaves nothing behind, as before. With resume=True (the
+    installer) the bytes already in "<name>.part" are kept when the
+    connection drops or the caller cancels, and the next call asks the
+    server for the rest with an HTTP Range request. Without it, a 743 MB
+    cuDNN wheel cut off at 700 MB started again from zero. A server that
+    ignores Range gets a fresh start; a partial file longer than the pin is
+    discarded. Bytes from two attempts are still checked as one file
+    against the pinned size and hash before the real name is given.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
-    request = urllib.request.Request(url, headers={"User-Agent": "Agent_Guru"})  # noqa: S310
+    host = urllib.parse.urlsplit(url).hostname or url
+    have = part.stat().st_size if resume and part.exists() else 0
+    if have > pin.size:
+        part.unlink()
+        have = 0
+    if resume and have == pin.size:
+        _replace_verified(part, dest, pin)
+        return
+    headers = {"User-Agent": "Agent_Guru"}
+    if have:
+        headers["Range"] = f"bytes={have}-"
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310
+    done = have
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response, part.open("wb") as fh:  # noqa: S310  # nosec B310
-            done = 0
-            while chunk := response.read(_CHUNK):
-                done += len(chunk)
-                if done > pin.size:
-                    msg = f"{dest.name}: more data than the pinned {pin.size} bytes"
-                    raise VerificationError(msg)
-                fh.write(chunk)
-                if progress:
-                    progress(dest.name, done, pin.size)
-    except BaseException:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310  # nosec B310
+            if have and getattr(response, "status", 200) != 206:
+                done = 0  # the server sent the whole file: start the part again
+            with part.open("ab" if done else "wb") as fh:
+                while chunk := response.read(_CHUNK):
+                    done += len(chunk)
+                    if done > pin.size:
+                        msg = f"{dest.name}: more data than the pinned {pin.size} bytes"
+                        raise VerificationError(msg)
+                    fh.write(chunk)
+                    if progress:
+                        progress(dest.name, done, pin.size)
+                    if should_stop and should_stop():
+                        raise DownloadCancelled(f"{dest.name}: stopped at {done} of {pin.size} bytes")
+    except VerificationError:
         part.unlink(missing_ok=True)
+        raise
+    except BaseException as exc:
+        if not resume:
+            part.unlink(missing_ok=True)
+            raise
+        if isinstance(exc, OSError):
+            msg = (f"{host}: {dest.name}: {type(exc).__name__}: {exc} after {done} of {pin.size} bytes; "
+                   "the bytes so far are kept and the next attempt resumes")
+            raise DownloadError(msg) from exc
         raise
     _replace_verified(part, dest, pin)
 
