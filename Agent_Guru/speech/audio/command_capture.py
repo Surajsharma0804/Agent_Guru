@@ -20,6 +20,7 @@ after the silence is long enough.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 from dataclasses import dataclass
@@ -78,6 +79,11 @@ class CaptureSettings:
 #: wake takes followed by a command were kept 123 of 124 times (16 of the
 #: owner's own, 108 TTS). This is a stopgap, not a wake word detector.
 AFTER_WAKE = CaptureSettings(no_speech_seconds=3.0, keep_without_speech=False)
+#: The same 3 s, split at the point the assistant decides whether the owner said
+#: only the wake phrase and is waiting. Waiting the whole 3 s before answering
+#: "Hey Guru" felt like not having been heard.
+QUICK_AFTER_WAKE = CaptureSettings(no_speech_seconds=1.2, keep_without_speech=False)
+REST_AFTER_WAKE = CaptureSettings(no_speech_seconds=1.8, keep_without_speech=False)
 
 
 class SpeechProbability(Protocol):
@@ -251,16 +257,64 @@ async def capture_command(
     return audio.tobytes()
 
 
-async def capture_after_wake(mic: Any, wake_audio: np.ndarray | None, vad: SpeechProbability | None = None) -> bytes:
+def holds_speech(audio: np.ndarray, vad: SpeechProbability | None = None) -> bool:
+    """Whether *audio* has speech in it. True when no scorer can be loaded: the caller's check still runs."""
+    vad = vad or load_silero()
+    if vad is None:
+        return True
+    vad.reset()
+    samples = np.asarray(audio, dtype=np.float32)
+    frames = [samples[i:i + FRAME_SAMPLES] for i in range(0, len(samples) - FRAME_SAMPLES + 1, FRAME_SAMPLES)]
+    return any(vad(frame) >= CaptureSettings().speech_threshold for frame in frames)
+
+
+async def capture_after_wake(
+    mic: Any, wake_audio: np.ndarray | None, vad: SpeechProbability | None = None, settings: CaptureSettings = AFTER_WAKE,
+) -> bytes:
     """The wake chunk followed by the command, or b"" when no speech followed the wake.
 
     main.py used to put the wake chunk in front of whatever capture returned,
     an empty recording included, so every wake ran a turn on the sound that
     caused it. b"" now means the wake is ignored.
     """
-    command = await capture_command(mic, AFTER_WAKE, vad)
+    command = await capture_command(mic, settings, vad)
     if not command:
         return b""
     if wake_audio is None or len(wake_audio) == 0:
         return command
     return wake_audio.astype(np.float32).tobytes() + command
+
+
+async def _said_only_the_wake_phrase(orch: Any, mic: Any, chunk: Any) -> bool:
+    """Whether the wake chunk is the wake phrase alone, checked before anything is said aloud.
+
+    The fallback detector is a loudness gate, and greeting on its word would
+    have the assistant saying hello to every door and every conversation in
+    the room, all day, from a background process. A trained model has heard
+    the name itself. On the fallback, speech recognition has to hear it:
+    Silero first, so a noise costs no recognition.
+    """
+    if not mic.uses_fallback_detector:
+        return True
+    if chunk is None or len(chunk) == 0:
+        return False
+    samples = np.asarray(chunk, dtype=np.float32)
+    return await asyncio.to_thread(holds_speech, samples) and await orch.wake_phrase_alone(samples.tobytes())
+
+
+async def listen_after_wake(orch: Any, mic: Any, wake_word: str, chunk: Any) -> tuple[bytes, bool]:
+    """What the owner said after the wake word, and whether the assistant greeted them first.
+
+    "Hey Guru, what time is it?" runs straight on, so it is captured with no
+    greeting in the way. If nothing follows within a moment and the owner said
+    only the wake phrase, they are waiting: say hello and listen. This used to
+    end the wake there, so "Hey Guru" alone got silence. Anything else keeps
+    the rest of the 3 s it always had.
+    """
+    audio = await capture_after_wake(mic, chunk, settings=QUICK_AFTER_WAKE)
+    if audio:
+        return audio, False
+    if await _said_only_the_wake_phrase(orch, mic, chunk):
+        await orch.greet(wake_word, b"" if chunk is None else chunk.tobytes())
+        return await capture_command(mic), True
+    return await capture_after_wake(mic, chunk, settings=REST_AFTER_WAKE), False
