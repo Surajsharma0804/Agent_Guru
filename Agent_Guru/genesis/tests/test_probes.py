@@ -198,3 +198,12 @@ def test_pinned_files_already_in_place_are_reported_by_name_and_size(tmp_path):
               ("short", voice, [("model.onnx", 11)]), ("missing", tmp_path / "none", [("a", 1)])]
     value = pr.probe_existing(fake(), layout, pinned).value
     assert value["files_present"] == ["voice-model"]  # nosec B101
+
+
+def test_a_stopped_ollama_still_shows_the_models_on_its_disk(tmp_path):
+    tag = tmp_path / "manifests" / "registry.ollama.ai" / "library" / "gemma4" / "latest"
+    tag.parent.mkdir(parents=True)
+    tag.write_text(json.dumps({"config": {"size": 2**20}, "layers": [{"size": 99 * 2**20}]}), encoding="utf-8")
+    value = pr.probe_ollama(fake(http=None, which={"ollama": "ollama"}, env={"OLLAMA_MODELS": str(tmp_path)})).value
+    assert value["running"] is False and value["installed"] is True  # nosec B101
+    assert value["models"] == [{"name": "gemma4:latest", "size_mb": 100.0, "capabilities": None, "parameters": ""}]  # nosec B101
