@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import threading
+import time
 import types
 from typing import TYPE_CHECKING, Any
 
@@ -185,6 +186,45 @@ class TestMicrophoneRecoveryPath:
 
         assert capture._try_reopen_sounddevice() is True
         assert sd.terminated == 1
+
+
+    def test_a_library_that_is_not_installed_is_not_retried(self, monkeypatch):
+        """Retried every 10 s for the whole session, and reported as a microphone to reconnect."""
+        import builtins
+
+        from Agent_Guru.speech.wake_word_manager import _AudioCapture
+
+        real = builtins.__import__
+
+        def no_sounddevice(name, *a, **k):
+            if name == "sounddevice":
+                raise ModuleNotFoundError("No module named 'sounddevice'")
+            return real(name, *a, **k)
+
+        monkeypatch.setattr(builtins, "__import__", no_sounddevice)
+        capture = _AudioCapture(16_000, 0.5, "windows")
+        capture.failing_since = 1.0
+        assert capture._try_reopen_sounddevice() is False
+        assert capture.no_audio_library is True
+        assert capture.failing_since is None and capture.reopen_attempts == 0
+        started = time.monotonic()
+        assert capture._capture_sounddevice(1600).max() == 0.0
+        assert time.monotonic() - started >= 0.09  # paced like audio, not a spinning listen loop
+
+    def test_a_device_that_will_not_open_is_still_retried(self, monkeypatch):
+        """Only a missing library is final: a microphone can come back."""
+        from Agent_Guru.speech.wake_word_manager import _AudioCapture
+
+        sd = _install(monkeypatch)
+
+        def refuse(*a, **k):
+            raise OSError("no device")
+
+        monkeypatch.setattr(sd, "InputStream", refuse)
+        capture = _AudioCapture(16_000, 0.5, "windows")
+        capture.failing_since = 1.0
+        assert capture._try_reopen_sounddevice() is False
+        assert capture.no_audio_library is False and capture.failing_since == 1.0 and capture.reopen_attempts == 1
 
 
 class TestEveryPortAudioUserHoldsTheLock:
