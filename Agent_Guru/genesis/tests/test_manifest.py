@@ -120,6 +120,26 @@ def test_the_voice_files_are_the_voices_own_pins_and_folder(real):
     assert Path.home() / rel == tts_engine._CACHE_DIR  # nosec B101
 
 
+def test_the_voice_has_a_pinned_mirror_outside_github(real):
+    # One blocked host must not stop the voice; the pins do not change.
+    for f in real.by_id["voice-model"]["files"]:
+        assert [u for u in f["mirrors"] if u.startswith("https://huggingface.co/fastrtc/kokoro-onnx/resolve/8d07950c")]  # nosec B101
+
+
+def test_voice_packages_are_checked_by_the_voice_stack_not_the_core(real):
+    assert real.by_id["voice-packages"]["probe"] == "voice.import"  # nosec B101
+
+
+def test_the_whisper_component_fetches_both_sizes(real):
+    assert real.by_id["whisper-model"]["task_args"] == ["tiny", "base"]  # nosec B101
+
+
+def test_a_mirror_must_be_https(real):
+    bad = copy.deepcopy(real.by_id["voice-model"]["files"])
+    bad[0]["mirrors"] = ["http://mirror.example.test/model"]
+    assert any("not fetched over https" in p for p in problems(_with(real, "voice-model", files=bad)))  # nosec B101
+
+
 def test_the_memory_model_lands_where_the_onnx_route_looks(real):
     from Agent_Guru.reasoning.memory import embedding
 
