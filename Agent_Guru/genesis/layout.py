@@ -67,6 +67,10 @@ class Layout:
         return self.runtime_root / "journal.jsonl"
 
     @property
+    def ollama_pid_file(self) -> Path:
+        return self.runtime_root / "ollama.pid"
+
+    @property
     def lock_path(self) -> Path:
         return self.runtime_root / "genesis.lock"
 
