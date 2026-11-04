@@ -221,7 +221,16 @@
     $("pause").addEventListener("click", function () { api("POST", "/api/pause", {}); });
     $("to-verify").addEventListener("click", function () { api("POST", "/api/verify", {}).then(function () { show("verify"); }); });
     $("to-online").addEventListener("click", function () { show("online"); if (!coreOnline) coreOnline = window.GuruCore.mount($("core-online")); });
-    $("launch").addEventListener("click", function () { api("POST", "/api/launch", {}); });
+    $("launch").addEventListener("click", function () {
+      $("launch").disabled = true;
+      api("POST", "/api/launch", {}).then(function () {
+        var wait = setInterval(function () {
+          api("GET", "/api/launched").then(function (j) {
+            if (j.url) { clearInterval(wait); location.replace(j.url); }
+          });
+        }, 500);
+      });
+    });
     $("show-report").addEventListener("click", function () {
       api("GET", "/api/report").then(function (r) { delete r._status; $("report").hidden = false; $("report").textContent = JSON.stringify(r, null, 1); });
     });
