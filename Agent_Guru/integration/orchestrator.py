@@ -284,6 +284,21 @@ def _outcome(reply: Any, calls: list[ActionStatus]) -> ActionOutcome:
     return ActionOutcome(reply if isinstance(reply, str) else (str(reply) if reply else None), status)
 
 
+def _can_play_audio() -> bool:
+    """Whether sounddevice and PortAudio can be loaded.
+
+    The reminder manager imported sounddevice unguarded, so an install without
+    the voice tier failed to build it at all: kept reminders were not restored
+    and the Tasks screen could not list them. It only decides whether reminders
+    are spoken.
+    """
+    try:
+        import sounddevice  # noqa: F401
+    except (ImportError, OSError):
+        return False
+    return True
+
+
 def _intent_steps(intent: str) -> list[str]:
     """The steps the action stage runs for *intent*, and so the steps the policy must allow.
 
@@ -352,6 +367,11 @@ class PipelineResult:
     #: process; a pending question records both.
     source: str = ""
     turn_id: int = 0
+    # What the assistant answered, whichever stage it came from. The turn record
+    # read llm_response or action_result, but a refusal or failure is worded
+    # only when the reply is chosen, so those turns were recorded and shown
+    # with no answer: a typed turn that was refused displayed nothing.
+    reply: str = ""
     # (stage name, wall-clock start, seconds) in the order the stages ran.
     # Sources the turn's research tools returned, as cited in the answer:
     # id, kind, title, url and how much of each was read.
@@ -1126,7 +1146,10 @@ class IntegrationOrchestrator:
             # from the trace and only when one is written, so the orb could
             # not rely on it to know a turn was over.
             turn_id = self._turn_count
-            self.events.publish("turn.started", source=source, turn_id=turn_id)
+            # A typed turn's words are known now. Shown only at turn.finished,
+            # the question stayed off the screen for as long as the model took
+            # (42 s measured on this hardware).
+            self.events.publish("turn.started", source=source, turn_id=turn_id, heard=wake_event.text or "")
             try:
                 return await self._run_gated_pipeline(wake_event, source)
             finally:
@@ -1447,6 +1470,7 @@ class IntegrationOrchestrator:
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
+            result.reply = tts_text
             # Not wrapped in one wait_for any more: a streamed reply plays for
             # as long as it is, and a 30 s cap on the whole stage cut a long
             # answer off mid-sentence. _stage_tts bounds every wait for
@@ -1564,7 +1588,11 @@ class IntegrationOrchestrator:
             if self._turn_router is not None and turn.outcome in ("success", "failure"):
                 self._turn_router.record(turn.model, turn.heard, turn.outcome == "success", turn_seconds * 1000)
             self.events.publish(
-                "turn.finished", turn_id=turn.turn_id, heard=turn.heard, said=turn.said,
+                # source_turn is the number turn.started carried. turn_id here is
+                # the record's own id, so the window could not match the two:
+                # each turn showed as one row stuck on "Working on it" and
+                # another row holding the answer.
+                "turn.finished", turn_id=turn.turn_id, source_turn=result.turn_id, heard=turn.heard, said=turn.said,
                 intent=turn.intent, status=turn.action_status, seconds=round(turn_seconds, 2),
                 source=result.source, sources=list(getattr(result, "sources", []) or []),
             )
@@ -1656,7 +1684,7 @@ class IntegrationOrchestrator:
             # An answer may or may not have been right; an unverified,
             # refused or cancelled action is not a success either.
             outcome = None
-        said = result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
+        said = result.reply or result.llm_response or (result.action_result if isinstance(result.action_result, str) else "")
         answered = any(name.startswith("answer") for name, _, _ in result.stage_timings)
         details_by_stage = {
             "stt": {"chars": len(result.transcript or ""), "language": result.detected_language},
@@ -3669,8 +3697,7 @@ class IntegrationOrchestrator:
             from Agent_Guru.platform.features.reminders import ReminderManager
             self._reminder_mgr = ReminderManager(store_path=self._reminder_store)
             tts_eng = getattr(self.speech_engine, "tts_engine", None)
-            if tts_eng:
-                import sounddevice  # noqa: F401 - checks PortAudio is present before wiring the speaker
+            if tts_eng and _can_play_audio():
                 def _speak_reminder(text: str) -> None:
                     try:
                         import numpy as np
