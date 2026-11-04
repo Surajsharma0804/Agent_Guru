@@ -36,6 +36,27 @@ def test_the_chat_check_refuses_a_model_name_before_loading_anything(monkeypatch
         assert rt.llm_reply([bad])["result"] == "NOT CONFIGURED"  # nosec B101
 
 
+def test_whisper_refuses_an_unknown_size_before_loading_anything(monkeypatch):
+    monkeypatch.setitem(sys.modules, "faster_whisper", None)
+    assert rt.whisper_fetch(["tiny", "gigantic"])["result"] == "FAILED"  # nosec B101
+    assert rt.whisper_fetch([])["result"] == "NOT INSTALLED"  # nosec B101
+
+
+def test_whisper_fetches_both_sizes_the_assistant_loads(monkeypatch):
+    import types
+
+    asked = []
+    utils = types.SimpleNamespace(download_model=lambda size: asked.append(size) or size)
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.ModuleType("faster_whisper"))
+    monkeypatch.setitem(sys.modules, "faster_whisper.utils", utils)
+    assert rt.whisper_fetch([])["result"] == "PASS" and asked == ["tiny", "base"]  # nosec B101
+
+
+def test_the_voice_check_fails_when_one_library_is_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "kokoro_onnx", None)
+    assert rt.voice_import([])["result"] == "NOT INSTALLED"  # nosec B101
+
+
 def test_the_bundled_speech_clip_is_about_a_second_of_16_khz_mono():
     with wave.open(str(rt.STT_CLIP)) as w:
         assert (w.getnchannels(), w.getframerate(), w.getsampwidth()) == (1, 16000, 2)  # nosec B101
