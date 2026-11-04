@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Guru Setup</title>
+<link rel="stylesheet" href="ui/tokens.css">
+</head>
+<body>
+<a class="skip" href="#main" data-s="skip">Skip to content</a>
+<div id="replay" class="replay-banner" hidden></div>
+<div class="shell">
+  <header class="brand"><b>&#9670;</b><span data-s="brand">Agent Guru</span>
+    <span class="spacer"></span>
+    <button class="btn secondary small" id="contrast" type="button" aria-pressed="false" data-s="contrast">High contrast</button>
+  </header>
+  <ol class="steps" id="steps" aria-label="Setup steps"></ol>
+  <main id="main" tabindex="-1">
+
+    <section class="screen" id="s-opening" aria-labelledby="h-opening">
+      <div class="hero">
+        <div>
+          <h1 id="h-opening" data-s="opening.tagline"></h1>
+          <p class="lede" data-s="opening.lede"></p>
+          <p class="dim" data-s="opening.wake" lang="en"></p>
+          <div class="actions">
+            <button class="btn" id="start" type="button" data-s="opening.start"></button>
+            <button class="btn secondary" id="req-toggle" type="button" aria-expanded="false" aria-controls="req" data-s="opening.requirements"></button>
+          </div>
+          <p class="panel" id="req" hidden data-s="opening.requirements.body"></p>
+        </div>
+        <div class="core-wrap" id="core" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="screen" id="s-scan" aria-labelledby="h-scan">
+      <h2 id="h-scan" data-s="scan.title"></h2>
+      <p class="lede" data-s="scan.lede"></p>
+      <ul class="rows" id="probe-rows" aria-live="polite"></ul>
+      <div class="actions"><button class="btn" id="to-plan" type="button" disabled data-s="scan.next"></button></div>
+    </section>
+
+    <section class="screen" id="s-plan" aria-labelledby="h-plan">
+      <h2 id="h-plan" data-s="plan.title"></h2>
+      <p class="lede" data-s="plan.lede"></p>
+      <div class="grid-2">
+        <div class="panel">
+          <h3 data-s="plan.tiers"></h3>
+          <div class="tiers" id="tiers"></div>
+          <h3 class="gap-top" data-s="plan.model"></h3>
+          <p id="model" class="mono"></p>
+        </div>
+        <div class="panel">
+          <h3 data-s="plan.disk"></h3>
+          <div class="arith" id="arith"></div>
+          <h3 class="gap-top" data-s="plan.outside"></h3>
+          <ul class="notes" id="outside"></ul>
+          <h3 data-s="plan.unavailable"></h3>
+          <ul class="notes" id="unavailable"></ul>
+          <h3 data-s="plan.irreversible"></h3>
+          <ul class="notes" id="irreversible"></ul>
+          <p class="dim" id="unverified" hidden></p>
+          <p class="dim" data-s="plan.nothingelse"></p>
+        </div>
+      </div>
+      <p class="err" id="plan-problem" hidden></p>
+      <label class="approve"><input type="checkbox" id="approve"> <span data-s="plan.approve"></span></label>
+      <div class="actions"><button class="btn" id="install" type="button" disabled data-s="plan.install"></button></div>
+    </section>
+
+    <section class="screen" id="s-install" aria-labelledby="h-install">
+      <h2 id="h-install" data-s="install.title"></h2>
+      <div class="stages" id="stages"></div>
+      <div class="toolbar">
+        <button class="btn secondary small" id="pause" type="button" data-s="install.pause"></button>
+        <button class="btn danger small" id="cancel" type="button" data-s="install.cancel"></button>
+        <button class="btn small" id="retry" type="button" hidden data-s="install.retry"></button>
+      </div>
+      <table class="components" aria-describedby="h-install">
+        <thead><tr><th data-s="install.col.component"></th><th data-s="install.col.state"></th>
+          <th data-s="install.col.size"></th><th data-s="install.col.progress"></th></tr></thead>
+        <tbody id="component-rows"></tbody>
+      </table>
+      <details class="log"><summary data-s="install.log"></summary><pre id="log"></pre></details>
+      <div class="actions"><button class="btn" id="to-verify" type="button" hidden data-s="install.done"></button></div>
+    </section>
+
+    <section class="screen" id="s-verify" aria-labelledby="h-verify">
+      <h2 id="h-verify" data-s="verify.title"></h2>
+      <p class="lede" data-s="verify.lede"></p>
+      <ul class="rows results" id="results"></ul>
+      <div class="actions"><button class="btn" id="to-online" type="button" data-s="verify.next"></button></div>
+    </section>
+
+    <section class="screen" id="s-online" aria-labelledby="h-online">
+      <div class="hero">
+        <div>
+          <h1 id="h-online" data-s="online.title"></h1>
+          <p class="lede" id="online-lede"></p>
+          <div class="actions">
+            <button class="btn" id="launch" type="button" data-s="online.launch"></button>
+            <button class="btn secondary" id="show-report" type="button" data-s="online.report"></button>
+            <button class="btn secondary" id="export" type="button" data-s="online.export"></button>
+          </div>
+          <pre class="panel mono" id="report" hidden></pre>
+        </div>
+        <div class="core-wrap" id="core-online" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+  <div id="live" class="sr-only" aria-live="polite" role="status"></div>
+</div>
+<script src="ui/core.js"></script>
+<script src="ui/app.js"></script>
+</body>
+</html>
