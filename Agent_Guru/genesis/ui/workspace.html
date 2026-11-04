@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Guru</title>
+<link rel="stylesheet" href="ui/tokens.css">
+</head>
+<body>
+<a class="skip" href="#main" data-s="skip">Skip to content</a>
+<div class="shell">
+  <header class="brand"><b>&#9670;</b><span data-s="brand">Agent Guru</span>
+    <span class="spacer"></span>
+    <button class="btn secondary small" id="mute" type="button" aria-pressed="false" data-s="ws.mute"></button>
+    <button class="btn secondary small" id="contrast" type="button" aria-pressed="false" data-s="contrast"></button>
+  </header>
+  <div class="tabs" role="tablist" aria-label="Sections" id="tabs"></div>
+  <main id="main" tabindex="-1">
+
+    <section class="screen" id="p-talk" role="tabpanel" aria-labelledby="t-talk">
+      <div class="talk">
+        <div class="orb-wrap">
+          <div class="orb" id="orb" data-state="idle" role="img"></div>
+          <p class="orb-label" id="orb-label" aria-live="polite"></p>
+        </div>
+        <div class="talk-main">
+          <div id="questions" aria-live="polite"></div>
+          <p class="queue" id="queue" hidden></p>
+          <ol class="turns" id="turns" aria-live="polite"></ol>
+          <form id="say" class="say">
+            <label class="sr-only" for="text" data-s="ws.say"></label>
+            <textarea id="text" rows="2" maxlength="4000" data-p="ws.say"></textarea>
+            <button class="btn" type="submit" data-s="ws.send"></button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="p-tasks" role="tabpanel" aria-labelledby="t-tasks">
+      <h2 data-s="ws.tasks"></h2>
+      <ul class="rows" id="tasks"></ul>
+    </section>
+
+    <section class="screen" id="p-studio" role="tabpanel" aria-labelledby="t-studio">
+      <h2 data-s="ws.studio"></h2>
+      <p class="lede" data-s="ws.studio.lede"></p>
+      <div class="grid-2" id="studio"></div>
+      <div class="panel gap-top">
+        <h3 data-s="ws.keys"></h3>
+        <p class="dim" data-s="ws.keys.lede"></p>
+        <div id="keys"></div>
+      </div>
+    </section>
+
+    <section class="screen" id="p-control" role="tabpanel" aria-labelledby="t-control">
+      <h2 data-s="ws.control"></h2>
+      <p class="lede" id="control-lede" data-s="ws.control.lede"></p>
+      <table class="components">
+        <thead><tr><th data-s="install.col.component"></th><th data-s="install.col.state"></th><th data-s="ws.actions"></th></tr></thead>
+        <tbody id="control"></tbody>
+      </table>
+      <details class="log"><summary data-s="ws.history"></summary><pre id="history"></pre></details>
+    </section>
+
+    <section class="screen" id="p-doctor" role="tabpanel" aria-labelledby="t-doctor">
+      <h2 data-s="ws.doctor"></h2>
+      <p class="lede" data-s="ws.doctor.lede"></p>
+      <div class="actions">
+        <button class="btn" id="run-doctor" type="button" data-s="ws.doctor.run"></button>
+        <button class="btn secondary" id="export" type="button" data-s="online.export"></button>
+      </div>
+      <ul class="rows results gap-top" id="doctor"></ul>
+    </section>
+  </main>
+  <div id="live" class="sr-only" aria-live="polite" role="status"></div>
+</div>
+<script src="ui/workspace.js"></script>
+</body>
+</html>
