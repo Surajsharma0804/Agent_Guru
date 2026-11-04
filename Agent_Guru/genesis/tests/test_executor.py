@@ -325,3 +325,22 @@ def test_the_python_the_plan_reuses_reaches_every_component(layout, monkeypatch)
     e = ex.Executor(layout, MANIFEST, plan, actions={**fakes.actions(), "fake": install}, probes=fakes.probe)
     e.run()
     assert seen and set(seen.values()) == {"C:/Py/313/python.exe"}  # nosec B101
+
+
+def test_a_rerun_still_reports_warnings(layout, monkeypatch):
+    # The all-tier rerun had an empty warnings list while the wake word was on
+    # its fallback: only the install path recorded them.
+    monkeypatch.setattr(vf.urllib.request, "urlopen", Server())
+    fakes = Fakes()
+    real_probe = fakes.probe
+
+    def probe(probe_id, ctx, c):
+        result = real_probe(probe_id, ctx, c)
+        if c["id"] == "voice" and result.label == "PASS":
+            return verify.Result("WARNING", "fallback detector")
+        return result
+
+    e = ex.Executor(layout, MANIFEST, plan_for(), actions=fakes.actions(), probes=probe)
+    assert e.run().warnings == ["voice"]  # nosec B101
+    again = ex.Executor(layout, MANIFEST, plan_for(), actions=fakes.actions(), probes=probe).run()
+    assert again.zero_actions and again.warnings == ["voice"]  # nosec B101
