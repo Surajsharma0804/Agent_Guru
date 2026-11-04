@@ -352,7 +352,7 @@ def _load_gpu_pool():
 # Was _capture_command_with_vad here, judging whole 1.5 s chunks; it ran on a
 # median 2.06 s after the speaker stopped and could not be tested from main.py.
 # Agent_Guru/speech/audio/command_capture.py explains the replacement.
-from Agent_Guru.speech.audio.command_capture import capture_after_wake, capture_command, load_silero  # noqa: E402
+from Agent_Guru.speech.audio.command_capture import capture_command, listen_after_wake, load_silero  # noqa: E402
 
 
 async def _answer_follow_ups(
@@ -686,8 +686,9 @@ async def run() -> None:
         await asyncio.sleep(0.5)
 
         import numpy as np
+        greeted = False
         try:
-            audio_bytes = await capture_after_wake(wake_manager, getattr(detection, "audio_chunk", None))
+            audio_bytes, greeted = await listen_after_wake(orch, wake_manager, detection.wake_word, getattr(detection, "audio_chunk", None))
             if not audio_bytes:
                 logger.info("[%s] No command followed the wake word - not starting a turn.", personality_name)
                 return
@@ -722,9 +723,14 @@ async def run() -> None:
             # The MFCC fallback wakes on any loud sound; a turn it starts goes ahead only when
             # what was heard names Guru or Maya and is clear enough to be a command. A trained
             # wake word model hears the name itself, so with one in use this is off.
-            fallback = wake_manager.uses_fallback_detector
+            # Nor after a greeting: this is the answer to it, and need not name anyone.
+            fallback = wake_manager.uses_fallback_detector and not greeted
             event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes, quiet_if_unsure=fallback)
-            _thinking_tone()
+            # Not after a fallback wake, which is not known to be meant for the
+            # assistant yet: the tone played for "Hey guys, dinner is ready", and
+            # from a background process that is a beep whenever anyone talks.
+            if not fallback:
+                _thinking_tone()
             result = await orch.run_pipeline(event)
             result = await _answer_follow_ups(
                 orch, result,
@@ -790,6 +796,10 @@ async def run() -> None:
         on_microphone_restored=_say_microphone_status,
     )
     wake_manager = WakeWordManager(mgr_cfg)
+    # Before the 3 s calibration and the listen loop, not after: from the
+    # moment the window opened until then it said "No microphone", with no
+    # way to mute, while the real microphone was about to open.
+    orch.microphone = wake_manager
 
     await wake_manager.initialize()
 
@@ -832,12 +842,16 @@ async def run() -> None:
     else:
         logger.warning("Microphone not calibrated: no working input device yet")
     await wake_manager.start_listening()
-    orch.microphone = wake_manager
     logger.info("Microphone open - listening for wake words.")
+    # Held so it is not collected part way through; it ends by itself.
+    voice_warm = asyncio.create_task(orch.warm_voice(), name="voice-warm")  # noqa: F841
     # Muting is session-only, so every start says it is listening and how to stop it.
     from Agent_Guru.integration import local_api as _local_api
+    from Agent_Guru.integration import workspace as _workspace
 
-    if _local_api.enabled():
+    if _workspace.enabled():
+        logger.info("Microphone: on. Mute it from the tray icon or the window.")
+    elif _local_api.enabled():
         logger.info("Microphone: on. Mute it with: python -m Agent_Guru mic mute")
     else:
         logger.info("Microphone: on. Muting needs AGENT_GURU_API = true in settings.toml (then: python -m Agent_Guru mic mute)")
