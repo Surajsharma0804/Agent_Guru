@@ -284,6 +284,13 @@ def _outcome(reply: Any, calls: list[ActionStatus]) -> ActionOutcome:
     return ActionOutcome(reply if isinstance(reply, str) else (str(reply) if reply else None), status)
 
 
+def only_wake_phrase(text: str, *, name_alone: bool = False) -> bool:
+    """See speech/audio/wake_word.only_wake_phrase. Imported here only when asked: it pulls in the audio stack."""
+    from Agent_Guru.speech.audio.wake_word import only_wake_phrase as check
+
+    return check(text, name_alone=name_alone)
+
+
 def _can_play_audio() -> bool:
     """Whether sounddevice and PortAudio can be loaded.
 
@@ -372,6 +379,9 @@ class PipelineResult:
     # only when the reply is chosen, so those turns were recorded and shown
     # with no answer: a typed turn that was refused displayed nothing.
     reply: str = ""
+    # Set while a filler waits to learn whether this turn is real. See _run_gated_pipeline.
+    filler_gate: Any = None
+    filler_wanted: bool = False
     # (stage name, wall-clock start, seconds) in the order the stages ran.
     # Sources the turn's research tools returned, as cited in the answer:
     # id, kind, title, url and how much of each was read.
@@ -1176,6 +1186,13 @@ class IntegrationOrchestrator:
         # already recorded the command by the time the pipeline runs.
         # Playback holds the process-wide PortAudio lock, so the reply still
         # cannot start until the filler has finished. A typed turn has none.
+        #
+        # After a fallback wake the filler waits for the name check. It used to
+        # start at once, so anything the loudness gate let through was
+        # answered "haan bol" before anyone had checked it was meant for the
+        # assistant, and a bare "Hey Guru" got the filler and then the greeting.
+        if wake_event.quiet_if_unsure:
+            result.filler_gate = asyncio.Event()
         filler = None if typed else asyncio.create_task(self._play_filler(result, _wake_timestamp, _get_um))
         started_at = _time.time()
         # Only when startup() has already loaded NVML (a read then takes about
@@ -1195,6 +1212,8 @@ class IntegrationOrchestrator:
             return turn
         finally:
             _TEXT_TURN.reset(token)
+            if result.filler_gate is not None:
+                result.filler_gate.set()
             # Never left running unobserved; it is usually long finished.
             if filler is not None:
                 with contextlib.suppress(asyncio.CancelledError):
@@ -1257,10 +1276,17 @@ class IntegrationOrchestrator:
                 result.error = "no_wake_name_after_fallback_wake"
                 result.stages_completed = 8
                 return result
+            if wake_event.text is None and only_wake_phrase(result.transcript) and not (
+                    wake_event.quiet_if_unsure and self._poorly_heard()):
+                await self._greet_in_turn(wake_event, result)
+                return result
             if wake_event.quiet_if_unsure and self._unsure(result.transcript):
                 result.error = "unsure_after_fallback_wake"
                 result.stages_completed = 8
                 return result
+            if result.filler_gate is not None:
+                result.filler_wanted = True
+                result.filler_gate.set()
 
             # Re-check personality from transcript
             self._correct_personality_from_transcript(result)
@@ -1726,11 +1752,97 @@ class IntegrationOrchestrator:
             },
         )
 
+    def _wake_greeting(self, pipeline_mode: str) -> str:
+        """What the assistant says to its wake phrase alone. The name is only for its owner's voice."""
+        from Agent_Guru.platform.features.user_memory import get_user_memory
+
+        memory = get_user_memory()
+        name = str(memory.get("nickname") or memory.get("name") or "").strip()
+        if pipeline_mode == "restricted" or not name or len(name) > 40:
+            return "Hello, how can I help you?"
+        return f"Hello {name}, how can I help you?"
+
+    async def _greet_in_turn(self, wake_event: WakeWordEvent, result: PipelineResult) -> None:
+        """Answer a wake phrase said alone, then listen: awaiting_reply takes the next words with no wake word."""
+        self._correct_personality_from_transcript(result)
+        result.reply = self._wake_greeting(self._verify_speaker(wake_event, result))
+        result.intent = "greeting"
+        result.action_status = ActionStatus.SUCCESS
+        result.awaiting_reply = True
+        result.stages_completed = 8
+        with _timed(result, "tts"):
+            result.tts_response = await self._stage_tts(result.reply, result.personality)
+
+    async def wake_phrase_alone(self, audio: bytes) -> bool:
+        """Whether *audio*, the wake chunk, says the wake phrase and nothing more. Publishes no turn.
+
+        The loudness gate sends every noise here, so this is not a pipeline
+        turn: a false wake leaves no row in the conversation, no record and no
+        change of the orb.
+        """
+        try:
+            async with asyncio.timeout(STT_TIMEOUT_S):
+                transcript = await self._hear_wake_chunk(audio)
+        except TimeoutError:
+            return False
+        alone = only_wake_phrase(transcript, name_alone=True) and not self._poorly_heard()
+        logger.info("Wake chunk heard as %r: %s", transcript, "greeting the owner" if alone else "not a wake phrase alone")
+        return alone
+
+    async def warm_voice(self) -> None:
+        """Load speech recognition and the voice now, not at the first wake.
+
+        Both loaded on first use, so the first hello of the day came 17 s after
+        "Hey Guru": 11 s for Whisper and 3 s for Kokoro, measured on a real
+        run. Failures only mean the first wake pays for the load, as it did.
+        """
+        import numpy as np
+
+        started = time.perf_counter()
+        try:
+            stt = getattr(self.speech_engine, "stt_transcriber", None)
+            if stt is not None:
+                await asyncio.to_thread(stt.transcribe, np.zeros(16000, np.float32), 16000, "en")
+            tts = getattr(self.speech_engine, "tts_engine", None)
+            if tts is not None:
+                await asyncio.to_thread(tts.synthesize_to_array, "Hello")
+            logger.info("Voice warmed in %.1f s", time.perf_counter() - started)
+        except Exception as exc:  # noqa: BLE001 - never worth stopping the assistant for
+            logger.warning("Voice not warmed (%s): the first wake will load it", exc)
+
+    async def _hear_wake_chunk(self, audio: bytes) -> str:
+        """The wake chunk as text, in English.
+
+        Whisper picks a language from the audio, and two words are not enough:
+        the owner's "Hey Maya" came back as Thai, Vietnamese, Korean and
+        Japanese in 6 of 25 recorded takes. The name is the same in any language.
+        """
+        stt = getattr(self.speech_engine, "stt_transcriber", None)
+        if stt is None:
+            return (await self._stage_stt(audio, None))[0]
+        import numpy as np
+
+        samples = np.frombuffer(audio, dtype=np.float32).copy()
+        return self._parse_stt_result(await asyncio.to_thread(stt.transcribe, samples, 16000, "en"))[0]
+
+    async def greet(self, wake_word: str, audio: bytes = b"") -> str:
+        """Speak the greeting to a wake phrase main.py has already confirmed; what was said."""
+        event = WakeWordEvent(wake_word=wake_word, audio=audio)
+        result = PipelineResult(source="voice")
+        result.personality = self._resolve_personality(wake_word)
+        text = self._wake_greeting(self._verify_speaker(event, result))
+        await self._stage_tts(text, result.personality)
+        return text
+
     async def _play_filler(
         self, result: PipelineResult, wake_timestamp: float, _get_um: Any,
     ) -> None:
         """Play filler audio in the post-wake-word pause."""
         try:
+            if result.filler_gate is not None:
+                await result.filler_gate.wait()
+                if not result.filler_wanted:
+                    return
             from Agent_Guru.speech.filler_response import get_filler_cache
             _filler_cache = get_filler_cache()
             if not _filler_cache._initialized:
@@ -2091,6 +2203,12 @@ class IntegrationOrchestrator:
             return True
         logger.debug("No wake name in what a fallback wake heard - not a turn")
         return False
+
+    @staticmethod
+    def _poorly_heard() -> bool:
+        """True when the last transcript came with a confidence too low to act on after a fallback wake."""
+        confidence = _STT_CONFIDENCE.get()
+        return confidence is not None and confidence < QUIET_BELOW_CONFIDENCE
 
     @staticmethod
     def _unsure(transcript: str) -> bool:
