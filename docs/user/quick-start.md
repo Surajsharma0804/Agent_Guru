@@ -47,6 +47,24 @@ Say "Hey Guru" or "Hey Maya" to activate.
 
 ---
 
+## Running in the Background
+
+Setup offers to start Agent Guru with your computer, and the box is ticked by
+default. It then starts when you sign in, with no window, and listens for
+"Hey Guru" and "Hey Maya". Allow about 20 seconds after signing in.
+
+- Say "Hey Guru" and wait: it answers "Hello, your name, how can I help you?" and
+  listens, so you do not need the wake word again for that request.
+- Say "Hey Guru, what time is it?" in one breath and it just answers.
+- A tray icon shows it is running: Open, Mute microphone, Quit.
+- Opening Agent Guru shows the window of the one already running. Closing the
+  window leaves it listening. Quit, in the tray, ends it.
+- To stop it starting with your computer, use Control Center, Start with the
+  computer, Remove.
+
+Your name comes from what it remembers ("my name is ...") or from Configuration
+Studio, Your name. On macOS there is no tray icon: use the window.
+
 ## Basic Commands
 
 ### Voice Activation
