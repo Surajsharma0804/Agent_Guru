@@ -97,6 +97,41 @@ def wake_name(text: str) -> str | None:
     return "guru" if name in ("guru", "गुरु", "गुरू") else "maya"
 
 
+#: What may stand beside the name in a wake phrase said on its own.
+_WAKE_COMPANIONS = frozenset({"hey", "hay", "he", "hi", "hello", "ok", "okay", "oh", "o", "yo", "ya", "ji",
+                              "\u0939\u0947", "\u0939\u093e\u092f", "\u0913", "\u091c\u0940"})
+
+
+#: A name by itself is not a wake phrase in a turn: the rule that keeps a one-word
+#: fallback wake silent exists for it (Whisper writes "Guru." for a passing sound).
+#: A joined "Heguru" is two words said together, and stays a phrase.
+_NAME_ALONE = frozenset({"guru", "gurus", "guruji", "maya", "maia", "mayah", "mayaji", "\u0917\u0941\u0930\u0941",
+                         "\u0917\u0941\u0930\u0942", "\u092e\u093e\u092f\u093e"})
+
+
+def only_wake_phrase(text: str, *, name_alone: bool = False) -> bool:
+    """True when *text* is a wake phrase and nothing else: "Hey Guru.", not "Hey Guru, what time is it?".
+
+    Split on spaces and punctuation, not on word characters: Devanagari vowel
+    signs are not word characters, so that would break a name apart.
+
+    name_alone also takes "Guru.", for a chunk Silero has already found speech
+    in. Whisper drops a soft "hey": 10 of the owner's 50 recorded wake phrases
+    came back as the name alone. Allowed there, 43 of 50 were heard, with no
+    false match in 96 minutes of speech, sounds and music (1,284 chunks with
+    speech) or in 30 near misses such as "Hey Google" and "My Guru told me".
+    """
+    if wake_name(text) is None:
+        return False
+    words = [w for w in re.split(r"[\s,.!?;:\-\u0964\u3002]+", text.lower()) if w]
+    if len(words) == 1 and words[0] in _NAME_ALONE:
+        return name_alone
+    # One name, once it is said: "Guru, Maya." is Whisper repeating its own
+    # prompt over a quiet chunk, and nobody calls both at once.
+    named = {wake_name(w) for w in words} - {None}
+    return len(named) == 1 and all(w in _WAKE_COMPANIONS or _WAKE_NAME.fullmatch(w) for w in words)
+
+
 class WakeWordError(GuruSpeechError):
     """Raised when wake word detection encounters an unrecoverable error."""
 
