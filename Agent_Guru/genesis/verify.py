@@ -23,6 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from Agent_Guru.genesis import autostart
 from Agent_Guru.genesis import actions as act
 from Agent_Guru.utils import verified_files as vf
 
@@ -121,7 +122,13 @@ def probe_gpu_addon(ctx: act.ActionContext, component: dict[str, Any]) -> Result
         Result("FAILED", "CTranslate2 sees no CUDA device with the GPU libraries installed")
 
 
+def probe_autostart(ctx: act.ActionContext, component: dict[str, Any]) -> Result:
+    entry = autostart.entry_path(ctx.platform)
+    return Result("PASS", str(entry)) if entry.is_file() else Result("NOT INSTALLED", "the assistant does not start at sign-in")
+
+
 PROBES: dict[str, Callable[[act.ActionContext, dict[str, Any]], Result]] = {
+    "autostart.present": probe_autostart,
     "python.ok": probe_python,
     "venv.ok": probe_venv,
     "ollama.running": probe_ollama,
