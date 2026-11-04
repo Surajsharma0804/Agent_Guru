@@ -258,6 +258,16 @@ nodeenv==1.11.0
 noisereduce==3.0.3
 numba==0.68.0
 numpy==2.5.2
+# The voice GPU add-on (the gpu extra in pyproject.toml): the CUDA 12 cuBLAS
+# and cuDNN 9 libraries CTranslate2 needs to run Whisper on an NVIDIA GPU.
+# They were in no lock, so every GPU install took whatever was newest on
+# the day. Pinned 2026-11-04 to the versions pip resolves for Windows and
+# CPython 3.13, which the development venv runs Whisper on (0.2 s for a
+# 2.5 s command against 1.8 s on the CPU). nvidia-cuda-nvrtc-cu12 is
+# required by nvidia-cudnn-cu12 9.27. 1,372.6 MB to download in all.
+nvidia-cublas-cu12==12.9.2.10
+nvidia-cuda-nvrtc-cu12==12.9.86
+nvidia-cudnn-cu12==9.27.0.42
 ollama==0.6.3
 onnx==1.22.0
 onnx-ir==1.0.0
