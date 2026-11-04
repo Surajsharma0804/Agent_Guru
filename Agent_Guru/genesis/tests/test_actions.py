@@ -207,3 +207,49 @@ def test_runtime_task_output_is_read_from_its_last_json_line(tmp_path):
 def test_a_program_that_cannot_start_is_named_in_the_error(tmp_path):
     with pytest.raises(act.ActionError, match="could not start .*no-such-python.exe"):
         act._run([str(tmp_path / "no-such-python.exe"), "-V"])
+
+
+def _pinned(data, urls):
+    import hashlib
+
+    return {"id": "x", "dest": "runtime:models", "files": [
+        {"name": "m.bin", "size": len(data), "sha256": hashlib.sha256(data).hexdigest(), "url": urls[0], "mirrors": urls[1:]}]}
+
+
+def test_a_blocked_source_falls_through_to_the_mirror(tmp_path):
+    asked = []
+
+    def download(url, dest, pin, **k):
+        asked.append(url)
+        if "blocked" in url:
+            raise act.vf.DownloadError("blocked.test: m.bin: SSLCertVerificationError")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"weights")
+
+    ctx, events = ctx_for(tmp_path, download=download)
+    act.act_download_files(ctx, _pinned(b"weights", ["https://blocked.test/m", "https://mirror.test/m"]))
+    assert asked == ["https://blocked.test/m", "https://mirror.test/m"]  # nosec B101
+    assert (ctx.layout.runtime_root / "models" / "m.bin").read_bytes() == b"weights"  # nosec B101
+    assert any("trying the next source" in d.get("line", "") for k, d in events)  # nosec B101
+
+
+def test_every_source_failing_names_them_all(tmp_path):
+    def download(url, dest, pin, **k):
+        raise act.vf.DownloadError(url + " is down")
+
+    ctx, _ = ctx_for(tmp_path, download=download)
+    with pytest.raises(act.ActionError, match="a.test.*b.test"):
+        act.act_download_files(ctx, _pinned(b"x", ["https://a.test/m", "https://b.test/m"]))
+
+
+def test_wrong_bytes_are_not_retried_on_another_source(tmp_path):
+    asked = []
+
+    def download(url, dest, pin, **k):
+        asked.append(url)
+        raise act.vf.VerificationError("m.bin does not match its pinned sha256 hash")
+
+    ctx, _ = ctx_for(tmp_path, download=download)
+    with pytest.raises(act.ActionError, match="pinned sha256"):
+        act.act_download_files(ctx, _pinned(b"x", ["https://a.test/m", "https://b.test/m"]))
+    assert asked == ["https://a.test/m"]  # nosec B101
