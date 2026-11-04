@@ -134,3 +134,11 @@ def test_a_person_can_ask_for_the_data_to_go_too(tmp_path, monkeypatch):
     monkeypatch.setattr(cli.shutil, "rmtree", lambda p: removed.append(p) if p == layout.data_dir else real(p))
     assert cli.run(["--root", str(root), "--uninstall", "--remove-data", "--yes"]) == cli.EXIT_OK  # nosec B101
     assert removed == [layout.data_dir]  # nosec B101
+
+
+def test_uninstall_stops_the_ollama_this_install_started(tmp_path, monkeypatch):
+    root, layout = _installed(tmp_path)
+    layout.ollama_pid_file.write_text("4242", encoding="utf-8")
+    killed = []
+    monkeypatch.setattr(cli.os, "kill", lambda pid, sig: killed.append(pid))
+    assert cli.run(["--root", str(root), "--uninstall", "--yes"]) == cli.EXIT_OK and killed == [4242]  # nosec B101
