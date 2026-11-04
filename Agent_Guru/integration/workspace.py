@@ -123,22 +123,34 @@ class Workspace:
                 self.waiting = int(data.get("waiting", 0))
             elif topic == "turn.started":
                 self.waiting = max(0, self.waiting - 1)
-                self.turns.append({"turn": data.get("turn_id"), "source": data.get("source"), "heard": "", "said": "",
-                                   "sources": [], "status": "working"})
+                self.turns.append({"turn": data.get("turn_id"), "source": data.get("source"), "heard": data.get("heard") or "",
+                                   "said": "", "sources": [], "status": "working"})
             elif topic == "turn.finished":
                 row = next((t for t in reversed(self.turns) if t["turn"] == data.get("source_turn", data.get("turn_id"))), None)
                 if row is None:
                     row = {"turn": data.get("turn_id"), "source": data.get("source"), "status": "working"}
                     self.turns.append(row)
-                row.update(heard=data.get("heard") or "", said=data.get("said") or "",
+                row.update(heard=data.get("heard") or row.get("heard", ""), said=data.get("said") or "",
                            sources=list(data.get("sources") or []), status=data.get("status") or "answered")
+            elif topic == "turn.ended":
+                # turn.finished is not published when a turn fails before its
+                # record is written, and the row would say "Working on it" for
+                # the rest of the session.
+                for t in self.turns:
+                    if t["turn"] == data.get("turn_id") and t["status"] == "working":
+                        t["status"] = "no reply"
+
+    def _microphone(self) -> Any:
+        """The microphone, or None when this install has nothing to listen with."""
+        mic = getattr(self.orch, "microphone", None)
+        return None if getattr(mic, "no_audio_library", False) is True else mic
 
     # --- reading ------------------------------------------------------------
 
     def state(self, body: dict[str, Any]) -> tuple[int, Any]:
-        mic = getattr(self.orch, "microphone", None)
+        mic = self._microphone()
         with self.lock:
-            return 200, {"orb": self.orb.state, "seq": self.seq, "turns": list(self.turns), "waiting": self.waiting,
+            return 200, {"orb": self.orb.state, "seq": self.seq, "turns": [dict(t) for t in self.turns], "waiting": self.waiting,
                          "microphone": "none" if mic is None else ("muted" if self.orb.muted else "on"),
                          "questions": self.orch.pending_questions(), "source": SOURCE}
 
@@ -173,8 +185,17 @@ class Workspace:
         text = (body.get("text") or "").strip()
         if not text or len(text) > MAX_TEXT:
             return 400, {"error": f"a message is 1 to {MAX_TEXT} characters"}
-        self._run(self.orch.run_text_turn(text, source=SOURCE))
+        self._run(self.orch.run_text_turn(text, source=SOURCE)).add_done_callback(lambda f: self._turned_away(text, f))
         return 202, {"accepted": True}
+
+    def _turned_away(self, text: str, future: Any) -> None:
+        """Show a message the queue refused: it starts no turn, so no event ever names it."""
+        result = None if future.cancelled() or future.exception() else future.result()
+        if getattr(result, "error", None) == "busy":
+            with self.lock:
+                self.seq += 1
+                self.turns.append({"turn": None, "source": SOURCE, "heard": text, "said": result.llm_response or "",
+                                   "sources": [], "status": "busy"})
 
     def answer(self, body: dict[str, Any]) -> tuple[int, Any]:
         """Answer one waiting question, named by its source and turn."""
@@ -191,7 +212,7 @@ class Workspace:
 
     def set_mic(self, body: dict[str, Any]) -> tuple[int, Any]:
         _expect(body, {"muted": bool})
-        mic = getattr(self.orch, "microphone", None)
+        mic = self._microphone()
         if mic is None or "muted" not in body:
             return 409, {"error": "nothing is listening"}
         mic.set_muted(body["muted"])
