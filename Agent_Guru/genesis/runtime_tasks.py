@@ -205,15 +205,18 @@ def kokoro_fetch(args: list[str]) -> dict[str, Any]:
 
 
 def whisper_fetch(args: list[str]) -> dict[str, Any]:
-    size = args[0] if args else "base"
-    if size not in ("tiny", "base", "small"):
-        return _result("FAILED", f"unknown Whisper size {size!r}")
+    """Every Whisper size the assistant loads: tiny for the wake check, base for speech."""
+    sizes = args or ["tiny", "base"]
+    bad = [s for s in sizes if s not in ("tiny", "base", "small")]
+    if bad:
+        return _result("FAILED", f"unknown Whisper size {bad[0]!r}")
     try:
         from faster_whisper.utils import download_model
     except ImportError as exc:
         return _missing(exc)
-    path = download_model(size)
-    return _result("PASS", f"Whisper {size} at {Path(path).name}")
+    for size in sizes:
+        download_model(size)
+    return _result("PASS", "Whisper " + " and ".join(sizes) + " are in place")
 
 
 def tts_synthesize(args: list[str]) -> dict[str, Any]:
@@ -234,8 +237,18 @@ def tts_synthesize(args: list[str]) -> dict[str, Any]:
                    seconds=round(time.perf_counter() - start, 2))
 
 
+def voice_import(args: list[str]) -> dict[str, Any]:
+    """Every library of the voice stack loads, native parts included.
+
+    voice-packages was checked with core.import, which passes with no voice
+    package installed, so a broken install could be marked verified.
+    """
+    return _imports(["faster_whisper", "ctranslate2", "kokoro_onnx", "silero_vad", "sounddevice", "soundfile", "librosa"],
+                    "Whisper, Kokoro, silero VAD, sounddevice and librosa load")
+
+
 def stt_transcribe(args: list[str]) -> dict[str, Any]:
-    size = args[0] if args else "tiny"
+    size = args[0] if args else "base"
     try:
         import wave
 
@@ -357,6 +370,7 @@ TASKS: dict[str, Callable[[list[str]], dict[str, Any]]] = {
     "whisper.fetch": whisper_fetch, "tts.synthesize": tts_synthesize, "stt.transcribe": stt_transcribe,
     "wake.load": wake_load, "vision.check": vision_check, "browser.check": browser_check,
     "coding.check": coding_check, "research.reach": research_reach, "vault.check": vault_check,
+    "voice.import": voice_import,
 }
 
 
