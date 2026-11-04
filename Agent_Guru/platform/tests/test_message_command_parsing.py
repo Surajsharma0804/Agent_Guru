@@ -150,3 +150,53 @@ async def test_live_pipeline_addresses_the_recipient_only():
     await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=np.zeros(16000, np.float32).tobytes()))
     assert spoken == ["Opening WhatsApp for John"]  # nosec B101  was "... for John saying hello"
     assert ctrl.opened == ["https://web.whatsapp.com"]  # nosec B101  recorded, never opened
+
+
+@pytest.mark.parametrize("text", [
+    # The first of these, typed into the real window, was refused and answered
+    # with nothing: the model was never asked.
+    "What is two plus two? Answer in one short sentence.",
+    "Answer briefly: why is the sky blue?",
+    "Answer quickly: why is the sky blue?",
+    "reply briefly: is water wet?",
+    "answer this question for me",
+    "please respond in Hindi",
+    "reply in one word, is water wet?",
+    "reply to this email",
+    "what is the answer to life",
+    "what is a phone number",
+    "is there a phone in the room",
+    "how does email work",
+    "explain how text messages work",
+    "what does this message mean",
+    "what is the difference between a call and a put option",
+    "tell me about mail in ballots",
+])
+def test_a_question_is_not_a_command_to_contact_someone(text):
+    assert _RULES.recognize(text, "windows").intent_type != "communication"  # nosec B101
+
+
+@pytest.mark.parametrize(("text", "action", "contact"), [
+    ("call John", "make_call", "John"),
+    ("can you call John", "make_call", "John"),
+    ("ring my brother", "make_call", "my brother"),
+    ("text Priya", "send_message", "Priya"),
+    ("message Sam saying hello", "send_message", "Sam"),
+    ("mail the report to Sam", "email", "Sam"),
+    ("reply to mom", "reply", "mom"),
+    ("reply to my wife", "reply", "my wife"),
+])
+def test_commands_to_contact_someone_stay_commands(text, action, contact):
+    result = _RULES.recognize(text, "windows")
+    assert (result.intent_type, result.parameters["action"], result.parameters["contact"]) == ("communication", action, contact)  # nosec B101
+
+
+@pytest.mark.parametrize(("text", "contact", "message"), [
+    ("answer Priya saying I am late", "Priya", "I am late"),
+    ("reply back to Sam saying ok", "Sam", "ok"),
+    ("reply to John that I am late", "John", "I am late"),
+    ("reply to the team saying done", "the team", "done"),
+])
+def test_every_reply_the_rule_accepts_has_its_recipient_and_text(text, contact, message):
+    params = _RULES.recognize(text, "windows").parameters
+    assert (params["action"], params["contact"], params["message"]) == ("reply", contact, message)  # nosec B101
