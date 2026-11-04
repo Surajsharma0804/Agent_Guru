@@ -33,7 +33,7 @@ def test_plan_json_prints_the_plan_and_creates_nothing(tmp_path, fake_scan, caps
 def test_plan_text_names_the_model_the_sizes_and_what_changes_outside(tmp_path, fake_scan, capsys):
     cli.run(["--root", str(tmp_path / "AG"), "--plan"])
     text = capsys.readouterr().out
-    assert "Model: qwen2.5:1.5b" in text and "Download " in text and "Outside the install folder" in text  # nosec B101
+    assert "Model: gemma4:latest" in text and "Download " in text and "Outside the install folder" in text  # nosec B101
     assert "Nothing is added to startup, PATH or the firewall." in text  # nosec B101
 
 
@@ -99,3 +99,38 @@ def test_the_report_has_no_user_name_or_home_folder(tmp_path, monkeypatch, capsy
 def test_verify_with_nothing_installed_says_so(tmp_path, capsys):
     assert cli.run(["--root", str(tmp_path / "AG"), "--verify"]) == cli.EXIT_OK  # nosec B101
     assert "nothing is installed here yet" in capsys.readouterr().out  # nosec B101
+
+
+def _installed(tmp_path):
+    root = tmp_path / "AG"
+    layout = default_layout(root)
+    layout.runtime_root.mkdir(parents=True)
+    layout.data_dir.mkdir(parents=True, exist_ok=True)
+    return root, layout
+
+
+def test_uninstall_needs_yes_and_keeps_the_data(tmp_path):
+    root, layout = _installed(tmp_path)
+    marker = layout.data_dir / "memory.db"
+    marker.write_text("mine", encoding="utf-8")
+    assert cli.run(["--root", str(root), "--uninstall"]) == cli.EXIT_NOT_APPROVED and root.exists()  # nosec B101
+    assert cli.run(["--root", str(root), "--uninstall", "--yes"]) == cli.EXIT_OK  # nosec B101
+    assert not root.exists() and marker.read_text(encoding="utf-8") == "mine"  # nosec B101
+    marker.unlink()
+
+
+def test_uninstall_refuses_a_folder_that_is_not_an_install(tmp_path):
+    folder = tmp_path / "Documents"
+    folder.mkdir()
+    (folder / "thesis.txt").write_text("mine", encoding="utf-8")
+    assert cli.run(["--root", str(folder), "--uninstall", "--yes"]) == cli.EXIT_CANNOT  # nosec B101
+    assert (folder / "thesis.txt").is_file()  # nosec B101
+
+
+def test_a_person_can_ask_for_the_data_to_go_too(tmp_path, monkeypatch):
+    root, layout = _installed(tmp_path)
+    removed = []
+    real = cli.shutil.rmtree
+    monkeypatch.setattr(cli.shutil, "rmtree", lambda p: removed.append(p) if p == layout.data_dir else real(p))
+    assert cli.run(["--root", str(root), "--uninstall", "--remove-data", "--yes"]) == cli.EXIT_OK  # nosec B101
+    assert removed == [layout.data_dir]  # nosec B101
