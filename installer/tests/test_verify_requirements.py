@@ -184,29 +184,28 @@ class TestRAMCheck:
 
 
 class TestMicrophoneCheck:
+    """The check reads sounddevice, the library the assistant records with."""
+
+    @staticmethod
+    def _devices(*devices):
+        fake = MagicMock()
+        fake.query_devices.return_value = list(devices)
+        return patch.dict("sys.modules", {"sounddevice": fake})
+
     def test_microphone_found_passes(self):
-        mock_pa = MagicMock()
-        mock_pa.get_device_count.return_value = 2
-        mock_pa.get_device_info_by_index.side_effect = [
-            {"maxInputChannels": 2, "name": "Built-in Microphone"},
-            {"maxInputChannels": 0, "name": "Built-in Output"},
-        ]
-        with patch("pyaudio.PyAudio", return_value=mock_pa):
+        with self._devices({"max_input_channels": 2, "name": "Built-in Microphone"},
+                           {"max_input_channels": 0, "name": "Built-in Output"}):
             result = check_microphone()
         assert result.status == CheckStatus.PASS
+        assert result.message == "1 input device(s) found"
 
     def test_no_microphone_fails(self):
-        mock_pa = MagicMock()
-        mock_pa.get_device_count.return_value = 1
-        mock_pa.get_device_info_by_index.return_value = {
-            "maxInputChannels": 0, "name": "Output Only"
-        }
-        with patch("pyaudio.PyAudio", return_value=mock_pa):
+        with self._devices({"max_input_channels": 0, "name": "Output Only"}):
             result = check_microphone()
         assert result.status == CheckStatus.FAIL
 
-    def test_pyaudio_missing_warns(self):
-        with patch.dict("sys.modules", {"pyaudio": None}):
+    def test_sounddevice_missing_warns(self):
+        with patch.dict("sys.modules", {"sounddevice": None}):
             result = check_microphone()
         assert result.status == CheckStatus.WARN
 

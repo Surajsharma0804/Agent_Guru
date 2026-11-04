@@ -156,19 +156,16 @@ def check_ram() -> CheckResult:
 
 
 def check_microphone() -> CheckResult:
-    """Verify microphone is available."""
+    """Verify microphone is available.
+
+    This used pyaudio, which the project does not depend on: the assistant
+    records through sounddevice, so the check could only ever warn that
+    pyaudio was missing, and its two tests failed wherever it was absent.
+    """
     try:
-        import pyaudio  # type: ignore
-        pa = pyaudio.PyAudio()
-        device_count = pa.get_device_count()
-        input_devices = []
-
-        for i in range(device_count):
-            info = pa.get_device_info_by_index(i)
-            if info.get("maxInputChannels", 0) > 0:
-                input_devices.append(info.get("name", f"Device {i}"))
-
-        pa.terminate()
+        import sounddevice  # type: ignore
+        input_devices = [d.get("name", "unnamed device") for d in sounddevice.query_devices()
+                         if d.get("max_input_channels", 0) > 0]
 
         if input_devices:
             return CheckResult("Microphone", CheckStatus.PASS,
@@ -180,7 +177,7 @@ def check_microphone() -> CheckResult:
 
     except ImportError:
         return CheckResult("Microphone", CheckStatus.WARN,
-                           "pyaudio not installed - cannot check microphone",
+                           "sounddevice not installed - cannot check microphone",
                            "Microphone will be verified at runtime")
     except Exception as e:
         return CheckResult("Microphone", CheckStatus.WARN,
