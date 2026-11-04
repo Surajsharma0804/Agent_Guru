@@ -110,6 +110,14 @@ def isolate_profile(
     # Model caches stay where they are, read through the real paths.
     env.setdefault("HF_HOME", str(real_cache / "huggingface"))
     env.setdefault("TORCH_HOME", str(real_cache / "torch"))
+    # NLTK looks under the home folder and, on Windows, under APPDATA. Moving
+    # those hid the wordnet and tagger data, so every test run since this
+    # helper went back to the download server, and on a bad network nltk's
+    # error path crashed test_train_intent_classifier (2026-11-04).
+    for folder in (Path(env.get("APPDATA") or real_home) / "nltk_data", real_home / "nltk_data"):
+        if folder.is_dir():
+            env.setdefault("NLTK_DATA", str(folder))
+            break
     for name, folder in folders.items():
         folder.mkdir(parents=True, exist_ok=True)
         env[name] = str(folder)
