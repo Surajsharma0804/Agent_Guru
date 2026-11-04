@@ -88,3 +88,39 @@ def test_the_installer_ships_no_tests_and_no_models():
 
 def test_the_app_source_ships_where_the_frozen_layout_looks():
     assert 'DestDir: "{app}\\app\\Agent_Guru"' in ISS and 'DestDir: "{app}\\app"' in ISS  # nosec B101
+
+
+def _pins():
+    from Agent_Guru.genesis.manifest import lock_pins
+
+    return lock_pins(ROOT / "requirements-lock.txt")
+
+
+def test_the_build_tools_are_pinned_in_the_lock():
+    pins = _pins()
+    for name in ("pyinstaller", "pyinstaller-hooks-contrib", "pywebview", "pythonnet", "clr-loader"):
+        assert name in pins, name  # nosec B101
+
+
+def test_every_build_script_takes_its_tool_versions_from_the_lock():
+    for script in ("installer/linux/build_appimage.sh", "installer/macos/build_dmg.sh"):
+        text = (ROOT / script).read_text(encoding="utf-8")
+        assert "requirements-lock.txt" in text, script  # nosec B101
+        assert 'dist/AgentGuru-$VERSION' in text, script  # nosec B101  the project folder, never temp
+    assert "requirements-lock.txt" in (ROOT / "installer/windows/build_installer.ps1").read_text(encoding="utf-8")  # nosec B101
+
+
+def test_the_linux_stub_is_pinned_by_hash_and_checked():
+    text = (ROOT / "installer/linux/build_appimage.sh").read_text(encoding="utf-8")
+    assert re.search(r'RUNTIME_SHA256="[0-9a-f]{64}"', text) and "sha256sum -c" in text  # nosec B101
+
+
+def test_frozen_linux_and_macos_builds_carry_the_app_source_without_tests():
+    assert "datas.append((str(path), str(Path('app', *parts[:-1]))))" in SPEC  # nosec B101
+    assert "'tests' in parts" in SPEC and "requirements-lock.txt" in SPEC  # nosec B101
+    assert "BUNDLE(coll, name='Agent Guru.app'" in SPEC  # nosec B101
+
+
+def test_the_macos_build_says_it_is_unsigned():
+    text = (ROOT / "installer/macos/build_dmg.sh").read_text(encoding="utf-8")
+    assert "right-click" in text and "codesign" not in text  # nosec B101
