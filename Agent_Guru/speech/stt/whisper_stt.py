@@ -1,5 +1,15 @@
 ﻿"""Whisper-based speech-to-text transcription for desktop platforms."""
 
+# Annotations are kept as strings. Without this, the module could not be
+# imported when faster_whisper is missing or its ctranslate2 DLL is blocked:
+# the fallback below sets WhisperModel = None, and the annotation
+# "tuple[WhisperModel | None, str]" on _load_on_gpu was evaluated when the
+# class was defined, raising TypeError (None | None). main.py treats speech as
+# critical, so the assistant crashed five times and gave up instead of
+# starting with the fallback the try block was written for. Found 2026-11-04
+# by starting main.py in a venv with only the core packages.
+from __future__ import annotations
+
 import contextlib
 import logging
 import os
