@@ -268,6 +268,13 @@ numpy==2.5.2
 nvidia-cublas-cu12==12.9.2.10
 nvidia-cuda-nvrtc-cu12==12.9.86
 nvidia-cudnn-cu12==9.27.0.42
+# The system keychain, for the key that encrypts secrets on macOS and Linux.
+jaraco.classes==3.4.0
+jaraco.context==6.1.2
+jaraco.functools==4.6.0
+keyring==25.7.0
+SecretStorage==3.5.0; sys_platform == "linux"
+jeepney==0.9.0; sys_platform == "linux"
 # Build tools for the installers: never in a user install. They were
 # installed unpinned, so two builds of one version could differ. pythonnet
 # and clr_loader carry pywebview's WebView2 window on Windows.
