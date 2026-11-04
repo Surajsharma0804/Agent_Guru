@@ -16,7 +16,9 @@
 ;   installer\windows\build_installer.ps1
 
 #define MyAppName "Agent Guru"
-#define MyAppVersion "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "Suraj Sharma"
 #define MyAppURL "https://github.com/Surajsharma0804/Agent_Guru"
 #define MyAppExeName "AgentGuru.exe"
