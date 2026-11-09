@@ -316,3 +316,7 @@ wakeword_training/runner/*
 !wakeword_training/runner/*.py
 !wakeword_training/runner/*.sh
 !wakeword_training/runner/RUNBOOK.md
+
+# Claude Code editor settings - local only, no value to contributors
+.claude/
+CLAUDE.md
