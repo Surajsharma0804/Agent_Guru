@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # Agent Guru
 
@@ -327,7 +327,7 @@ estimate; each figure comes from the evaluation scripts in `scripts/` or the tur
 | Research questions answered with correct citations (`scripts/research_eval.py`) | 6 of 6, typed and spoken |
 | Tool-use evaluation (`scripts/tool_loop_eval.py`) | 9 of 11 (misses: two tools chained in one turn) |
 | Start to listening (warm start) | about 12 s |
-| Automated tests | 6,380 passed in the last full local run; CI runs the suite on Python 3.11, 3.12 and 3.13 |
+| Automated tests | 7,904 collected, 0 failures - CI on Python 3.11, 3.12 and 3.13 |
 
 ### Choosing a model
 
