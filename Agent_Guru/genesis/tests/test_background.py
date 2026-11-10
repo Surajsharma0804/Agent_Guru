@@ -74,9 +74,14 @@ def test_the_windows_entry_is_a_real_shortcut_in_the_startup_folder(layout, home
     assert link.WindowStyle == 7  # nosec B101  minimised, so nothing flashes at sign-in
 
 
-def test_a_frozen_build_starts_itself_and_never_the_console_build(layout, monkeypatch):
+def test_a_frozen_build_starts_itself_and_never_the_console_build(layout, monkeypatch, tmp_path):
+    # A native path so PosixPath on Linux can parse the directory and
+    # filename components. The hardcoded "C:\\AG\\..." was one PosixPath
+    # name component on Linux, so .name never started with "agentgurucli"
+    # and the rename to the windowed build was skipped.
+    cli_exe = tmp_path / "AG" / "AgentGuruCli.exe"
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", "C:\\AG\\AgentGuruCli.exe")
+    monkeypatch.setattr(sys, "executable", str(cli_exe))
     monkeypatch.delenv("APPIMAGE", raising=False)
     command, _ = autostart.launcher_command(layout)
     assert Path(command[0]).name == "AgentGuru.exe"  # nosec B101
