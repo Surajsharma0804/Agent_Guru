@@ -174,7 +174,10 @@ details.log summary { cursor: pointer; color: var(--text-dim); }
 .question { margin-bottom: var(--space-3); border-color: var(--warn); }
 .question .btn { margin-right: var(--space-2); }
 .say { display: flex; gap: var(--space-3); margin-top: var(--space-5); }
-.say textarea { flex: 1; font: inherit; color: var(--text); background: var(--bg-raised); border: 1px solid var(--line-strong);
+/* min-width: 0 overrides the textarea's intrinsic minimum (from cols=20)
+   so flex shrinking works at the 320 px WCAG reflow width. Without it the
+   textarea held ~160 px and pushed the Send button 10 px past the window. */
+.say textarea { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg-raised); border: 1px solid var(--line-strong);
   border-radius: var(--radius-small); padding: var(--space-2) var(--space-3); resize: vertical; }
 .tier input[type="text"], .tier input[type="number"], .tier input[type="password"], .tier select { width: 14rem; height: auto; font: inherit;
   color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--radius-small); padding: var(--space-1) var(--space-2); }
