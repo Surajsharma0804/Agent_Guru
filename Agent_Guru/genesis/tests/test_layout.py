@@ -33,6 +33,9 @@ def test_a_frozen_launcher_installs_next_to_itself(monkeypatch, tmp_path):
     exe = tmp_path / "Agent Guru" / "AgentGuru.exe"
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(exe))
+    # Without this, Linux CI takes the per-user install path because
+    # default_layout() gates on sys.platform != "win32" first.
+    monkeypatch.setattr(sys, "platform", "win32")
     layout = lay.default_layout()
     assert layout.install_root == exe.parent.resolve() and layout.app_root == exe.parent.resolve() / "app"  # nosec B101
     assert layout.lock_file == layout.app_root / "requirements-lock.txt"  # nosec B101
@@ -47,6 +50,9 @@ def test_a_frozen_launcher_with_a_root_keeps_its_own_app_folder(monkeypatch, tmp
     exe = tmp_path / "Agent Guru" / "AgentGuru.exe"
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(exe))
+    # Same gate as test_a_frozen_launcher_installs_next_to_itself: without
+    # this, Linux runs the per-user branch and install_root is XDG, not root.
+    monkeypatch.setattr(sys, "platform", "win32")
     layout = lay.default_layout(tmp_path / "elsewhere")
     assert layout.install_root == (tmp_path / "elsewhere").resolve()  # nosec B101
     assert layout.app_root == exe.parent.resolve() / "app"  # nosec B101
